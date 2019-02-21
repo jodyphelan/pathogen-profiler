@@ -1,0 +1,42 @@
+{% set name = "pathogen-profiler" %}
+{% set version = "0.1" %}
+{% set sha256 = "43ff592698239afdf9522320bed2524f3ec6bcb6786f58403907cfa8c1731eec" %}
+
+package:
+  name: {{name}}
+  version: {{version}}
+
+source:
+  url: https://github.com/jodyphelan/{{name}}/archive/v{{version}}.tar.gz
+  sha256: '{{sha256}}'
+
+build:
+  script: python -m pip install --no-deps --ignore-installed .
+  noarch: python
+  number: 3
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python
+    - trimmomatic
+    - bwa
+    - bowtie2
+    - minimap2
+    - parallel
+    - samtools
+    - bcftools
+    - blast
+
+test:
+  imports:
+    - pathogenprofiler
+
+about:
+  home: https://github.com/jodyphelan/{{ name }}
+  license: GPL3
+  license_file: LICENSE
+  summary: Microbial assembly pipeline for Illumina paired-end reads
+
