@@ -2,6 +2,7 @@ import json
 from .utils import *
 from .bam import *
 from .barcode import *
+from .fastq import *
 def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4):
 		conf = json.load(open(conf_file))
 		for f in conf:

@@ -1,6 +1,6 @@
 {% set name = "pathogen-profiler" %}
 {% set version = "0.1" %}
-{% set sha256 = "807436e5a73745cfcab8c9b3181946c08e0680d9f6e55e44323b65ac237c9602" %}
+{% set sha256 = "686501f3d4d4ecd18e394d4b4568029a11177aa3c75e08798385ab070aec4558" %}
 
 package:
   name: {{name}}
@@ -26,8 +26,8 @@ requirements:
     - bowtie2
     - minimap2
     - parallel
-    - samtools
-    - bcftools
+    - samtools=1.9
+    - bcftools=1.9
 
 test:
   imports:
