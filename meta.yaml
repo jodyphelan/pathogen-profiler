@@ -28,8 +28,7 @@ requirements:
     - parallel
     - samtools
     - bcftools
-    - blast
-
+    
 test:
   imports:
     - pathogenprofiler
@@ -39,4 +38,3 @@ about:
   license: GPL3
   license_file: LICENSE
   summary: Microbial assembly pipeline for Illumina paired-end reads
-
