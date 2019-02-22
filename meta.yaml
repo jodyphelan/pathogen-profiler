@@ -1,6 +1,6 @@
 {% set name = "pathogen-profiler" %}
 {% set version = "0.1" %}
-{% set sha256 = "43ff592698239afdf9522320bed2524f3ec6bcb6786f58403907cfa8c1731eec" %}
+{% set sha256 = "807436e5a73745cfcab8c9b3181946c08e0680d9f6e55e44323b65ac237c9602" %}
 
 package:
   name: {{name}}
@@ -28,7 +28,7 @@ requirements:
     - parallel
     - samtools
     - bcftools
-    
+
 test:
   imports:
     - pathogenprofiler

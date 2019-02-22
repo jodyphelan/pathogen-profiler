@@ -8,4 +8,5 @@ setuptools.setup(
 	packages=["pathogenprofiler",],
 	license="MIT",
 	long_description="TBProfiler command line tool",
+	scripts=['scripts/splitchr.py']
 )
