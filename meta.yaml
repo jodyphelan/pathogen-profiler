@@ -1,6 +1,6 @@
 {% set name = "pathogen-profiler" %}
 {% set version = "0.1" %}
-{% set sha256 = "686501f3d4d4ecd18e394d4b4568029a11177aa3c75e08798385ab070aec4558" %}
+{% set sha256 = "f985900147e147f827052224dfd67dca4ebaae2bc6a73fa9d89bcca194529762" %}
 
 package:
   name: {{name}}
