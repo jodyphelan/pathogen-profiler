@@ -6,7 +6,7 @@ setuptools.setup(
 	name="pathogen-profiler",
 	version="0.1dev",
 	packages=["pathogenprofiler",],
-	license="MIT",
-	long_description="TBProfiler command line tool",
+	license="GPL3",
+	long_description="Pathogen profiling tool",
 	scripts=['scripts/splitchr.py']
 )
