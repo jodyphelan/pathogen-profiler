@@ -21,7 +21,7 @@ class bam:
 		self.ref_fa_obj = fasta(self.ref_file)
 		self.ref_fa_dict = self.ref_fa_obj.fa_dict
 	def run_delly(self):
-		run_cmd("delly call -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
+		run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
 		return delly_bcf("%(prefix)s.delly.bcf" % vars(self))
 	def call_variants(self,gff_file=None,bed_file=None,call_method="optimise",min_dp=10,threads=4,mixed_as_missing=False,**kwargs):
 		add_arguments_to_self(self,locals())
