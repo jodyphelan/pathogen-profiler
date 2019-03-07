@@ -3,7 +3,8 @@ from .utils import *
 from .bam import *
 from .barcode import *
 from .fastq import *
-def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4):
+
+def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False):
 		conf = json.load(open(conf_file))
 		for f in conf:
 			filecheck(conf[f])
@@ -40,4 +41,7 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		barcode_mutations = barcode(mutations,conf["barcode"])
 		results["barcode"] = barcode_mutations
 		results = db_compare(db_file=conf["json_db"],mutations=results)
+		if run_delly:
+			delly_bcf = bam_obj.run_delly()
+			results["deletions"] = delly_bcf.overlap_bed(conf["bed"])
 		return results

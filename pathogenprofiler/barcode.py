@@ -48,3 +48,10 @@ def db_compare(mutations,db_file):
 				annotated_mutations["variants"][i]["annotation"][key] = db[var["gene_id"]][var["change"]][key]
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
+
+def del_compare(deletions,bed_file):
+	bed = load_bed(bed_file,[1,2,3,4,5,6],4)
+	for deletion in deletions:
+		if deletion["region"] in bed:
+			deletion["annotation"]["drugs"] = bed[deletion["region"]]
+	return deletions
