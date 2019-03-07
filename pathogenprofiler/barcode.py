@@ -49,9 +49,12 @@ def db_compare(mutations,db_file):
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
 
-def del_compare(deletions,bed_file):
+def del_compare(deletions,mutations,bed_file):
 	bed = load_bed(bed_file,[1,2,3,4,5,6],4)
 	for deletion in deletions:
+		tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion}
 		if deletion["region"] in bed:
+			for drug in bed[deletion["region"]].split(","):
+				mutations
 			deletion["annotation"]["drugs"] = bed[deletion["region"]]
 	return deletions
