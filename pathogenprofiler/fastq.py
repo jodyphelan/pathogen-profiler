@@ -21,7 +21,7 @@ class fastq:
 		mapping: A mapping class object
 	"""
 
-	def __init__(self,prefix,ref_file,r1,r2=None,threads=4):
+	def __init__(self,prefix,ref_file,r1,r2=None,threads=4,sample_name=None):
 		self.params = {"r1":None,"r2":None}
 		self.paired = False
 		self.call_method = "high"
@@ -35,6 +35,7 @@ class fastq:
 			self.paired = True
 
 		self.params["prefix"] = prefix
+		self.params["sample_name"] = sample_name
 		self.params["threads"] = threads
 		if filecheck(ref_file):
 			self.params["ref_file"] = ref_file
@@ -58,14 +59,14 @@ class fastq:
 		if self.paired:
 			cmd = "cat %(r1_tu)s %(r2_tu)s > %(rtu)s" % self.params
 			run_cmd(cmd)
-			psmapper = mapping(self.params["prefix"],self.params["ref_file"],paired1=self.params["r1_tp"],paired2=self.params["r2_tp"],unpaired=self.params["rtu"],mapper=mapper,threads=self.params["threads"])
+			psmapper = mapping(self.params["prefix"],self.params["ref_file"],paired1=self.params["r1_tp"],paired2=self.params["r2_tp"],unpaired=self.params["rtu"],mapper=mapper,threads=self.params["threads"],sample_name=self.params["sample_name"])
 		else:
-			psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1t"],mapper=mapper,threads=self.params["threads"])
+			psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1t"],mapper=mapper,threads=self.params["threads"],sample_name=self.params["sample_name"])
 		psmapper.map()
 		rm_files([self.params["r1t"],self.params["r1_tp"],self.params["r2_tp"],self.params["rtu"],self.params["r1_tu"],self.params["r2_tu"]])
 		return psmapper.get_bam(platform="Illumina")
 	def minION(self,mapper="minimap2"):
-		psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1"],mapper=mapper,threads=self.params["threads"],platform="minION")
+		psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1"],mapper=mapper,threads=self.params["threads"],platform="minION",sample_name=self.params["sample_name"])
 		psmapper.map()
 		return psmapper.get_bam(platform="minION")
 	def get_fastq_qc(self):
@@ -89,7 +90,7 @@ class mapping:
 		mapping: A mapping class object
 	"""
 
-	def __init__(self,prefix,ref_file,paired1=None,paired2=None,unpaired=None,threads=4,mapper="bwa",platform="Illumina"):
+	def __init__(self,prefix,ref_file,paired1=None,paired2=None,unpaired=None,threads=4,mapper="bwa",platform="Illumina",sample_name=None):
 		if mapper=="bwa": bwa_index(ref_file)
 		elif mapper=="bowtie2": bowtie_index(ref_file)
 		self.params = {}
@@ -100,6 +101,7 @@ class mapping:
 		if paired2 and filecheck(paired2): self.params["paired2"] = paired2
 		if unpaired and filecheck(unpaired): self.params["unpaired"] = unpaired
 		self.params["prefix"] = prefix
+		self.params["sample_name"] = sample_name if sample_name else prefix
 		self.params["threads"] = threads
 		self.params["platform"] = platform
 		if mapper!="bowtie2" and mapper!="bwa" and mapper!="minimap2":
@@ -111,9 +113,9 @@ class mapping:
 	def map(self):
 		"""Perform mapping"""
 		prefix = self.params["prefix"]
-		self.params["bwa_prefix"] = "bwa mem -t %(threads)s -c 100 -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:%(platform)s' -M -T 50" % self.params
-		self.params["minimap2_prefix"] = "minimap2 -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:%(platform)s' -a" % self.params
-		self.params["bowtie2_prefix"] = "bowtie2 -p %(threads)s --rg-id '%(prefix)s' --rg 'SM:%(prefix)s' --rg 'PL:%(platform)s'" % self.params
+		self.params["bwa_prefix"] = "bwa mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % self.params
+		self.params["minimap2_prefix"] = "minimap2 -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % self.params
+		self.params["bowtie2_prefix"] = "bowtie2 -p %(threads)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' --rg 'PL:%(platform)s'" % self.params
 		self.params["bam_file"] = "%s.bam" % prefix
 		if self.params["platform"]=="minION" and self.mapper!="minimap2":
 			log("minION data not compatible with %s...Switching to minimap2" % self.mapper)

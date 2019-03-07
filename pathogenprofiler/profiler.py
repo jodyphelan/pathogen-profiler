@@ -16,9 +16,9 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 			log("Only second fastQ file provided. If profiling a single ended run, just use '-1'",True)
 		if r1 or r2:
 			if r2:
-				fastq_obj = fastq(prefix,conf["ref"],r1,r2,threads=threads)
+				fastq_obj = fastq(prefix,conf["ref"],r1,r2,threads=threads,sample_name=prefix.split("/")[-1])
 			else:
-				fastq_obj = fastq(prefix,conf["ref"],r1,threads=threads)
+				fastq_obj = fastq(prefix,conf["ref"],r1,threads=threads,sample_name=prefix.split("/")[-1])
 			if platform=="Illumina":
 				bam_obj = fastq_obj.illumina(mapper=mapper)
 			elif platform=="minION":
@@ -43,5 +43,6 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		results = db_compare(db_file=conf["json_db"],mutations=results)
 		if run_delly:
 			delly_bcf = bam_obj.run_delly()
-			results["deletions"] = delly_bcf.overlap_bed(conf["bed"])
+			deletions = delly_bcf.overlap_bed(conf["bed"])
+			results = annotate_deletions(deletions = deletions, mutations=results,bed_file=conf["bed"])
 		return results
