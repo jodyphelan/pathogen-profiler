@@ -51,7 +51,7 @@ def barcode(mutations,barcode_bed):
 		final_results.append(tmp)
 	return final_results
 
-def db_compare(mutations,db_file,bed_file,deletions=None):
+def db_compare(mutations,db_file):
 	db = json.load(open(db_file))
 	annotated_mutations = mutations
 	for i in range(len(mutations["variants"])):
@@ -69,17 +69,12 @@ def db_compare(mutations,db_file,bed_file,deletions=None):
 				db_var_match = db[var["gene_id"]]["any_indel_nucleotide_%s" % get_indel_nucleotide(var["change"])]
 			elif "stop_gained" in var["type"] and "premature_stop" in db[var["gene_id"]]:
 				db_var_match = db[var["gene_id"]]["premature_stop"]
+			elif "large_deletion" in var["type"] and "large_deletion" in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]]["large_deletion"]
 			if db_var_match:
 				if "annotation" not in annotated_mutations["variants"][i]:
 					annotated_mutations["variants"][i]["annotation"] = {}
 				for key in db_var_match:
 					annotated_mutations["variants"][i]["annotation"][key] = db_var_match[key]
-	if deletions:
-		bed = load_bed(bed_file,[1,2,3,4,5,6],4)
-		for deletion in deletions:
-			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s:g.%(start)s_%(end)sdel" % deletion}
-			if deletion["region"] in db and "large_deletion" in db[deletion["region"]]:
-				tmp["annotation"] =  db[deletion["region"]]["large_deletion"]			
-			mutations["variants"].append(tmp)
-	#1883443: {u'C': 0.8, u'A': 0.2}
+	
 	return annotated_mutations

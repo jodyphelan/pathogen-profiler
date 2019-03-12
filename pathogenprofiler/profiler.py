@@ -43,8 +43,10 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		if run_delly:
 			delly_bcf = bam_obj.run_delly()
 			deletions = delly_bcf.overlap_bed(conf["bed"])
-			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"],deletions=deletions)
-		else:
-			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"])
+			for deletion in deletions:
+				tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion}
+				results["variants"].append(tmp)
+
+		results = db_compare(db_file=conf["json_db"],mutations=results)
 
 		return results
