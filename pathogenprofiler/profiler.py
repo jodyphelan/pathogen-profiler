@@ -44,7 +44,6 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 			delly_bcf = bam_obj.run_delly()
 			deletions = delly_bcf.overlap_bed(conf["bed"])
 			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"],deletions=deletions)
-			print("asdnjasndasdnbuibdisbaidbaui")
 		else:
 			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"])
 
