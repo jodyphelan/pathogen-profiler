@@ -79,7 +79,7 @@ def db_compare(mutations,db_file,bed_file,deletions=None):
 		for deletion in deletions:
 			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s:g.%(start)s_%(end)sdel" % deletion}
 			if deletion["region"] in db and "large_deletion" in db[deletion["region"]]:
-				tmp["annotation"] =  db[deletion["region"]]			
+				tmp["annotation"] =  db[deletion["region"]]["large_deletion"]			
 			mutations["variants"].append(tmp)
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
