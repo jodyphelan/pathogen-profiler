@@ -51,7 +51,7 @@ def barcode(mutations,barcode_bed):
 		final_results.append(tmp)
 	return final_results
 
-def db_compare(mutations,db_file):
+def db_compare(mutations,db_file,bed_file):
 	db = json.load(open(db_file))
 	annotated_mutations = mutations
 	for i in range(len(mutations["variants"])):
@@ -75,17 +75,16 @@ def db_compare(mutations,db_file):
 					annotated_mutations["variants"][i]["annotation"] = {}
 				for key in db_var_match:
 					annotated_mutations["variants"][i]["annotation"][key] = db_var_match[key]
-
+	for var in deletions:
+		bed = load_bed(bed_file,[1,2,3,4,5,6],4)
+		for deletion in deletions:
+			if deletion["region"] in db and "large_deletion" in db[deletion["region"]]:
+				tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion,"annotation":db[deletion["region"]]}
+				mutations["variants"].append(tmp)
 
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
 
 def annotate_deletions(deletions,mutations,bed_file):
-	bed = load_bed(bed_file,[1,2,3,4,5,6],4)
-	for deletion in deletions:
-		tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion,"annotation":{"drugs":{}}}
-		if deletion["region"] in bed:
-			for drug in bed[deletion["region"]][5].split(","):
-				tmp["annotation"]["drugs"][drug] = {}
-		mutations["variants"].append(tmp)
+
 	return mutations

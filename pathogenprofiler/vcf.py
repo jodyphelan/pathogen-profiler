@@ -63,7 +63,6 @@ class bcf:
 		nuc_variants = self.load_variants()
 		variants = {s:[] for s in self.samples}
 		for line in cmd_out("bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%SAMPLE\\t%%TBCSQ\\t%%TGT\\t%%AD]\\n' %s" % self.filename):
-			print(line.strip())
 			row = line.split()
 			chrom = row[0]
 			pos = int(row[1])
