@@ -9,6 +9,15 @@ import random
 import math
 rand_generator = random.SystemRandom()
 
+def revcom(s):
+        """Return reverse complement of a sequence"""
+        def complement(s):
+                        basecomplement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+                        letters = list(s)
+                        letters = [basecomplement[base] for base in letters]
+                        return ''.join(letters)
+        return complement(s[::-1])
+
 def stdev(arr):
 	mean = sum(arr)/len(arr)
 	return math.sqrt(sum([(x-mean)**2 for x in arr])/len(arr))

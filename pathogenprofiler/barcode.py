@@ -1,5 +1,21 @@
 from .utils import *
 import json
+import re
+
+def get_missense_codon(x):
+	re_obj = re.search("([0-9]+)",x)
+	if re_obj:
+		return int(re_obj.group(1))
+	else:
+		log("Error can't find codon number in %s" % x,True)
+
+def get_indel_nucleotide(x):
+	re_obj = re.search("([0-9]+)",x)
+	if re_obj:
+		return int(re_obj.group(1))
+	else:
+		log("Error can't find nucleotide number in %s" % x,True)
+
 def barcode(mutations,barcode_bed):
 	bed_num_col = len(open(barcode_bed).readline().rstrip().split())
 	cols = [1,3,4,5,6]+list(range(7,bed_num_col+1)) if bed_num_col>6 else [1,3,4,5,6]
@@ -41,11 +57,26 @@ def db_compare(mutations,db_file):
 	for i in range(len(mutations["variants"])):
 		#var = {'genome_pos': 6140, 'gene_id': 'Rv0005', 'chr': 'Chromosome', 'freq': 0.975609756097561, 'type': 'missense', 'change': '301V>301L'}
 		var = mutations["variants"][i]
-		if var["gene_id"] in db and var["change"] in db[var["gene_id"]]:
-			if "annotation" not in annotated_mutations["variants"][i]:
-				annotated_mutations["variants"][i]["annotation"] = {}
-			for key in db[var["gene_id"]][var["change"]]:
-				annotated_mutations["variants"][i]["annotation"][key] = db[var["gene_id"]][var["change"]][key]
+		print(var)
+		if var["gene_id"] in db:
+			db_var_match = None
+			if var["change"] in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]][var["change"]]
+			elif "frameshift" in var["type"] and "frameshift" in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]]["frameshift"]
+			elif "missense" in var["type"] and "any_missense_codon_%s" % get_missense_codon(var["change"]) in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]]["any_missense_codon_%s" % get_missense_codon(var["change"])]
+			elif "frame" in var["type"] and "any_indel_nucleotide_%s" % get_indel_nucleotide(var["change"]) in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]]["any_indel_nucleotide_%s" % get_indel_nucleotide(var["change"])]
+			elif "stop_gained" in var["type"] and "premature_stop" in db[var["gene_id"]]:
+				db_var_match = db[var["gene_id"]]["premature_stop"]
+			if db_var_match:
+				if "annotation" not in annotated_mutations["variants"][i]:
+					annotated_mutations["variants"][i]["annotation"] = {}
+				for key in db_var_match:
+					annotated_mutations["variants"][i]["annotation"][key] = db_var_match[key]
+
+
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
 
