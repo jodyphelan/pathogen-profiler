@@ -79,7 +79,7 @@ def db_compare(mutations,db_file,bed_file):
 		bed = load_bed(bed_file,[1,2,3,4,5,6],4)
 		for deletion in deletions:
 			if deletion["region"] in db and "large_deletion" in db[deletion["region"]]:
-				tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion,"annotation":db[deletion["region"]]}
+				tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s:g.%(start)s_%(end)sdel" % deletion,"annotation":db[deletion["region"]]}
 				mutations["variants"].append(tmp)
 
 	#1883443: {u'C': 0.8, u'A': 0.2}
