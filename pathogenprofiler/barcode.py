@@ -57,7 +57,6 @@ def db_compare(mutations,db_file,bed_file,deletions=None):
 	for i in range(len(mutations["variants"])):
 		#var = {'genome_pos': 6140, 'gene_id': 'Rv0005', 'chr': 'Chromosome', 'freq': 0.975609756097561, 'type': 'missense', 'change': '301V>301L'}
 		var = mutations["variants"][i]
-		print(var)
 		if var["gene_id"] in db:
 			db_var_match = None
 			if var["change"] in db[var["gene_id"]]:
@@ -77,6 +76,7 @@ def db_compare(mutations,db_file,bed_file,deletions=None):
 					annotated_mutations["variants"][i]["annotation"][key] = db_var_match[key]
 	if deletions:
 		for var in deletions:
+			print(var)
 			bed = load_bed(bed_file,[1,2,3,4,5,6],4)
 			for deletion in deletions:
 				if deletion["region"] in db and "large_deletion" in db[deletion["region"]]:
@@ -84,7 +84,3 @@ def db_compare(mutations,db_file,bed_file,deletions=None):
 					mutations["variants"].append(tmp)
 	#1883443: {u'C': 0.8, u'A': 0.2}
 	return annotated_mutations
-
-def annotate_deletions(deletions,mutations,bed_file):
-
-	return mutations
