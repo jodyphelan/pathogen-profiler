@@ -40,9 +40,11 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		mutations = bam_obj.get_bed_gt(conf["barcode"])
 		barcode_mutations = barcode(mutations,conf["barcode"])
 		results["barcode"] = barcode_mutations
-		results = db_compare(db_file=conf["json_db"],mutations=results)
 		if run_delly:
 			delly_bcf = bam_obj.run_delly()
 			deletions = delly_bcf.overlap_bed(conf["bed"])
-			results = annotate_deletions(deletions = deletions, mutations=results,bed_file=conf["bed"])
+			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"],deletions=deletions)
+		else:
+			results = db_compare(db_file=conf["json_db"],mutations=results,bed_file=conf["bed"])
+
 		return results
