@@ -97,7 +97,7 @@ class bam:
 			self.mpileup_options = mpileup_options
 		self.min_dp_cmd = "| bcftools filter -e 'FMT/DP<%(min_dp)s' -Ou -S ." % vars(self) if low_dp_as_missing else ""
 		self.max_dp_cmd = "| bcftools filter -e 'FMT/DP>%(max_dp)s' -Ou -S ." % vars(self) if max_dp else ""
-		run_cmd("%(cmd_split_chr)s | parallel --progress --col-sep '\\t' -j %(threads)s \"bcftools mpileup  -f %(ref_file)s %(bam_file)s %(mpileup_options)s -r {1} | bcftools call %(primer_cmd)s %(vtype)s -mg %(min_dp)s | bcftools norm -f %(ref_file)s %(min_dp_cmd)s %(max_dp_cmd)s %(extra_cmd)s | bcftools view -Ob -o %(prefix)s_{2}.bcf \"" % vars(self))
+		run_cmd("%(cmd_split_chr)s | parallel --col-sep '\\t' -j %(threads)s \"bcftools mpileup  -f %(ref_file)s %(bam_file)s %(mpileup_options)s -r {1} | bcftools call %(primer_cmd)s %(vtype)s -mg %(min_dp)s | bcftools norm -f %(ref_file)s %(min_dp_cmd)s %(max_dp_cmd)s %(extra_cmd)s | bcftools view -Ob -o %(prefix)s_{2}.bcf \"" % vars(self))
 		run_cmd("%(cmd_split_chr)s | awk '{print \"%(prefix)s_\"$2\".bcf\"}' | parallel -j  %(threads)s \"bcftools index {}\"" % vars(self))
 
 		if primers:
