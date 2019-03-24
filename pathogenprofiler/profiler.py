@@ -3,7 +3,7 @@ from .utils import *
 from .bam import *
 from .barcode import *
 from .fastq import *
-
+import re
 def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False):
 		conf = json.load(open(conf_file))
 		for f in conf:
@@ -48,5 +48,16 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 				results["variants"].append(tmp)
 
 		results = db_compare(db_file=conf["json_db"],mutations=results)
+		for var in results["variants"]:
+			if var["type"]=="large_deletion":
+				print(var)
+				re_obj = re.search("([A-Za-z\.\-\_0-9]+)_([0-9]+)_([0-9]+)",var["change"])
+				chrom = re_obj.group(1)
+				start = int(re_obj.group(2))
+				end = int(re_obj.group(3))
+				for i in range(int(start),int(end)+1):
+					if (chrom,i) in results["missing_pos"]:
+						results["missing_pos"].remove((chrom,i))
+
 
 		return results
