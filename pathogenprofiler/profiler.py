@@ -48,5 +48,6 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 
 		results = db_compare(db_file=conf["json_db"],mutations=results)
 		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"])
+		results["missing_regions"] = missing_regions
 
 		return results
