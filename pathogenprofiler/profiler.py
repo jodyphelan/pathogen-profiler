@@ -55,9 +55,9 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 				start = int(re_obj.group(2))
 				end = int(re_obj.group(3))
 				for i in range(int(start),int(end)+1):
+					delly_pos.append((chrom,i))
 					if (chrom,i) in results["missing_pos"]:
 						results["missing_pos"].remove((chrom,i))
-						delly_pos.append((chrom,i))
 		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"],delly_pos)
 		print(results["missing_pos"])
 		print(missing_regions)
