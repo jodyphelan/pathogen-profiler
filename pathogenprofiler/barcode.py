@@ -53,7 +53,7 @@ def barcode(mutations,barcode_bed):
 
 def db_compare(mutations,db_file):
 	db = json.load(open(db_file))
-	annotated_mutations = mutations
+	annotated_results = mutations
 	for i in range(len(mutations["variants"])):
 		#var = {'genome_pos': 6140, 'gene_id': 'Rv0005', 'chr': 'Chromosome', 'freq': 0.975609756097561, 'type': 'missense', 'change': '301V>301L'}
 		var = mutations["variants"][i]
@@ -72,9 +72,18 @@ def db_compare(mutations,db_file):
 			elif "large_deletion" in var["type"] and "large_deletion" in db[var["gene_id"]]:
 				db_var_match = db[var["gene_id"]]["large_deletion"]
 			if db_var_match:
-				if "annotation" not in annotated_mutations["variants"][i]:
-					annotated_mutations["variants"][i]["annotation"] = {}
+				if "annotation" not in annotated_results["variants"][i]:
+					annotated_results["variants"][i]["annotation"] = {}
 				for key in db_var_match:
-					annotated_mutations["variants"][i]["annotation"][key] = db_var_match[key]
-	
-	return annotated_mutations
+					annotated_results["variants"][i]["annotation"][key] = db_var_match[key]
+	for var in annotated_results["variants"]:
+		if var["type"]=="large_deletion":
+			re_obj = re.search("([A-Za-z\.\-\_0-9]+)_([0-9]+)_([0-9]+)",var["change"])
+			chrom = re_obj.group(1)
+			start = int(re_obj.group(2))
+			end = int(re_obj.group(3))
+			for i in range(int(start),int(end)+1):
+				if (chrom,i) in results["missing_pos"]:
+					annotated_results["missing_pos"].remove((chrom,i))
+
+	return annotated_results
