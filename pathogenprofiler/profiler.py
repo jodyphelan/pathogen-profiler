@@ -58,6 +58,7 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 						results["missing_pos"].remove((chrom,i))
 
 		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"])
+		print(results["missing_pos"])
 		print(missing_regions)
 		results["missing_regions"] = missing_regions
 
