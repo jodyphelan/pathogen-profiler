@@ -151,7 +151,7 @@ class bam:
 			arr = line.split()
 			if arr[0] not in self.ref_cov: log("Can't find %s in FASTA...Have you used the correct reference sequence?" % arr[0]);quit()
 			self.ref_cov[arr[0]][int(arr[1])-1] = int(arr[2])
-	def get_bed_missing(self,bed_file,missing_pos=None):
+	def get_bed_missing(self,bed_file,missing_pos=None,deletions_pos=None):
 		# BED lines like this: Chromosome	10	20	region1
 		bed_pos = load_bed(bed_file,[1,2,3,4],4,intasint=True)
 		self.load_genome_cov(bed_file)
@@ -162,7 +162,7 @@ class bam:
 			start = int(start)
 			end = int(end)
 			for i in range(start,end):
-				if (chrom,i) in missing_pos or self.ref_cov[chrom][i]==0:
+				if ((chrom,i) in missing_pos or self.ref_cov[chrom][i]==0) and (chrom,i) not in deletions_pos:
 					 miss_pos+=1
 			miss_region[region] = miss_pos/(end-start)
 		return miss_region

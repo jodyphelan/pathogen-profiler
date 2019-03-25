@@ -47,6 +47,7 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 				results["variants"].append(tmp)
 
 		results = db_compare(db_file=conf["json_db"],mutations=results)
+		delly_pos = []
 		for var in results["variants"]:
 			if var["type"]=="large_deletion":
 				re_obj = re.search("([A-Za-z\.\-\_0-9]+)_([0-9]+)_([0-9]+)",var["change"])
@@ -56,8 +57,8 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 				for i in range(int(start),int(end)+1):
 					if (chrom,i) in results["missing_pos"]:
 						results["missing_pos"].remove((chrom,i))
-
-		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"])
+						delly_pos.append((chrom,i))
+		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"],delly_pos)
 		print(results["missing_pos"])
 		print(missing_regions)
 		results["missing_regions"] = missing_regions
