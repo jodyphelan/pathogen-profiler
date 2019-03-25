@@ -76,14 +76,5 @@ def db_compare(mutations,db_file):
 					annotated_results["variants"][i]["annotation"] = {}
 				for key in db_var_match:
 					annotated_results["variants"][i]["annotation"][key] = db_var_match[key]
-	for var in annotated_results["variants"]:
-		if var["type"]=="large_deletion":
-			re_obj = re.search("([A-Za-z\.\-\_0-9]+)_([0-9]+)_([0-9]+)",var["change"])
-			chrom = re_obj.group(1)
-			start = int(re_obj.group(2))
-			end = int(re_obj.group(3))
-			for i in range(int(start),int(end)+1):
-				if (chrom,i) in results["missing_pos"]:
-					annotated_results["missing_pos"].remove((chrom,i))
 
 	return annotated_results
