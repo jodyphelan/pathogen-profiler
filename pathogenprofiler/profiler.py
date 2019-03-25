@@ -32,7 +32,6 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 
 
 		missing_pos = bcf("%s.targets.missing.bcf" % prefix).get_positions()
-		missing_regions = bam_obj.get_bed_missing(conf["bed"],missing_pos)
 		results = {"variants":[],"missing_regions":missing_regions,"missing_pos":missing_pos,"qc":{"pct_reads_mapped":bam_obj.pct_reads_mapped,"num_reads_mapped":bam_obj.num_reads_mapped}}
 		for sample in csq:
 			results["variants"]  = csq[sample]
@@ -48,6 +47,6 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 				results["variants"].append(tmp)
 
 		results = db_compare(db_file=conf["json_db"],mutations=results)
-
+		missing_regions = bam_obj.get_bed_missing(conf["bed"],results["missing_pos"])
 
 		return results
