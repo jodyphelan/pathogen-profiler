@@ -162,6 +162,9 @@ class bam:
 			start = int(start)
 			end = int(end)
 			for i in range(start,end):
+				print((chrom,i))
+				print(deletions_pos)
+
 				if ((chrom,i) in missing_pos or self.ref_cov[chrom][i]==0) and (chrom,i) not in deletions_pos:
 					 miss_pos+=1
 			miss_region[region] = miss_pos/(end-start)
