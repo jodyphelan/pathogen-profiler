@@ -32,7 +32,7 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 
 
 		missing_pos = bcf("%s.targets.missing.bcf" % prefix).get_positions()
-		results = {"variants":[],"missing_regions":missing_regions,"missing_pos":missing_pos,"qc":{"pct_reads_mapped":bam_obj.pct_reads_mapped,"num_reads_mapped":bam_obj.num_reads_mapped}}
+		results = {"variants":[],"missing_pos":missing_pos,"qc":{"pct_reads_mapped":bam_obj.pct_reads_mapped,"num_reads_mapped":bam_obj.num_reads_mapped}}
 		for sample in csq:
 			results["variants"]  = csq[sample]
 
