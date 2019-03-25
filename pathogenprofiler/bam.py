@@ -156,17 +156,13 @@ class bam:
 		bed_pos = load_bed(bed_file,[1,2,3,4],4,intasint=True)
 		self.load_genome_cov(bed_file)
 		miss_region = {}
-		print(deletions_pos)
 		for region in bed_pos:
 			miss_pos = 0
 			chrom,start,end = bed_pos[region][0:3]
 			start = int(start)
 			end = int(end)
 			for i in range(start,end):
-
 				if ((chrom,i) in missing_pos or self.ref_cov[chrom][i]==0) and (chrom,i) not in deletions_pos:
-					print((chrom,i))
-					print("yes")
 					miss_pos+=1
 			miss_region[region] = miss_pos/(end-start)
 		return miss_region
