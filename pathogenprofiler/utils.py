@@ -9,6 +9,12 @@ import random
 import math
 rand_generator = random.SystemRandom()
 
+def filetype(x):
+	for l in cmd_out("file %s" % x):
+		pass
+	row = l.rstrip().split()
+	return row[1]
+
 def revcom(s):
         """Return reverse complement of a sequence"""
         def complement(s):
