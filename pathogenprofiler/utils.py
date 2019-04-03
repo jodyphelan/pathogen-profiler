@@ -51,7 +51,7 @@ def cmd_out(cmd,verbose=1):
 		for l in res.stdout:
 			yield l.decode().rstrip()
 	except:
-		print("Command Failed! Please Check!")
+		sys.stderr.write("Command Failed! Please Check!")
 		exit(1)
 	stderr.close()
 
@@ -81,7 +81,7 @@ def load_tsv(filename):
 	meta = {}
 	for row in csv.DictReader(open(filename),delimiter="\t"):
 		if "sample" not in row:
-			print("No sample column...Exiting")
+			sys.stderr.write("No sample column...Exiting")
 			quit(1)
 		meta[row["sample"]] = {}
 		columns = set(row)-set(["sample"])
@@ -138,7 +138,7 @@ def filecheck(filename):
 	Check if file is there and quit if it isn't
 	"""
 	if not os.path.isfile(filename):
-		print("Can't find %s" % filename)
+		sys.stderr.write("Can't find %s" % filename)
 		exit(1)
 	else:
 		return filename
@@ -148,7 +148,7 @@ def foldercheck(filename):
 	Check if file is there and quit if it isn't
 	"""
 	if not os.path.isdir(filename):
-		print("Can't find %s" % filename)
+		sys.stderr.write("Can't find %s" % filename)
 		exit(1)
 	else:
 		return filename
@@ -210,7 +210,7 @@ def run_cmd(cmd,verbose=1,target=None):
 	res = subprocess.call(cmd,shell=True,stderr = stderr,stdout = stdout)
 	stderr.close()
 	if res!=0:
-		print("Command Failed! Please Check!")
+		sys.stderr.write("Command Failed! Please Check!")
 		exit(1)
 
 def index_bam(bamfile,threads=4,overwrite=False):
@@ -242,7 +242,7 @@ def verify_fq(filename):
 	FQ = open(filename) if filename[-3:]!=".gz" else gzip.open(filename)
 	l1 = FQ.readline()
 	if l1[0]!="@":
-		print("First character is not \"@\"\nPlease make sure this is fastq format\nExiting...")
+		sys.stderr.write("First character is not \"@\"\nPlease make sure this is fastq format\nExiting...")
 		exit(1)
 	else:
 		return True
@@ -253,7 +253,7 @@ def rm_files(x,verbose=True):
 	"""
 	for f in x:
 		if os.path.isfile(f):
-			if verbose: print("Removing %s" % f)
+			if verbose: sys.stderr.write("Removing %s\n" % f)
 			os.remove(f)
 
 def file_len(filename):
@@ -283,7 +283,7 @@ def download_from_ena(acc):
 		dir2 = "00"+acc[-1]
 		cmd = "wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s/%s*" % (dir1,dir2,acc,acc)
 	else:
-		print("Check Accession: %s" % acc)
+		sys.stderr.write("Check Accession: %s" % acc)
 		exit(1)
 	run_cmd(cmd)
 
