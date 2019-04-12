@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-import sys
 import pathogenprofiler as pp
 import argparse
 

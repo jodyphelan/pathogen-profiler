@@ -59,12 +59,12 @@ def get_random_file(prefix = None,extension=None):
 	randint = rand_generator.randint(1,999999)
 	if prefix:
 		if extension:
-			return "%s.%s.%s" % (prefix,randint,extension)
+			return "%s.%s%s" % (prefix,randint,extension)
 		else:
 			return "%s.%s.txt" % (prefix,randint)
 	else:
 		if extension:
-			return "%s.tmp.%s" % (randint,extension)
+			return "%s.tmp%s" % (randint,extension)
 		else:
 			return "%s.tmp.txt" % (randint)
 
@@ -108,7 +108,6 @@ def load_bed(filename,columns,key1,key2=None,intasint=False):
 	return results
 
 def split_bed(bed_file,size,reformat=False):
-	bed_regions = {}
 	for l in open(filecheck(bed_file)):
 		row = l.rstrip().split()
 		chrom,start,end = row[0],int(row[1]),int(row[2])
@@ -292,7 +291,7 @@ def which(program):
 	def is_exe(fpath):
 		return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-	fpath, fname = os.path.split(program)
+	fpath = os.path.split(program)[0]
 	if fpath:
 		if is_exe(program):
 			return program

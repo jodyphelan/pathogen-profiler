@@ -165,7 +165,31 @@ class bcf:
 			row = l.split()
 			results.append((row[0],int(row[1])))
 		return results
-
+	def get_bed_gt(self,bed_file,ref_file):
+		add_arguments_to_self(self,locals())
+		cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+		results = defaultdict(lambda : defaultdict(dict))
+		for l in cmd_out(cmd):
+			#Chromosome	4348079	0/0	51
+			chrom,pos,ref,alt,gt,ad = l.rstrip().split()
+			pos =int(pos)
+			d = {}
+			alts = alt.split(",")
+			ad = [int(x) for x in ad.split(",")] if ad!="." else [100]
+			if gt=="0/0":
+				d[ref] = ad[0]
+			elif gt=="./.":
+				d[ref] = 0
+			else:
+				for i,a in enumerate([ref]+alts):
+					d[a] = ad[i]
+			results[chrom][pos] = d
+		bed = load_bed(bed_file,[1,3,5],1,3)
+		for chrom in bed:
+			for pos in bed[chrom]:
+				if int(pos) not in results[chrom]:
+					results[chrom][int(pos)] = {bed[chrom][pos][2]:50}
+		return results
 
 class delly_bcf(bcf):
 	def __init__(self,filename):
