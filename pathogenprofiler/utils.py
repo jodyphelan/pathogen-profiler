@@ -15,6 +15,13 @@ def filetype(x):
 	row = l.rstrip().split()
 	return row[1]
 
+def get_seqs_from_bam(bamfile):
+	seqs = []
+	for l in cmd_out("samtools view %s -H | grep ^@SQ" % bamfile):
+		row = l.rstrip().split()
+		seqs.append(row[1].replace("SN:",""))
+	return seqs
+
 def revcom(s):
         """Return reverse complement of a sequence"""
         def complement(s):
