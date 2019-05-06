@@ -23,17 +23,17 @@ class bam:
 	def run_delly(self):
 		run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
 		return delly_bcf("%(prefix)s.delly.bcf" % vars(self))
-	def call_variants(self,gff_file=None,bed_file=None,call_method="optimise",min_dp=10,threads=4,mixed_as_missing=False,**kwargs):
+	def call_variants(self,gff_file=None,bed_file=None,call_method="optimise",min_dp=10,threads=4,mixed_as_missing=False,af=0.0,**kwargs):
 		add_arguments_to_self(self,locals())
 		self.gbcf_file = "%s.gbcf" % self.prefix
 		self.missing_bcf_file = "%s.missing.bcf" % self.prefix
 		self.gbcf(prefix=self.prefix,call_method=call_method,min_dp=min_dp,threads=threads,vtype="both",bed_file=bed_file,low_dp_as_missing=True)
-
 		self.variant_bcf_file = "%s.bcf" % self.prefix
 		self.del_bed = bcf(self.gbcf_file).del_pos2bed()
 		self.mix_cmd = "| bcftools +setGT -- -t q -i 'GT=\"het\" & AD[:1]/(AD[:0]+AD[:1])<0.7' -n . |" if mixed_as_missing else ""
-		run_cmd("bcftools view %(gbcf_file)s %(mix_cmd)s| bcftools view -T ^%(del_bed)s -g miss -O b -o %(missing_bcf_file)s" % vars(self))
-		run_cmd("bcftools view %(gbcf_file)s %(mix_cmd)s| bcftools view -g ^miss -c 1 -O b -o %(variant_bcf_file)s" % vars(self))
+		self.af_filter_cmd = "| bcftools view -i 'AF>%s'" % af
+		run_cmd("bcftools view %(gbcf_file)s %(mix_cmd)s %(af_filter_cmd)s | bcftools view -T ^%(del_bed)s -g miss -O b -o %(missing_bcf_file)s" % vars(self))
+		run_cmd("bcftools view %(gbcf_file)s %(mix_cmd)s %(af_filter_cmd)s | bcftools view -g ^miss -c 1 -O b -o %(variant_bcf_file)s" % vars(self))
 
 		if gff_file and filecheck(gff_file):
 			self.gff_file = gff_file

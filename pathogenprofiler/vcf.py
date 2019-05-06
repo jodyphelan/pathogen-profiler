@@ -95,30 +95,31 @@ class bcf:
 				adr = {alleles[i]:d/sum(ad) for i,d in enumerate(ad)}
 				if row[i+1][0]=="@": continue
 				if info[-1]=="pseudogene": continue
-				gene = info[1]
+				gene_id = info[2]
+				gene_name = info[1]
 				if info[0]=="intron":continue
 				if info[0]=="coding_sequence":
 					cng = "%s%s>%s" % (ann_pos,call1,call2)
 					variants[sample].append({"sample":sample,"gene_id":ann_gene,"chr":chrom,"genome_pos":pos,"type":"non_coding","change":cng,"freq":adr[call2]})
 				elif  "missense" in info[0] or "start_lost" in info[0] or "stop_gained" in info[0]:
-					variants[sample].append({"sample":sample,"gene_id":gene,"chr":chrom,"genome_pos":pos,"type":info[0],"change":info[5],"freq":adr[call2]})
+					variants[sample].append({"sample":sample,"gene_id":gene_id,"gene_name":gene_name,"chr":chrom,"genome_pos":pos,"type":info[0],"change":info[5],"freq":adr[call2]})
 				elif "synonymous" in info[0] or info[0]=="stop_retained":
 					change_num,ref_nuc,alt_nuc =  parse_mutation(info[6])
 					change = "%s%s>%s" % (ann_pos,ref_nuc,alt_nuc) if ann_pos else "%s%s>%s" % (pos,ref_nuc,alt_nuc)
-					variants[sample].append({"sample":sample,"gene_id":gene,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
+					variants[sample].append({"sample":sample,"gene_id":gene_id,"gene_name":gene_name,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
 				elif "frame" in info[0] or "stop_lost" in info[0]:
 					if len(info)<6:
 						if chrom in ann and pos in ann[chrom]:
 							change = "%s%s>%s" % (pos,ref,call2)
-							variants[sample].append({"sample":sample,"gene_id":gene,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
+							variants[sample].append({"sample":sample,"gene_id":gene_id,"gene_name":gene_name,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
 					else:
-						variants[sample].append({"sample":sample,"gene_id":gene,"chr":chrom,"genome_pos":pos,"type":info[0],"change":info[6],"freq":adr[call2]})
+						variants[sample].append({"sample":sample,"gene_id":gene_id,"gene_name":gene_name,"chr":chrom,"genome_pos":pos,"type":info[0],"change":info[6],"freq":adr[call2]})
 				elif info[0]=="non_coding":
 					if chrom in ann and pos in ann[chrom]:
 						gene = ann[chrom][pos][0]
 						gene_pos = ann[chrom][pos][1]
 						change = "%s%s>%s" % (gene_pos,ref,call2)
-						variants[sample].append({"sample":sample,"gene_id":gene,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
+						variants[sample].append({"sample":sample,"gene_id":gene,"gene_name":gene_name,"chr":chrom,"genome_pos":pos,"type":info[0],"change":change,"freq":adr[call2]})
 				else:
 					log(line)
 					log(info[0]+"\n")
