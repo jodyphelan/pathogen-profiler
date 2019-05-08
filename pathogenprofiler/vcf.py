@@ -93,6 +93,7 @@ class bcf:
 				ad = [int(x) if x!="." else 0 for x in row[i+4].split(",")]
 
 				adr = {alleles[i]:d/sum(ad) for i,d in enumerate(ad)}
+				if row[i+1]==".": continue
 				if row[i+1][0]=="@": continue
 				if info[-1]=="pseudogene": continue
 				gene_id = info[2]
