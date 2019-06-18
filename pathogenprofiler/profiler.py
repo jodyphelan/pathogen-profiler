@@ -3,6 +3,7 @@ from .utils import *
 from .bam import *
 from .barcode import *
 from .fastq import *
+from .abi import *
 import re
 def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False,af=0.0):
 		conf = json.load(open(conf_file))
@@ -62,3 +63,18 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		results["missing_regions"] = missing_regions
 
 		return results
+
+def abi_profiler(conf_file,prefix,filenames):
+	files = filenames.split(",")
+	conf = json.load(open(conf_file))
+	for f in conf:
+		filecheck(conf[f])
+	for f in files:
+		filecheck(f)
+	abi_obj = abi(files,prefix)
+	vcf_obj = abi_obj.get_variants_vcf(conf["ref"],conf["gff"])
+	csq = vcf_obj.load_csq(ann_file=conf["ann"])
+	results = {"variants":[]}
+	for sample in csq:
+		results["variants"]  = csq[sample]
+	return results
