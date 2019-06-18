@@ -44,6 +44,8 @@ def main(args):
 			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion}
 			variants.append(tmp)
 	json.dump(variants,open("%s/%s.pp-results.json" % (args.out_dir,args.prefix),"w"))
+	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gbcf",".targets.gbcf.csi",".targets.missing.bcf"]:
+		pp.run_cmd("rm %s%s" % (args.prefix,x))
 
 
 parser = argparse.ArgumentParser(description='get mutations pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
