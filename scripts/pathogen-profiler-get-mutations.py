@@ -42,10 +42,9 @@ def main(args):
 		chr2gene_pos[int(row[1])] = int(row[3])
 	for var in list(csq.values())[0]:
 		var["_internal_change"] = var["change"]
-		print(var)
 		var["change"] = pp.reformat_mutations(var["change"],var["type"],var["gene_id"],chr2gene_pos)
 		variants.append(var)
-	if args.delly:
+	if not args.no_delly:
 		delly_bcf = bam_obj.run_delly()
 		deletions = delly_bcf.overlap_bed(conf["bed"])
 		for deletion in deletions:
@@ -53,6 +52,7 @@ def main(args):
 			variants.append(tmp)
 	json.dump(variants,open("%s/%s.pp-results.json" % (args.out_dir,args.prefix),"w"))
 	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gbcf",".targets.gbcf.csi",".targets.missing.bcf"]:
+		if args.no_delly and "delly" in x: continue
 		pp.run_cmd("rm %s%s" % (args.prefix,x))
 
 
@@ -64,7 +64,7 @@ parser.add_argument('--ref', help='Fasta file')
 parser.add_argument('--gff', help='Fasta file')
 parser.add_argument('--bed', help='Fasta file')
 parser.add_argument('--ann', help='Fasta file')
-parser.add_argument('--delly',action="store_true", help='Fasta file')
+parser.add_argument('--no-delly',action="store_true", help='Fasta file')
 parser.add_argument('--call-method',default="low", help='Fasta file')
 parser.add_argument('--platform',default="Illumina", help='Fasta file')
 parser.add_argument('--threads',default=1, help='Fasta file')
