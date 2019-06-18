@@ -15,7 +15,6 @@ def main(args):
 		}
 	if args.conf:
 		conf = json.load(open(args.conf))
-	print(conf)
 	for x in ["ref","gff","bed","ann"]:
 		if conf[x]==None:
 			pp.log("%s variable is not defined" % x,True)
@@ -36,7 +35,16 @@ def main(args):
 		af=args.af
 	)
 	csq = bcf_obj.load_csq(ann_file=conf["ann"])
-	variants = list(csq.values())[0]
+	variants = []
+	chr2gene_pos = {}
+	for l in open(conf["ann"]):
+		row = l.rstrip().split()
+		chr2gene_pos[int(row[1])] = int(row[3])
+	for var in list(csq.values())[0]:
+		var["_internal_change"] = var["change"]
+		print(var)
+		var["change"] = pp.reformat_mutations(var["change"],var["type"],var["gene_id"],chr2gene_pos)
+		variants.append(var)
 	if args.delly:
 		delly_bcf = bam_obj.run_delly()
 		deletions = delly_bcf.overlap_bed(conf["bed"])

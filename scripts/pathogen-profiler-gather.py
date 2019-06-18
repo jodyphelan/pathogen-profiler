@@ -10,14 +10,13 @@ def main(args):
 	if args.samples:
 		samples = [x.rstrip() for x in open(args.samples).readlines()]
 	else:
-		samples = [x.replace(".pp-results.json","") for x in os.listdir("%s/"%args.dir) if x[-13:]==".pp-results.json"]
+		samples = [x.replace(".pp-results.json","") for x in os.listdir("%s/"%args.dir) if x[-16:]==".pp-results.json"]
 	mutations = defaultdict(set)
 	for s in tqdm(samples):
 		tmp = json.load(open("%s/%s.pp-results.json" % (args.dir,s)))
-		for var in tmp["dr_variants"]:
-			mutations[(var["gene"],var["change"])].add(s)
-		for var in tmp["other_variants"]:
-			mutations[(var["gene"],var["change"])].add(s)
+		for var in tmp:
+			gene_name = var["gene_name"] if "gene_name" in var else var["gene_id"]
+			mutations[(gene_name,var["change"])].add(s)
 	num_samples = len(samples)
 	if args.summary:
 		O = open(args.summary,"w")
