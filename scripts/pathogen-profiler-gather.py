@@ -45,12 +45,11 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='TBProfiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--samples',type=str,help='NGS Platform')
-parser.add_argument('--dir',default="results/",type=str,help='NGS Platform')
+parser.add_argument('--dir',default="pp-results",type=str,help='NGS Platform')
 parser.add_argument('--matrix',type=str,help='NGS Platform')
 parser.add_argument('--fasta',type=str,help='NGS Platform')
 parser.add_argument('--summary',type=str,help='NGS Platform')
 parser.add_argument('--pct',action="store_true",help='NGS Platform')
-parser.add_argument('--dir',default="pp-results", help='Fasta file')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
