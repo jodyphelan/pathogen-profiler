@@ -33,7 +33,7 @@ def main(args):
 		threads=args.threads,
 		min_dp=args.min_depth,
 		af=args.af,
-		caller="gatk"
+		caller=args.caller
 	)
 	csq = bcf_obj.load_csq(ann_file=conf["ann"])
 	variants = []
