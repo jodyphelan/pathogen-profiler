@@ -35,7 +35,6 @@ def main(args):
 		af=args.af,
 		caller="gatk"
 	)
-	print("asdhaiduhasuidhui")
 	csq = bcf_obj.load_csq(ann_file=conf["ann"])
 	variants = []
 	chr2gene_pos = {}
@@ -71,6 +70,7 @@ parser.add_argument('--bed', help='Fasta file')
 parser.add_argument('--ann', help='Fasta file')
 parser.add_argument('--no-delly',action="store_true", help='Fasta file')
 parser.add_argument('--call-method',default="low", help='Fasta file')
+parser.add_argument('--caller',choices=["BCFtools","GATK"], default="GATK", help='Fasta file')
 parser.add_argument('--platform',default="Illumina", help='Fasta file')
 parser.add_argument('--threads',default=1, help='Fasta file')
 parser.add_argument('--min-depth',default=10, help='Fasta file')
