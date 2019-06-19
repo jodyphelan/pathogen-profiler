@@ -53,10 +53,8 @@ def main(args):
 			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":tmp_change}
 			variants.append(tmp)
 	json.dump(variants,open("%s/%s.pp-results.json" % (args.out_dir,args.prefix),"w"))
-	print("sadjaosidjasiod")
 	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gvcf.gz",".targets.gvcf.gz.csi",".targets.missing.bcf"]:
 		if args.no_delly and "delly" in x: continue
-		print(x)
 		pp.run_cmd("rm %s%s" % (args.prefix,x))
 
 
