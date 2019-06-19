@@ -24,9 +24,11 @@ class bcf:
 			elif filename[-5:]==".gbcf":
 				self.prefix = filename[:-5]
 			elif filename[-7:]==".vcf.gz":
-				self.prefix = filename[-7:]==".vcf.gz"
+				self.prefix = filename[:-7]
+			elif filename[-8:]==".gvcf.gz":
+				self.prefix = filename[:-8]
 			elif filename[-4:]==".vcf":
-				self.prefix = filename[-4:]==".vcf"
+				self.prefix = filename[:-4]
 			else:
 				self.prefix = filename
 		else:
@@ -89,7 +91,7 @@ class bcf:
 			for i in range(4,len(row)-4,5):
 				sample = row[i]
 				info = row[i+1].split("|") if row[i+1]!="." else row[i+2].split("|")
-				call1,call2 = row[i+3].split("/")
+				call1,call2 = row[i+3].split("/") if "/" in row[i+3] else row[i+3].split("|")
 				ad = [int(x) if x!="." else 0 for x in row[i+4].split(",")]
 
 				adr = {alleles[i]:d/sum(ad) for i,d in enumerate(ad)}
@@ -140,7 +142,7 @@ class bcf:
 			alleles = [row[2]]+alts
 			for i in range(len(self.samples)):
 				calls,ad = row[i+4].split(":")
-				call1,call2 = calls.split("/")
+				call1,call2 = calls.split("/") if "/" in calls else calls.split("|")
 				if calls=="N/N":
 					raw_variants[row[0]][row[1]][self.samples[i]]["N"] = 1.0
 					continue

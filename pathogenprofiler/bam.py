@@ -23,11 +23,14 @@ class bam:
 	def run_delly(self):
 		run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
 		return delly_bcf("%(prefix)s.delly.bcf" % vars(self))
-	def call_variants(self,gff_file=None,bed_file=None,call_method="optimise",min_dp=10,threads=4,mixed_as_missing=False,af=0.0,**kwargs):
+	def call_variants(self,caller="GATK",gff_file=None,bed_file=None,call_method="optimise",min_dp=10,threads=4,mixed_as_missing=False,af=0.0,**kwargs):
 		add_arguments_to_self(self,locals())
-		self.gbcf_file = "%s.gbcf" % self.prefix
+		self.gbcf_file = "%s.gvcf.gz" % self.prefix
 		self.missing_bcf_file = "%s.missing.bcf" % self.prefix
-		self.gbcf(prefix=self.prefix,call_method=call_method,min_dp=min_dp,threads=threads,vtype="both",bed_file=bed_file,low_dp_as_missing=True)
+		if self.caller=="GATK":
+			self.gatk_gvcf(bed_file=bed_file,low_dp_as_missing=True)
+		else:
+			self.bcftools_gbcf(prefix=self.prefix,call_method=call_method,min_dp=min_dp,threads=threads,vtype="both",bed_file=bed_file,low_dp_as_missing=True)
 		self.variant_bcf_file = "%s.bcf" % self.prefix
 		self.del_bed = bcf(self.gbcf_file).del_pos2bed()
 		self.mix_cmd = "| bcftools +setGT -- -t q -i 'GT=\"het\" & AD[:1]/(AD[:0]+AD[:1])<0.7' -n . |" if mixed_as_missing else ""
@@ -42,8 +45,22 @@ class bam:
 			return bcf(self.ann_bcf_file,prefix=self.prefix)
 		else:
 			return bcf(self.variant_bcf_file,prefix=self.prefix)
+	def gatk_gvcf(self,bed_file=None,low_dp_as_missing=False,max_dp=None,min_dp=10):
+		add_arguments_to_self(self,locals())
+		dict_file = self.ref_file.replace(".fasta","").replace(".fa","")
+		if nofile(dict_file+".dict"):
+			run_cmd("gatk CreateSequenceDictionary -R %(ref_file)s" % vars(self))
+		self.gvcf_file = "%s.gvcf.gz" % self.prefix
+		self.tmp_gvcf_file = "%s.tmp.gvcf.gz" % self.prefix
+		self.bed_option = "-L %s " % self.bed_file if self.bed_file else ""
+		run_cmd("gatk HaplotypeCaller -R %(ref_file)s -I %(bam_file)s -O %(tmp_gvcf_file)s -ERC GVCF %(bed_option)s" % vars(self))
+		self.min_dp_cmd = "| bcftools filter -e 'FMT/DP<%(min_dp)s' -Ou -S ." % vars(self) if low_dp_as_missing else ""
+		self.max_dp_cmd = "| bcftools filter -e 'FMT/DP>%(max_dp)s' -Ou -S ." % vars(self) if max_dp else ""
+		run_cmd("bcftools view %(tmp_gvcf_file)s %(min_dp_cmd)s %(max_dp_cmd)s -Oz -o %(gvcf_file)s" % vars(self))
+		rm_files([self.tmp_gvcf_file,self.tmp_gvcf_file+".tbi"])
+		return bcf(self.gvcf_file)
 
-	def gbcf(self,call_method="low",max_dp=None,min_dp=10,threads=4,vtype="snps",bed_file=None,primers=None,overlap_search=True,chunk_size=50000,mpileup_options=None,low_dp_as_missing=False,platform="Illumina",**kwargs):
+	def bcftools_gbcf(self,call_method="low",max_dp=None,min_dp=10,threads=4,vtype="snps",bed_file=None,primers=None,overlap_search=True,chunk_size=50000,mpileup_options=None,low_dp_as_missing=False,platform="Illumina",**kwargs):
 		"""
 		Create a gVCF file (for a description see:https://sites.google.com/site/gvcftools/home/about-gvcf)
 

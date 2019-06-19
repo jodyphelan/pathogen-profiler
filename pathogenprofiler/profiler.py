@@ -5,7 +5,7 @@ from .barcode import *
 from .fastq import *
 from .abi import *
 import re
-def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False,af=0.0):
+def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False,af=0.0,caller="GATK"):
 		conf = json.load(open(conf_file))
 		for f in conf:
 			filecheck(conf[f])
@@ -27,7 +27,7 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 		else:
 			log("Using %s\n\nPlease ensure that this BAM was made using the same reference as in the database.\nIf you are not sure what reference was used it is best to remap the reads." % bam_file)
 			bam_obj = bam(bam_file,prefix,conf["ref"],platform=platform)
-		bcf_obj = bam_obj.call_variants(prefix=prefix+".targets",call_method=call_method,gff_file=conf["gff"],bed_file=conf["bed"],mixed_as_missing=False if platform == "Illumina" else True,threads=threads,min_dp=min_depth,af=af)
+		bcf_obj = bam_obj.call_variants(prefix=prefix+".targets",call_method=call_method,gff_file=conf["gff"],bed_file=conf["bed"],mixed_as_missing=False if platform == "Illumina" else True,threads=threads,min_dp=min_depth,af=af,caller=caller)
 		csq = bcf_obj.load_csq(ann_file=conf["ann"])
 		bam_obj.flagstat()
 

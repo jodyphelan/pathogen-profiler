@@ -10,6 +10,11 @@ import math
 import re
 rand_generator = random.SystemRandom()
 
+def debug(x):
+	sys.stderr.write("#"*40+"\n")
+	sys.stderr.write(x+"\n")
+	sys.stderr.write("#"*40+"\n")
+	
 def reformat_mutations(x,vartype,gene,gene_info):
 	aa_short2long = {
 	'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
@@ -227,7 +232,7 @@ def filecheck(filename):
 	Check if file is there and quit if it isn't
 	"""
 	if not os.path.isfile(filename):
-		sys.stderr.write("Can't find %s" % filename)
+		sys.stderr.write("Can't find %s\n" % filename)
 		exit(1)
 	else:
 		return filename
@@ -237,7 +242,7 @@ def foldercheck(filename):
 	Check if file is there and quit if it isn't
 	"""
 	if not os.path.isdir(filename):
-		sys.stderr.write("Can't find %s" % filename)
+		sys.stderr.write("Can't find %s\n" % filename)
 		exit(1)
 	else:
 		return filename

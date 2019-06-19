@@ -32,8 +32,10 @@ def main(args):
 		mixed_as_missing=False if args.platform == "Illumina" else True,
 		threads=args.threads,
 		min_dp=args.min_depth,
-		af=args.af
+		af=args.af,
+		caller="gatk"
 	)
+	print("asdhaiduhasuidhui")
 	csq = bcf_obj.load_csq(ann_file=conf["ann"])
 	variants = []
 	chr2gene_pos = {}
@@ -52,8 +54,10 @@ def main(args):
 			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":tmp_change}
 			variants.append(tmp)
 	json.dump(variants,open("%s/%s.pp-results.json" % (args.out_dir,args.prefix),"w"))
-	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gbcf",".targets.gbcf.csi",".targets.missing.bcf"]:
+	print("sadjaosidjasiod")
+	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gvcf.gz",".targets.gvcf.gz.csi",".targets.missing.bcf"]:
 		if args.no_delly and "delly" in x: continue
+		print(x)
 		pp.run_cmd("rm %s%s" % (args.prefix,x))
 
 
