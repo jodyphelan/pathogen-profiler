@@ -48,7 +48,8 @@ def main(args):
 		delly_bcf = bam_obj.run_delly()
 		deletions = delly_bcf.overlap_bed(conf["bed"])
 		for deletion in deletions:
-			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":"%(chr)s_%(start)s_%(end)s" % deletion}
+			tmp_change = pp.reformat_mutations("%(chr)s_%(start)s_%(end)s" % deletion,var["type"],var["gene_id"],chr2gene_pos)
+			tmp = {"genome_pos":deletion["start"],"gene_id":deletion["region"],"chr":deletion["chr"],"freq":1,"type":"large_deletion","change":tmp_change}
 			variants.append(tmp)
 	json.dump(variants,open("%s/%s.pp-results.json" % (args.out_dir,args.prefix),"w"))
 	for x in [".targets.bcf",".targets.csq.bcf",".targets.csq.bcf.csi",".targets.delly.bcf",".targets.delly.bcf.csi",".targets.del_pos.bed",".targets.gbcf",".targets.gbcf.csi",".targets.missing.bcf"]:

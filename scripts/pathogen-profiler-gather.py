@@ -6,6 +6,21 @@ import json
 from collections import defaultdict
 from tqdm import tqdm
 
+def get_itol_txt(samples,variant):
+	return """DATASET_COLORSTRIP
+SEPARATOR TAB
+DATASET_LABEL	%s
+COLOR	#ff0000
+
+LEGEND_TITLE	%s
+LEGEND_SHAPES	1
+LEGEND_COLORS	#000000
+LEGEND_LABELS	%s
+
+DATA
+%s
+""" % (variant,variant,variant,"\n".join(["%s\t%s" % (s,"#000000") for s in samples]))
+
 def main(args):
 	if args.samples:
 		samples = [x.rstrip() for x in open(args.samples).readlines()]
@@ -40,7 +55,10 @@ def main(args):
 		for s in tqdm(samples):
 			F.write(">%s\n%s\n" % (s, "".join(["1" if s in mutations[(gene,change)] else "0" for gene,change in mutations])))
 		F.close()
-
+	if args.itol:
+		for gene,change in tqdm(mutations):
+			mutation = "%s_%s" % (gene,change.replace(">","_"))
+			open("%s.itol.txt" % mutation,"w").write(get_itol_txt(mutations[(gene,change)],mutation))
 
 parser = argparse.ArgumentParser(description='TBProfiler pipeline',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--samples',type=str,help='NGS Platform')
@@ -48,6 +66,7 @@ parser.add_argument('--dir',default="pp-results",type=str,help='NGS Platform')
 parser.add_argument('--matrix',type=str,help='NGS Platform')
 parser.add_argument('--fasta',type=str,help='NGS Platform')
 parser.add_argument('--summary',type=str,help='NGS Platform')
+parser.add_argument('--itol',action="store_true",help='NGS Platform')
 parser.add_argument('--pct',action="store_true",help='NGS Platform')
 parser.set_defaults(func=main)
 
