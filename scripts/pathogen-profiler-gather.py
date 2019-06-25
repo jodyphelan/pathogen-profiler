@@ -23,7 +23,12 @@ DATA
 
 def main(args):
 	if args.samples:
-		samples = [x.rstrip() for x in open(args.samples).readlines()]
+		samples = set()
+		sample_sets = {}
+		for f in args.samples.split(","):
+			sample_sets[f] = [s.rstrip() for s in open(f).readlines()]
+			for s in sample_sets[f]:
+				total_samples.add(s)
 	else:
 		samples = [x.replace(".pp-results.json","") for x in os.listdir("%s/"%args.dir) if x[-16:]==".pp-results.json"]
 	mutations = defaultdict(set)
