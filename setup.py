@@ -12,6 +12,7 @@ setuptools.setup(
 		'scripts/splitchr.py',
 		'scripts/add_dummy_AD.py',
 		'scripts/pathogen-profiler-get-mutations.py',
-		'scripts/pathogen-profiler-gather.py'
+		'scripts/pathogen-profiler-gather.py',
+		'scripts/delly-overlaps.py'
 	]
 )
