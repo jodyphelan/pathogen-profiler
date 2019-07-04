@@ -183,10 +183,14 @@ class bam:
 					miss_pos+=1
 			miss_region[region] = miss_pos/(end-start)
 		return miss_region
-	def get_bed_gt(self,bed_file):
+	def get_bed_gt(self,bed_file,caller="GATK"):
 		add_arguments_to_self(self,locals())
 		results = defaultdict(lambda : defaultdict(dict))
-		for l in cmd_out("bcftools mpileup -f %(ref_file)s -R %(bed_file)s %(bam_file)s -BI -a AD | bcftools call -m | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)):
+		if caller=="GATK":
+			cmd = "gatk HaplotypeCaller -I %(bam_file)s -R %(ref_file)s -L %(bed_file)s -ERC BP_RESOLUTION -OVI false -O /dev/stdout | bcftools view -a | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+		else:
+			cmd = "bcftools mpileup -f %(ref_file)s -R %(bed_file)s %(bam_file)s -BI -a AD | bcftools call -m | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+		for l in cmd_out(cmd):
 			#Chromosome	4348079	0/0	51
 			chrom,pos,ref,alt,gt,ad = l.rstrip().split()
 			pos =int(pos)
