@@ -1,6 +1,6 @@
 {% set name = "pathogen-profiler" %}
 {% set version = "1.5" %}
-{% set sha256 = "facf9bcb578867a5bc88709dd05a3c08799058e20a317ea83ca6f9477881faee" %}
+{% set sha256 = "fc6314601bba4f695e29e3996f0927ed8e222c09738e774f3bfb2516d8885276" %}
 
 package:
   name: {{name}}
@@ -31,7 +31,8 @@ requirements:
     - tqdm
     - delly
     - gatk4
-
+    - biopython
+    
 test:
   imports:
     - pathogenprofiler
