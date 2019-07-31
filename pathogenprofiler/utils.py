@@ -14,7 +14,7 @@ def debug(x):
 	sys.stderr.write("#"*40+"\n")
 	sys.stderr.write(x+"\n")
 	sys.stderr.write("#"*40+"\n")
-	
+
 def reformat_mutations(x,vartype,gene,gene_info):
 	aa_short2long = {
 	'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
@@ -269,6 +269,10 @@ def nofolder(filename):
 		return True
 	else:
 		return False
+
+def create_seq_dict(ref):
+	if nofile("%s.dict" % (ref.replace(".fasta","").replace(".fa",""))):
+		run_cmd("gatk CreateSequenceDictionary -R %s" % ref)
 
 def bowtie_index(ref):
 	if nofile("%s.1.bt2"%ref):
