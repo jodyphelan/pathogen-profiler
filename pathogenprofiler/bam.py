@@ -47,9 +47,12 @@ class bam:
 			return bcf(self.variant_bcf_file,prefix=self.prefix)
 	def gatk_gvcf(self,bed_file=None,low_dp_as_missing=False,max_dp=None,min_dp=10):
 		add_arguments_to_self(self,locals())
-		dict_file = self.ref_file.replace(".fasta","").replace(".fa","")
-		if nofile(dict_file+".dict"):
+		dict_file = self.ref_file.replace(".fasta","").replace(".fa","")+".dict"
+		if nofile(dict_file):
 			run_cmd("gatk CreateSequenceDictionary -R %(ref_file)s" % vars(self))
+		if nofile(self.ref_file+".fai"):
+			run_cmd("samtools faidx %(ref_file)s" % vars(self))
+
 		self.gvcf_file = "%s.gvcf.gz" % self.prefix
 		self.tmp_gvcf_file = "%s.tmp.gvcf.gz" % self.prefix
 		self.bed_option = "-L %s " % self.bed_file if self.bed_file else ""

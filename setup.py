@@ -4,7 +4,7 @@ import setuptools
 setuptools.setup(
 
 	name="pathogen-profiler",
-	version="1.5.0",
+	version="1.6.0",
 	packages=["pathogenprofiler",],
 	license="GPL3",
 	long_description="Pathogen profiling tool",
