@@ -5,8 +5,7 @@ from .barcode import *
 from .fastq import *
 from .abi import *
 import re
-def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False,af=0.0,caller="GATK"):
-		conf = json.load(open(conf_file))
+def profiler(conf,prefix,r1=None,r2=None,bam_file=None,call_method="low",min_depth=10,platform="Illumina",mapper="bwa",threads=4,run_delly=False,af=0.0,caller="GATK"):
 		for f in conf:
 			filecheck(conf[f])
 		if not r1 and not r2 and not bam_file:
@@ -64,9 +63,8 @@ def profiler(conf_file,prefix,r1=None,r2=None,bam_file=None,call_method="low",mi
 
 		return results
 
-def abi_profiler(conf_file,prefix,filenames):
+def abi_profiler(conf,prefix,filenames):
 	files = filenames.split(",")
-	conf = json.load(open(conf_file))
 	for f in conf:
 		filecheck(conf[f])
 	for f in files:
