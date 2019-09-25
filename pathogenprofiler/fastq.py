@@ -1,5 +1,6 @@
 from __future__ import division
 from .bam import *
+from .utils import bwa_index
 import os
 
 
