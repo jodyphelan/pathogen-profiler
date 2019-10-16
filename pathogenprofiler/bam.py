@@ -34,8 +34,8 @@ class bam:
             self.gatk_gvcf(bed_file=bed_file if not whole_genome else None, whole_genome=whole_genome)
         else:
             self.bcftools_gbcf(prefix=self.prefix,call_method=call_method,min_dp=min_dp,threads=threads,vtype="both",bed_file=bed_file,low_dp_as_missing=True)
-            gbcf_file = self.gvcf_file.replace('.vcf.gz', '.gbcf')
-            run_cmd("bcftools view -Ov -l 1 -o %(gvcf_file)s %(gbcf_file)s" % {**vars(self), 'gbcf_file': gbcf_file})
+            gbcf_file = self.gvcf_file.replace('.gvcf.gz', '.gbcf')
+            run_cmd("bcftools view -Oz -l 1 -o %(gvcf_file)s %(gbcf_file)s" % {**vars(self), 'gbcf_file': gbcf_file})
 
         self.variant_vcf_file = "%s.vcf.gz" % self.prefix
         self.del_bed = bcf(self.gvcf_file).del_pos2bed(bed_file)
