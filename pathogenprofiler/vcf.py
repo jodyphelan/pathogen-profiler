@@ -87,6 +87,7 @@ class bcf:
                             if sample in nuc_variants[chrom][pos] and alt in nuc_variants[chrom][pos][sample]:
                                 variants[sample].append({"sample":sample,"gene_id":ann_gene,"chr":chrom,"genome_pos":pos,"type":"non_coding","change":cng,"freq":nuc_variants[chrom][pos][sample][alt]})
                     else:
+                        log(line)
                         log("ERROR in loading alts",True)
                 continue
 

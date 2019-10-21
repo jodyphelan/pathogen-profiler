@@ -1,9 +1,10 @@
-from .utils import filecheck, log
+from .utils import filecheck, log, run_cmd
 from .bam import bam
 from .barcode import barcode, db_compare
 from .fastq import fastq
 from .abi import abi
 from .vcf import bcf
+from .fasta import fasta
 import re
 
 
@@ -68,6 +69,25 @@ def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", m
         results["missing_regions"] = missing_regions
 
         return results
+
+
+def fasta_profiler(conf, prefix, filename):
+    fasta_obj = fasta(filename)
+    wg_vcf_file = fasta_obj.get_ref_variants(conf["ref"], prefix, gff=conf["gff"])
+    wg_vcf_obj = bcf(wg_vcf_file)
+    targets_vcf_file = f"{prefix}.targets.vcf.gz"
+    run_cmd(f"bcftools view -c 1 {wg_vcf_file} -Oz -o {targets_vcf_file} -T {conf['bed']}")
+    targets_vcf_obj = bcf(targets_vcf_file)
+    csq = targets_vcf_obj.load_csq(ann_file=conf["ann"])
+    results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
+    for sample in csq:
+        results["variants"]  = csq[sample]
+    mutations = wg_vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
+    barcode_mutations = barcode(mutations,conf["barcode"])
+    results["barcode"] = barcode_mutations
+    results = db_compare(db_file=conf["json_db"], mutations=results)
+    return results
+
 
 def abi_profiler(conf,prefix,filenames):
     files = filenames.split(",")
