@@ -38,8 +38,7 @@ def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", m
 		results = {"variants":[],"missing_pos":missing_pos,"qc":{"pct_reads_mapped":bam_obj.pct_reads_mapped,"num_reads_mapped":bam_obj.num_reads_mapped}}
 		for sample in csq:
 			results["variants"]  = csq[sample]
-
-		mutations = bam_obj.get_bed_gt(conf["barcode"])
+		mutations = bam_obj.get_bed_gt(conf["barcode"],caller="BCFtools" if (caller=="BCFtools" or platform=="minION") else "BCFtools")
 		barcode_mutations = barcode(mutations,conf["barcode"])
 		results["barcode"] = barcode_mutations
 		if platform=="minION":

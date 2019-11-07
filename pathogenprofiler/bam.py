@@ -194,7 +194,7 @@ class bam:
 					miss_pos+=1
 			miss_region[region] = miss_pos/(end-start)
 		return miss_region
-	def get_bed_gt(self,bed_file,caller="GATK"):
+	def get_bed_gt(self,bed_file,caller="GATK",platform="Illumina"):
 		add_arguments_to_self(self, locals())
 		results = defaultdict(lambda : defaultdict(dict))
 		if caller=="GATK":
@@ -213,7 +213,12 @@ class bam:
 			elif gt=="./.":
 				d[ref] = 0
 			else:
-				for i,a in enumerate([ref]+alts):
-					d[a] = ad[i]
+				genotypes = list([ref]+alts)
+				if platform=="Illumina":
+					idx = genotypes.index(max(genotypes))
+					d[genotypes[idx]] = ad[idx]
+				else:
+					for i,a in enumerate(genotypes):
+						d[a] = ad[i]
 			results[chrom][pos] = d
 		return results
