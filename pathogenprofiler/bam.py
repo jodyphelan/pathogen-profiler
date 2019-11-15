@@ -4,6 +4,7 @@ from .vcf import bcf, delly_bcf
 import statistics
 from tqdm import tqdm
 from collections import defaultdict
+import sys
 class bam:
 	"""
 	A class to perform operations on BAM files such as SNP calling
@@ -33,7 +34,8 @@ class bam:
 		if self.caller=="BCFtools":
 			self.bcftools_gbcf(prefix=self.prefix,call_method=call_method,min_dp=min_dp,threads=threads,vtype="both",bed_file=bed_file,low_dp_as_missing=True,platform=platform)
 			gbcf_file = self.gvcf_file.replace('.gvcf.gz', '.gbcf')
-			run_cmd("bcftools view -Oz -l 1 -o %(gvcf_file)s %(gbcf_file)s" % {**vars(self), 'gbcf_file': gbcf_file})
+			self.gbcf_file = gbcf_file
+			run_cmd("bcftools view -Oz -l 1 -o %(gvcf_file)s %(gbcf_file)s" % vars(self))
 		elif self.caller=="GATK":
 			self.gatk_gvcf(bed_file=bed_file if not whole_genome else None, whole_genome=whole_genome)
 		else:
