@@ -1,7 +1,6 @@
-from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, nofile, rm_files, log, load_bed
+from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, nofile, rm_files, log, load_bed, median
 from .fasta import fasta
 from .vcf import bcf, delly_bcf
-import statistics
 from tqdm import tqdm
 from collections import defaultdict
 import sys
@@ -152,7 +151,7 @@ class bam:
 		for l in cmd_out("samtools depth %(bam_file)s" % vars(self)):
 			arr = l.rstrip().split()
 			dp.append(int(arr[2]))
-		med_dp = statistics.median(dp)
+		med_dp = median(dp)
 		log("Median depth: %s" % med_dp)
 		if med_dp<30:
 			log("Using low depth approach")

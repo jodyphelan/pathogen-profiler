@@ -15,6 +15,12 @@ def debug(x):
 	sys.stderr.write(x+"\n")
 	sys.stderr.write("#"*40+"\n")
 
+def median(lst):
+    #Thanks https://stackoverflow.com/questions/24101524/finding-median-of-list-in-python
+    n = len(lst)
+    s = sorted(lst)
+    return (sum(s[n//2-1:n//2+1])/2.0, s[n//2])[n % 2] if n else None
+
 def reformat_mutations(x,vartype,gene,gene_info):
 	aa_short2long = {
 	'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
