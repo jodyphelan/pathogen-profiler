@@ -231,7 +231,9 @@ def filecheck(filename):
 	"""
 	Check if file is there and quit if it isn't
 	"""
-	if not os.path.isfile(filename):
+	if filename=="/dev/null":
+		return filename
+	elif not os.path.isfile(filename):
 		sys.stderr.write("Can't find %s\n" % filename)
 		exit(1)
 	else:

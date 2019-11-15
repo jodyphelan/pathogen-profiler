@@ -57,8 +57,8 @@ class fastq:
 		run_cmd(cmd)
 	def illumina(self,mapper="bwa",notrim=False):
 		if notrim:
-			self.params["r1_tp"] = self.r1
-			self.params["r2_tp"] = self.r2
+			self.params["r1_tp"] = self.params["r1"]
+			self.params["r2_tp"] = self.params["r2"]
 			self.params["r1_tu"] = "/dev/null"
 			self.params["r2_tu"] = "/dev/null"
 			self.params["rtu"] = "/dev/null"
@@ -71,7 +71,8 @@ class fastq:
 		else:
 			psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1t"],mapper=mapper,threads=self.params["threads"],sample_name=self.params["sample_name"])
 		psmapper.map()
-		rm_files([self.params["r1t"],self.params["r1_tp"],self.params["r2_tp"],self.params["rtu"],self.params["r1_tu"],self.params["r2_tu"]])
+		if not notrim:
+			rm_files([self.params["r1t"],self.params["r1_tp"],self.params["r2_tp"],self.params["rtu"],self.params["r1_tu"],self.params["r2_tu"]])
 		return psmapper.get_bam(platform="Illumina")
 	def minION(self,mapper="minimap2"):
 		psmapper = mapping(self.params["prefix"],self.params["ref_file"],unpaired=self.params["r1"],mapper=mapper,threads=self.params["threads"],platform="minION",sample_name=self.params["sample_name"])

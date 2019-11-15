@@ -76,8 +76,8 @@ def fasta_profiler(conf, prefix, filename):
 	fasta_obj = fasta(filename)
 	wg_vcf_file = fasta_obj.get_ref_variants(conf["ref"], prefix, gff=conf["gff"])
 	wg_vcf_obj = bcf(wg_vcf_file)
-	targets_vcf_file = f"{prefix}.targets.vcf.gz"
-	run_cmd(f"bcftools view -c 1 {wg_vcf_file} -Oz -o {targets_vcf_file} -T {conf['bed']}")
+	targets_vcf_file = prefix+".targets.vcf.gz"
+	run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,targets_vcf_file,conf['bed']))
 	targets_vcf_obj = bcf(targets_vcf_file)
 	csq = targets_vcf_obj.load_csq(ann_file=conf["ann"])
 	results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
