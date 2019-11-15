@@ -8,7 +8,7 @@ from .fasta import fasta
 import re
 
 
-def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", min_depth=10, platform="Illumina", mapper="bwa", threads=4, run_delly=False, af=0.0, caller="GATK", whole_genome=False):
+def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", min_depth=10, platform="Illumina", mapper="bwa", threads=4, run_delly=False, af=0.0, caller="GATK", whole_genome=False,notrim=False):
 		for f in conf:
 			filecheck(conf[f])
 		if not r1 and not r2 and not bam_file:
@@ -23,7 +23,7 @@ def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", m
 			else:
 				fastq_obj = fastq(prefix, conf["ref"], r1, threads=threads, sample_name=prefix.split("/")[-1])
 			if platform == "Illumina":
-				bam_obj = fastq_obj.illumina(mapper=mapper)
+				bam_obj = fastq_obj.illumina(mapper=mapper,notrim=notrim)
 			elif platform == "minION":
 				bam_obj = fastq_obj.minION()
 		else:

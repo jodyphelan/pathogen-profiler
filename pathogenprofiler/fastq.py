@@ -55,8 +55,15 @@ class fastq:
 		else:
 			cmd = "trimmomatic SE -threads %(threads)s -phred33 %(r1)s %(r1t)s LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % self.params
 		run_cmd(cmd)
-	def illumina(self,mapper="bwa"):
-		self.trim()
+	def illumina(self,mapper="bwa",notrim=False):
+		if notrim:
+			self.params["r1_tp"] = self.r1
+			self.params["r2_tp"] = self.r2
+			self.params["r1_tu"] = "/dev/null"
+			self.params["r2_tu"] = "/dev/null"
+			self.params["rtu"] = "/dev/null"
+		else:
+			self.trim()
 		if self.paired:
 			cmd = "cat %(r1_tu)s %(r2_tu)s > %(rtu)s" % self.params
 			run_cmd(cmd)
