@@ -8,7 +8,7 @@ from .fasta import fasta
 import re
 
 
-def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", min_depth=10, platform="Illumina", mapper="bwa", threads=4, run_delly=False, af=0.0, caller="GATK", whole_genome=False,notrim=False):
+def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", min_depth=10, platform="Illumina", mapper="bwa", threads=4, run_delly=False, af=0.0, caller="GATK", whole_genome=False,notrim=False,noflagstat=False):
 		for f in conf:
 			filecheck(conf[f])
 		if not r1 and not r2 and not bam_file:
@@ -31,7 +31,11 @@ def profiler(conf, prefix, r1=None, r2=None, bam_file=None, call_method="low", m
 			bam_obj = bam(bam_file, prefix, conf["ref"], platform=platform)
 		bcf_obj = bam_obj.call_variants(prefix=prefix+".targets", whole_genome=whole_genome,call_method=call_method, gff_file=conf["gff"], bed_file=conf["bed"], mixed_as_missing=False if platform == "Illumina" else True, threads=threads, min_dp=min_depth, af=af, caller=caller if platform =="Illumina" else "BCFtools", platform=platform)
 		csq = bcf_obj.load_csq(ann_file=conf["ann"])
-		bam_obj.flagstat()
+		if noflagstat:
+			bam_obj.pct_reads_mapped = "NA"
+			bam_obj.num_reads_mapped = "NA"
+		else:
+			bam_obj.flagstat()
 
 
 		missing_pos = bcf("%s.targets.missing.vcf.gz" % prefix).get_positions()
