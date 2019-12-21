@@ -14,7 +14,7 @@ def parse_mutation(x):
     alt_aa = re_seq.search(tmp[1]).group(2) if aa_changed else None
     return change_num,ref_aa,alt_aa
 
-class bcf:
+class vcf:
     def __init__(self,filename,prefix=None,threads=4):
         self.samples = []
         add_arguments_to_self(self,locals())
@@ -33,29 +33,18 @@ class bcf:
                 self.prefix = filename
         else:
             self.prefix = prefix
-        self.prefix = self.prefix
-        self.temp_file = get_random_file()
         index_bcf(filename,self.threads)
-        run_cmd("bcftools query -l %(filename)s > %(temp_file)s" % vars(self))
-        for l in open(self.temp_file):
+        # run_cmd("bcftools query -l %(filename)s > %(temp_file)s" % vars(self))
+        # self.temp_file = get_random_file()
+        for l in cmd_out("bcftools query -l %(filename)s" % vars(self)):
             self.samples.append(l.rstrip())
-        rm_files([self.temp_file])
-    def del_pos2bed(self,bed_file=None):
+
+    def csq(self,ref_file,gff_file):
         add_arguments_to_self(self,locals())
-        self.del_bed = "%s.del_pos.bed" % self.prefix
-        OUT = open(self.del_bed,"w")
-        j = 0
-        self.bed_option = "-T %s " % self.bed_file if self.bed_file else ""
-        for l in cmd_out("bcftools view --threads %(threads)s %(bed_option)s -Ou -v indels %(filename)s | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT\\n' | awk 'length($3)>1'" % vars(self)):
-            j+=1
-            row = l.split()
-            start_pos = int(row[1])+1
-            for i in range(start_pos,start_pos+len(row[2])-1):
-                OUT.write("%s\t%s\t%s\n" % (row[0],i-1,i))
-        if j==0:
-            OUT.write("dummy\t1\t1\n")
-        OUT.close()
-        return self.del_bed
+        self.vcf_csq_file = self.prefix+".csq.vcf.gz"
+        run_cmd("bcftools csq -p m -f %(ref_file)s -g %(gff_file)s %(filename)s -Oz -o %(vcf_csq_file)s" % vars(self))
+        return vcf(self.vcf_csq_file,self.prefix)
+
     def load_csq(self,ann_file=None):
         ann = defaultdict(dict)
         if ann_file:
@@ -66,7 +55,7 @@ class bcf:
 
         nuc_variants = self.load_variants()
         variants = {s:[] for s in self.samples}
-        for line in cmd_out("bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%SAMPLE\\t%%TBCSQ\\t%%TGT\\t%%AD]\\n' %s" % self.filename):
+        for line in cmd_out("bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%SAMPLE\\t%%TBCSQ\\t%%TGT\\t%%AD]\\n' %s" % self.filename):
             row = line.split()
             chrom = row[0]
             pos = int(row[1])
@@ -95,7 +84,7 @@ class bcf:
                 sample = row[i]
                 info = row[i+1].split("|") if row[i+1]!="." else row[i+2].split("|")
                 call1,call2 = row[i+3].split("/") if "/" in row[i+3] else row[i+3].split("|")
-                ad = [int(x) if x!="." else 0 for x in row[i+4].split(",")]
+                ad = [int(x) if x!="." else 0 for x in row[i+4].split(",")]  if row[i+4]!="." else [0,100]
 
                 adr = {alleles[i]:d/sum(ad) for i,d in enumerate(ad)}
                 if row[i+1] == ".": continue
@@ -131,13 +120,11 @@ class bcf:
                     log(info[0]+"\n")
                     log("Unknown variant type...Exiting!\n",True)
         return variants
-    def load_variants(self,chrom=None,pos=None):
+
+    def load_variants(self):
         variants = defaultdict(lambda:defaultdict(lambda:defaultdict(dict)))
         raw_variants = defaultdict(lambda:defaultdict(lambda:defaultdict(dict)))
-        if chrom and pos:
-            cmd = "bcftools view --threads %(threads)s %s %s:%s | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%TGT:%%AD]\\n'  | sed 's/\.\/\./N\/N/g'" % (self.filename,chrom,pos)
-        else:
-            cmd = "bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%TGT:%%AD]\\n' %s  | sed 's/\.\/\./N\/N/g'" % self.filename
+        cmd = "bcftools query -f -u '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%TGT:%%AD]\\n' %s  | sed 's/\.\/\./N\/N/g'" % self.filename
         for l in cmd_out(cmd):
             row = l.split()
             alts = row[3].split(",")
@@ -151,7 +138,7 @@ class bcf:
                 elif calls=="%s/%s" % (row[2],row[2]) and ad==".":
                     raw_variants[row[0]][row[1]][self.samples[i]][row[2]] = 1.0
                     continue
-                ad = [int(x) if x!="." else 0 for x in ad.split(",")]
+                ad = [int(x) if x!="." else 0 for x in ad.split(",")] if ad!="." else [0,100]
                 sum_ad = sum(ad)
                 for j in range(1,len(alleles)):
                     if ad[j]==0: continue
@@ -159,21 +146,18 @@ class bcf:
         for tchrom in raw_variants:
             for tpos in raw_variants[tchrom]:
                 variants[tchrom][int(tpos)] = raw_variants[tchrom][tpos]
-        if chrom and pos and len(variants)==0:
-            log("Variant not found",True)
-        if chrom and pos:
-            return variants[chrom][int(pos)]
-        else:
-            return variants
+        return variants
+
     def get_positions(self):
         results = []
         for l in cmd_out("bcftools query -f '%%CHROM\\t%%POS\\n' %s" % self.filename):
             row = l.split()
             results.append((row[0],int(row[1])))
         return results
+
     def get_bed_gt(self,bed_file,ref_file):
         add_arguments_to_self(self,locals())
-        cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+        cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         results = defaultdict(lambda : defaultdict(dict))
         for l in cmd_out(cmd):
             #Chromosome    4348079    0/0    51
@@ -181,7 +165,7 @@ class bcf:
             pos =int(pos)
             d = {}
             alts = alt.split(",")
-            ad = [int(x) for x in ad.split(",")] if ad!="." else [100]
+            ad = [int(x) for x in ad.split(",")] if ad!="." else [0,100]
             if gt=="0/0":
                 d[ref] = ad[0]
             elif gt=="./.":
@@ -196,9 +180,11 @@ class bcf:
                 if int(pos) not in results[chrom]:
                     results[chrom][int(pos)] = {bed[chrom][pos][2]:50}
         return results
-class delly_bcf(bcf):
+
+
+class delly_bcf(vcf):
     def __init__(self,filename):
-         bcf.__init__(self,filename)
+         vcf.__init__(self,filename)
     def get_robust_calls(self):
         results = []
         for l in cmd_out("bcftools query -f '%%CHROM\\t%%POS\\t[%%END\\t%%GT\\t%%DR\\t%%DV\\t%%RR\\t%%RV]\\n' %(filename)s" % vars(self)):
