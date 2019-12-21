@@ -1,6 +1,6 @@
 from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, nofile, rm_files, log, load_bed, median
 from .fasta import fasta
-from .vcf import bcf, delly_bcf
+from .vcf import vcf, delly_bcf
 from tqdm import tqdm
 from collections import defaultdict
 import sys
@@ -35,16 +35,18 @@ class bam:
         # only be run with bcftools and will not even take caller into account
         # if it is set the the wrong option
         if self.platform == "nanopore":
-            self.calling_cmd = "bcftools mpileup -f %(ref_file)s -Bq8 -a DP,AD -r {1} %(bam_file)s | bcftools call -mv | bcftools filter -e 'FMT/DP<10' | bcftools filter -e 'IMF < 0.7' -s 0 -Oz -o {2}.vcf.gz" % vars(self)
+            self.calling_cmd = "bcftools mpileup -f %(ref_file)s -Bq8 -a DP,AD -r {1} %(bam_file)s | bcftools call -mv | bcftools filter -e 'FMT/DP<10' | bcftools filter -e 'IMF < 0.7' -s 0 -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.caller == "bcftools":
-            self.calling_cmd = "bcftools mpileup -f %(ref_file)s -ABq0 -Q0 -a DP,AD -r {1} %(bam_file)s | bcftools call -mv | bcftools norm -f %(ref_file)s | bcftools filter -e 'FMT/DP<10' -s 0 -Oz -o {2}.vcf.gz" % vars(self)
+            self.calling_cmd = "bcftools mpileup -f %(ref_file)s -ABq0 -Q0 -a DP,AD -r {1} %(bam_file)s | bcftools call -mv | bcftools norm -f %(ref_file)s | bcftools filter -e 'FMT/DP<10' -s 0 -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.caller == "gatk":
-            self.calling_cmd = "gatk HaplotypeCaller -R %(ref_file)s -I %(bam_file)s -O {2}.vcf.gz -L {1}" % vars(self)
+            self.calling_cmd = "gatk HaplotypeCaller -R %(ref_file)s -I %(bam_file)s -O %(prefix)s.{2}.vcf.gz -L {1}" % vars(self)
 
         run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "%(calling_cmd)s"' % vars(self))
-        run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "bcftools index {2}.vcf.gz"' % vars(self) )
-        run_cmd("bcftools concat -aD -Oz -o %(vcf_file)s `%(windows_cmd)s | awk '{print $2\".vcf.gz\"}'`" % vars(self))
-        run_cmd("rm `%(windows_cmd)s | awk '{print $2\".vcf.gz*\"}'`" % vars(self))
+        run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "bcftools index  %(prefix)s.{2}.vcf.gz"' % vars(self) )
+        run_cmd("bcftools concat -aD -Oz -o %(vcf_file)s `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz\"}'`" % vars(self))
+        run_cmd("rm `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz*\"}'`" % vars(self))
+
+        return vcf(self.vcf_file)
 
     def flagstat(self):
         lines = []
@@ -55,41 +57,39 @@ class bam:
         self.pct_reads_mapped = 0.0 if self.num_reads_mapped == 0 else float(lines[4][4][1:-1])
         return self.num_reads_mapped,self.pct_reads_mapped
 
-    def bed_low_cov_regions(self,bed_file,deletions_vcf=None,min_cov=10):
+    def bed_zero_cov_regions(self,bed_file):
         add_arguments_to_self(self, locals())
-        self.bed_col_num = len(open(bed_file).readline().split())+2
-        self.deletions_cmd = " | bedtools subtract -a - -b %(deletions_vcf)s" % vars(self) if deletions_vcf else ""
-        cmd = "bedtools coverage -b %(bam_file)s -a %(bed_file)s -d  | awk '$%(bed_col_num)s<10'  %(deletions_cmd)s | bedtools map -a %(bed_file)s -b - -o count | awk '{if ($7>0) {$8=$7/($3-$2);print} else {$8=0;print}}'" % vars(self)
+        cmd = "bedtools coverage -b %(bam_file)s -a %(bed_file)s" % vars(self)
         results = []
         for l in cmd_out(cmd):
             results.append(l.split())
         return results
 
-    def get_bed_gt(self,bed_file,ref_file,caller="GATK"):
+    def get_bed_gt(self,bed_file,ref_file,caller):
         add_arguments_to_self(self, locals())
         results = defaultdict(lambda : defaultdict(dict))
-        if caller=="GATK":
+        if caller == "gatk":
             cmd = "gatk HaplotypeCaller -I %(bam_file)s -R %(ref_file)s -L %(bed_file)s -ERC BP_RESOLUTION -OVI false -O /dev/stdout | bcftools view -a | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         else:
             cmd = "bcftools mpileup -f %(ref_file)s -R %(bed_file)s %(bam_file)s -BI -a AD | bcftools call -m | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         for l in cmd_out(cmd):
-            #Chromosome    4348079    0/0    51
+            # Chromosome    4348079    0/0    51
             chrom, pos, ref, alt, gt, ad = l.rstrip().split()
             pos = int(pos)
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")]
-            if gt=="0/0":
+            if gt == "0/0":
                 d[ref] = ad[0]
-            elif gt=="./.":
+            elif gt == "./.":
                 d[ref] = 0
             else:
                 genotypes = list([ref]+alts)
-                if self.platform=="nanopore":
+                if self.platform == "nanopore":
                     idx = ad.index(max(ad))
                     d[genotypes[idx]] = ad[idx]
                 else:
-                    for i,a in enumerate(genotypes):
+                    for i, a in enumerate(genotypes):
                         d[a] = ad[i]
             results[chrom][pos] = d
         return results
