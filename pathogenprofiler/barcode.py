@@ -2,6 +2,24 @@ from .utils import *
 import json
 import re
 
+iupac = {
+    "A":["A"],
+    "C":["C"],
+    "G":["G"],
+    "T":["T"],
+    "R":["A","G"],
+    "Y":["C","T"],
+    "S":["G","C"],
+    "W":["A","T"],
+    "K":["G","T"],
+    "M":["A","C"],
+    "B":["C","G","T"],
+    "D":["A","G","T"],
+    "H":["A","C","T"],
+    "V":["A","C","G"],
+    "N":["A","C","G","T"]
+    }
+
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
     if re_obj:
@@ -16,26 +34,40 @@ def get_indel_nucleotide(x):
     else:
         log("Error can't find nucleotide number in %s" % x,True)
 
-def barcode(mutations,barcode_bed):
-    bed_num_col = len(open(barcode_bed).readline().rstrip().split())
-    cols = [1,3,4,5,6]+list(range(7,bed_num_col+1)) if bed_num_col>6 else [1,3,4,5,6]
-    bed = load_bed(barcode_bed,cols,1,3,intasint=True)
-    add_info = load_bed(barcode_bed,cols,4)
+def barcode(mutations,barcode_bed,snps_file=None):
+    bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
+    bed = []
+    lineage_info = {}
+    for l in open(barcode_bed):
+        row = l.strip().split("\t")
+        bed.append(row)
+        lineage_info[row[3]] = row
     #{'Chromosome':{'4392120': ('Chromosome', '4392120', 'lineage4.4.1.2', 'G', 'A', 'Euro-American', 'T1', 'None')}}
-
-    barcode_support = defaultdict(list)
-    for chrom in bed:
-        for pos in bed[chrom]:
-            marker = bed[chrom][pos]
+    with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
+        barcode_support = defaultdict(list)
+        for marker in bed:
             tmp = [0,0]
+            chrom,pos = marker[0],int(marker[2])
             if chrom in mutations and pos in mutations[chrom]:
-                if marker[3] in mutations[chrom][pos]: tmp[0] = mutations[chrom][pos][marker[3]]
-                if marker[4] in mutations[chrom][pos]: tmp[1] = mutations[chrom][pos][marker[4]]
+                for n in iupac[marker[4]]:
+                    if n in mutations[chrom][pos]:
+                        tmp[1]+= mutations[chrom][pos][n]
+                tmp[0] = sum(list(mutations[chrom][pos].values())) - tmp[1]
+
             if  tmp==[0,0]: continue
-            barcode_support[marker[2]].append(tmp)
+            barcode_support[marker[3]].append(tmp)
+            O.write("%s\t%s\t%s\t%s\t%s\n" % (marker[1],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))))
+    print(barcode_support)
     barcode_frac = defaultdict(float)
     for l in barcode_support:
-        if stdev([x[1]/(x[0]+x[1]) for x in barcode_support[l]])>0.15: continue
+        # If stdev of fraction across all barcoding positions > 0.15
+        # Only look at positions with >5 reads
+        tmp_allelic_dp = [x[1]/(x[0]+x[1]) for x in barcode_support[l] if sum(x)>5]
+        if len(tmp_allelic_dp)==0: continue
+        if stdev(tmp_allelic_dp)>0.15: continue
+
+        # if number of barcoding positions > 5 and only one shows alternate
+        if len(barcode_support[l])>5 and len([x for x in barcode_support[l] if (x[1]/(x[0]+x[1]))>0])<2: continue
         barcode_pos_reads = sum([x[1] for x in barcode_support[l]])
         barcode_neg_reads = sum([x[0] for x in barcode_support[l]])
         lf = barcode_pos_reads/(barcode_pos_reads+barcode_neg_reads)
@@ -46,8 +78,7 @@ def barcode(mutations,barcode_bed):
     for l in barcode_frac:
         tmp = {"annotation":l,"freq":barcode_frac[l],"info":[]}
         if bed_num_col>6:
-            for i in range(5,bed_num_col-1):
-                tmp["info"].append(add_info[l][i])
+            tmp["info"] = [lineage_info[l][i] for i in range(5,bed_num_col)]
         final_results.append(tmp)
     return final_results
 
@@ -73,8 +104,11 @@ def db_compare(mutations,db_file):
                 db_var_match = db[var["gene_id"]]["large_deletion"]
             if db_var_match:
                 if "annotation" not in annotated_results["variants"][i]:
-                    annotated_results["variants"][i]["annotation"] = {}
-                for key in db_var_match:
-                    annotated_results["variants"][i]["annotation"][key] = db_var_match[key]
+                    annotated_results["variants"][i]["annotation"] = []
+                for ann in db_var_match["annotations"]:
+                    annotated_results["variants"][i]["annotation"].append(ann)
+                # for key in db_var_match:
+                    # if key=="drugs": continue
+                    # annotated_results["variants"][i]["annotation"][key] = db_var_match[key]
 
     return annotated_results

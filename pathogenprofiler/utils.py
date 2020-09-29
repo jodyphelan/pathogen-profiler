@@ -301,42 +301,42 @@ def bwa_index(ref):
         cmd = "bwa index %s" % ref
         run_cmd(cmd)
 
-def run_cmd(cmd,verbose=1,target=None):
+def run_cmd(cmd,verbose=1,target=None,terminate_on_error=True):
     """
     Wrapper to run a command using subprocess with 3 levels of verbosity and automatic exiting if command failed
     """
     if target and filecheck(target): return True
     cmd = "set -u pipefail; " + cmd
-    if verbose==2:
+    if verbose>0:
         sys.stderr.write("\nRunning command:\n%s\n" % cmd)
-        stdout = open("/dev/stdout","w")
-        stderr = open("/dev/stderr","w")
-    elif verbose==1:
-        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
-        stdout = open("/dev/null","w")
-        stderr = open("/dev/null","w")
-    else:
-        stdout = open("/dev/null","w")
-        stderr = open("/dev/null","w")
 
-    res = subprocess.call(cmd,shell=True,stderr = stderr,stdout = stdout)
-    stderr.close()
-    if res!=0:
+    p = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout,stderr = p.communicate()
+
+    if terminate_on_error is True and p.returncode!=0:
         sys.stderr.write("Command Failed! Please Check!")
         exit(1)
 
-def index_bam(bamfile,threads=4,overwrite=False):
+    if verbose>1:
+        sys.stdout.write(stdout)
+        sys.stderr.write(stderr)
+
+    return (stdout.decode(),stderr.decode())
+
+def index_bam(bamfile,threads=1,overwrite=False):
     """
     Indexing a bam file
     """
     cmd = "samtools index -@ %s %s" % (threads,bamfile)
+    bam_or_cram = "cram" if bamfile[-4:]=="cram" else "bam"
+    suffix = ".bai" if bam_or_cram=="bam" else ".crai"
     if filecheck(bamfile):
-        if nofile(bamfile+".bai"):
+        if nofile(bamfile+suffix):
             run_cmd(cmd)
-        elif os.path.getmtime(bamfile+".bai")<os.path.getmtime(bamfile) or overwrite:
+        elif os.path.getmtime(bamfile+suffix)<os.path.getmtime(bamfile) or overwrite:
             run_cmd(cmd)
 
-def index_bcf(bcffile,threads=4,overwrite=False):
+def index_bcf(bcffile,threads=1,overwrite=False):
     """
     Indexing a bam file
     """
@@ -346,6 +346,18 @@ def index_bcf(bcffile,threads=4,overwrite=False):
             run_cmd(cmd)
         elif os.path.getmtime(bcffile+".csi")<os.path.getmtime(bcffile) or overwrite:
             run_cmd(cmd)
+
+def tabix(bcffile,threads=1,overwrite=False):
+    """
+    Indexing a bam file
+    """
+    cmd = "bcftools index --threads %s -ft %s" % (threads,bcffile)
+    if filecheck(bcffile):
+        if nofile(bcffile+".tbi"):
+            run_cmd(cmd)
+        elif os.path.getmtime(bcffile+".tbi")<os.path.getmtime(bcffile) or overwrite:
+            run_cmd(cmd)
+
 
 def verify_fq(filename):
     """
