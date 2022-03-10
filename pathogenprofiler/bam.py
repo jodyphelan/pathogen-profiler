@@ -114,7 +114,7 @@ class bam:
     def get_bed_gt(self,bed_file,ref_file,caller,platform):
         add_arguments_to_self(self, locals())
         results = defaultdict(lambda : defaultdict(dict))
-        run_cmd("samtools view -Mb -L %(bed_file)s %(bam_file)s > %(prefix)s.tmp.bam" % vars(self))
+        run_cmd("samtools view -b -L %(bed_file)s %(bam_file)s -T %(ref_file)s > %(prefix)s.tmp.bam" % vars(self))
         run_cmd("samtools index %(prefix)s.tmp.bam" % vars(self))
         if platform=="nanopore":
             caller="bcftools"
