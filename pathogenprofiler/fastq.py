@@ -1,7 +1,9 @@
 from __future__ import division
 from .bam import bam
-from .utils import filecheck, bwa_index, add_arguments_to_self, run_cmd
-
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index
+from uuid import uuid4
+import statistics as stats
+import os
 
 class fastq:
     """
@@ -38,11 +40,11 @@ class fastq:
             run_cmd("trimmomatic SE -threads %(threads)s -phred33 %(r1)s %(prefix)s_TU LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
             return fastq("%(prefix)s_TU" % vars(self))
 
-    def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True):
+    def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True, max_mem="768M"):
         """Mapping to a reference genome"""
         add_arguments_to_self(self, locals())
         self.aligner = aligner.lower()
-        accepted_aligners = ["bwa","bowtie2","minimap2"]
+        accepted_aligners = ["bwa","bwa-mem2","bowtie2","minimap2"]
         if self.aligner not in accepted_aligners:
             quit("ERROR: %s not in accepted aligners\n" % aligner)
 
@@ -51,7 +53,13 @@ class fastq:
         if self.platform not in accepted_platforms:
             quit("ERROR: %s not in accepted platforms\n" % platform)
 
+        if self.aligner=="minimap2":
+            pass
+        else:
+            {"bwa":bwa_index,"bwa-mem2":bwa2_index,"bowtie2":bowtie_index}[self.aligner](ref_file)
+
         self.bwa_prefix = "bwa mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
+        self.bwa2_prefix = "bwa-mem2 mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bowtie2_prefix = "bowtie2 -p %(threads)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' --rg 'PL:%(platform)s'" % vars(self)
         self.minimap2_prefix = "minimap2 -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % vars(self)
         self.bam_file = "%s.bam" % self.prefix
@@ -63,26 +71,60 @@ class fastq:
         else:
             if aligner=="bwa" and self.paired:
                 run_cmd("%(bwa_prefix)s %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
-                run_cmd("%(bwa_prefix)s %(ref_file)s %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
+                if self.r3:
+                    run_cmd("%(bwa_prefix)s %(ref_file)s %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
             elif aligner=="bwa" and not self.paired:
                 run_cmd("%(bwa_prefix)s %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
+            elif aligner=="bwa-mem2" and self.paired:
+                run_cmd("%(bwa2_prefix)s %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
+                if self.r3:
+                    run_cmd("%(bwa2_prefix)s %(ref_file)s %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
+            elif aligner=="bwa-mem2" and not self.paired:
+                run_cmd("%(bwa2_prefix)s %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
             elif aligner=="bowtie2" and self.paired:
                 run_cmd("%(bowtie2_prefix)s -x %(ref_file)s -1 %(r1)s -2 %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
-                run_cmd("%(bowtie2_prefix)s -x %(ref_file)s -U %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s" % vars(self))
+                if self.r3:
+                    run_cmd("%(bowtie2_prefix)s -x %(ref_file)s -U %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s" % vars(self))
             elif aligner=="bowtie2" and not self.paired:
                 run_cmd("%(bowtie2_prefix)s  -x %(ref_file)s -1 %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
             elif aligner=="minimap2" and self.paired:
                 run_cmd("%(minimap2_prefix)s -ax sr %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
-                run_cmd("%(minimap2_prefix)s -ax sr %(ref_file)s %(r3)s| samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
+                if self.r3:
+                    run_cmd("%(minimap2_prefix)s -ax sr %(ref_file)s %(r3)s| samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
             elif aligner=="minimap2" and not self.paired:
                 run_cmd("%(minimap2_prefix)s -ax sr %(ref_file)s %(r1)s| samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
 
             if self.paired:
-                run_cmd("samtools merge -@ %(threads)s -f %(bam_unsort_file)s %(bam_pair_file)s %(bam_single_file)s" % vars(self))
+                if self.r3:
+                    run_cmd("samtools merge -@ %(threads)s -f %(bam_unsort_file)s %(bam_pair_file)s %(bam_single_file)s" % vars(self))
+                else:
+                    self.bam_unsort_file = self.bam_pair_file
                 # run_cmd("samtools sort -@ %(threads)s -o %(bam_file)s %(bam_unsort_file)s" % vars(self))
                 if markdup:
-                    run_cmd("samtools sort -n -@ %(threads)s  %(bam_unsort_file)s | samtools fixmate -@ %(threads)s -m - - | samtools sort -@ %(threads)s - | samtools markdup -@ %(threads)s - %(bam_file)s" % vars(self))
+                    run_cmd("samtools sort -m %(max_mem)s -n -@ %(threads)s  %(bam_unsort_file)s | samtools fixmate -@ %(threads)s -m - - | samtools sort -m %(max_mem)s -@ %(threads)s - | samtools markdup -@ %(threads)s - %(bam_file)s" % vars(self))
                 else:
-                    run_cmd("samtools sort -@ %(threads)s -o %(bam_file)s %(bam_unsort_file)s" % vars(self))
-                run_cmd("rm %(bam_single_file)s %(bam_pair_file)s %(bam_unsort_file)s" % vars(self))
+                    run_cmd("samtools sort -m %(max_mem)s -@ %(threads)s -o %(bam_file)s %(bam_unsort_file)s" % vars(self))
+                if self.r3:
+                    run_cmd("rm %(bam_single_file)s %(bam_pair_file)s %(bam_unsort_file)s" % vars(self))
+                else:
+                    run_cmd("rm %(bam_pair_file)s" % vars(self))
+
         return bam(self.bam_file,self.prefix,self.platform,threads=threads)
+    
+    def get_kmer_counts(self,kmer_db_file):
+        tmpfile = str(uuid4())
+        if os.path.getsize(self.r1)==0:
+            with open(self.r1,"w") as O:
+                O.write(">dummy\naaa\n")
+        if self.r2 and os.path.getsize(self.r2)==0:
+            with open(self.r2,"w") as O:
+                O.write(">dummy\naaa\n")
+        cmd = f"gmer_counter -db {kmer_db_file} --total {self.r1}" + (f" {self.r2}" if self.r2 else "") + f" > {tmpfile}"
+        run_cmd(cmd)
+        results = []
+        for l in open(tmpfile):
+            if l[0]=="#": continue
+            row = l.strip().split()
+            results.append({"name":row[0],"count":int(row[2])})
+        os.remove(tmpfile)
+        return results
