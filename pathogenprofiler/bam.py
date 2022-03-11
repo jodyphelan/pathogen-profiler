@@ -155,9 +155,9 @@ class bam:
                 tmp_chrom = tmp[0]
                 tmp_pos = int(tmp[1].split("-")[1])
             else:
-                ref_nt[(tmp_chrom,tmp_pos)] = l.strip()
+                ref_nt[(tmp_chrom,tmp_pos)] = l.strip().upper()
 
-        for l in cmd_out(f"samtools view -Mb -L {bed_file} {self.prefix}.tmp.bam | bedtools coverage -a {bed_file} -b - -d -sorted"):
+        for l in cmd_out(f"samtools view -b -L {bed_file} {self.prefix}.tmp.bam | bedtools coverage -a {bed_file} -b - -d -sorted"):
             row = l.strip().split()
             chrom = row[0]
             pos = int(row[2])
