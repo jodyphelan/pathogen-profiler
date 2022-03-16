@@ -77,11 +77,11 @@ class vcf:
                         self.snpeff_data_dir = snpeff_data_dir
                         return snpeff_data_dir
 
-        if snpeff_data_dir is None:
-            snpeff_data_dir = os.getcwd()
-            if os.access(snpeff_data_dir, os.W_OK | os.R_OK):
-                self.snpeff_data_dir = snpeff_data_dir
-                return snpeff_data_dir
+        # if we have got here, we need to try an store the snpEff DB in the current working directory
+        snpeff_data_dir = os.getcwd()
+        if os.access(snpeff_data_dir, os.W_OK | os.R_OK):
+            self.snpeff_data_dir = snpeff_data_dir
+            return snpeff_data_dir
         
         return None
 
@@ -91,17 +91,20 @@ class vcf:
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
         if self.set_snpeff_datadir() is None:
-            print("WARNING: snpEff database not found and not writeable directory to store database in, analysis might fail", file=sys.stderr)
+            print("WARNING: snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
+            self.snpeff_data_dir_opt = ''
+        else:
+            self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
         if split_indels:
             self.tmp_file1 = "%s.vcf" % uuid4()
             self.tmp_file2 = "%s.vcf" % uuid4()
 
-            run_cmd("bcftools view -v snps %(filename)s | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann -dataDir %(snpeff_data_dir)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file1)s" % vars(self))
-            run_cmd("bcftools view -v indels %(filename)s | %(rename_cmd)s snpEff ann -dataDir %(snpeff_data_dir)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file2)s" % vars(self))
+            run_cmd("bcftools view -v snps %(filename)s | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file1)s" % vars(self))
+            run_cmd("bcftools view -v indels %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file2)s" % vars(self))
             run_cmd("bcftools concat %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
             rm_files([self.tmp_file1, self.tmp_file2])
         else :
-            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann -dataDir %(snpeff_data_dir)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
+            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return vcf(self.vcf_csq_file,self.prefix)
 
 
