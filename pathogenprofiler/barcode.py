@@ -113,8 +113,6 @@ def db_compare(mutations,db_file):
                 elif "transcript_ablation" in csq["type"] and "transcript_ablation" in db[csq["gene_id"]]:
                     db_var_match = db[csq["gene_id"]]["transcript_ablation"]
                 if db_var_match:
-                    debug(csq)
-                    debug(db_var_match)
                     if "annotation" not in annotated_results["variants"][i]["consequences"][j]:
                         annotated_results["variants"][i]["consequences"][j]["annotation"] = []
                     for ann in db_var_match["annotations"]:
