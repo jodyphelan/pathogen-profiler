@@ -96,12 +96,12 @@ class vcf:
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
         if split_indels:
-            self.tmp_file1 = "%s.vcf" % uuid4()
-            self.tmp_file2 = "%s.vcf" % uuid4()
+            self.tmp_file1 = "%s.vcf.gz" % uuid4()
+            self.tmp_file2 = "%s.vcf.gz" % uuid4()
 
-            run_cmd("bcftools view -v snps %(filename)s | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file1)s" % vars(self))
-            run_cmd("bcftools view -v indels %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s > %(tmp_file2)s" % vars(self))
-            run_cmd("bcftools concat %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+            run_cmd("bcftools view -v snps %(filename)s | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
+            run_cmd("bcftools view -v indels %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
+            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
             rm_files([self.tmp_file1, self.tmp_file2])
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
@@ -132,10 +132,11 @@ class vcf:
             filter_out.append("transcript_ablation")
         
         if bed_file:
-            genes_to_keep = []
+            genes_to_keep = set()
             for l in open(bed_file):
                 row = l.strip().split()
-                genes_to_keep.append((row[3],row[4]))
+                genes_to_keep.add(row[3])
+                genes_to_keep.add(row[4])
 
         variants = []
         for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%ANN\\t[%AD]\\n' {self.filename}"):
@@ -160,12 +161,14 @@ class vcf:
                 # if pos=="1673425":
                     # import pdb; pdb.set_trace()
                 for ann in ann_list:
+                    ann[3] = ann[3].replace("gene:","")
+                    ann[4] = ann[4].replace("gene:","")
                     if ann[0]!=alt:
                         continue
                     if ann[1] in filter_out:
                         continue
                     if bed_file:
-                        if ann[3] in [x[1] for x in genes_to_keep] or ann[4] in [x[0] for x in genes_to_keep]:
+                        if ann[3] in genes_to_keep or ann[4] in genes_to_keep:
                             pass
                         else:
                             continue
@@ -195,32 +198,6 @@ class vcf:
         run_cmd("gatk VariantAnnotator -R %(ref_file)s -I %(bam_file)s -V %(filename)s -O %(new_file)s -A MappingQualityRankSumTest -A ReadPosRankSumTest -A QualByDepth -A BaseQualityRankSumTest -A TandemRepeat -A StrandOddsRatio -OVI false" % vars(self))
         return vcf(self.new_file,self.prefix)
 
-
-    # def load_variants(self):
-    #     variants = defaultdict(lambda:defaultdict(lambda:defaultdict(dict)))
-    #     raw_variants = defaultdict(lambda:defaultdict(lambda:defaultdict(dict)))
-    #     cmd = "bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%TGT:%%AD]\\n' %s  | sed 's/\.\/\./N\/N/g'" % self.filename
-    #     for l in cmd_out(cmd):
-    #         row = l.split()
-    #         alts = row[3].split(",")
-    #         alleles = [row[2]]+alts
-    #         for i in range(len(self.samples)):
-    #             calls,ad = row[i+4].split(":")
-    #             if calls=="N/N":
-    #                 raw_variants[row[0]][row[1]][self.samples[i]]["N"] = 1.0
-    #                 continue
-    #             elif calls=="%s/%s" % (row[2],row[2]) and ad==".":
-    #                 raw_variants[row[0]][row[1]][self.samples[i]][row[2]] = 1.0
-    #                 continue
-    #             ad = [int(x) if x!="." else 0 for x in ad.split(",")] if ad!="." else [0,100]
-    #             sum_ad = sum(ad)
-    #             for j in range(1,len(alleles)):
-    #                 if ad[j]==0: continue
-    #                 raw_variants[row[0]][row[1]][self.samples[i]][alleles[j]] = ad[j]/sum_ad
-    #     for tchrom in raw_variants:
-    #         for tpos in raw_variants[tchrom]:
-    #             variants[tchrom][int(tpos)] = raw_variants[tchrom][tpos]
-    #     return variants
 
     def get_positions(self):
         results = []

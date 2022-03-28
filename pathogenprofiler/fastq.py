@@ -1,9 +1,13 @@
 from __future__ import division
 from .bam import bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom
 from uuid import uuid4
 import statistics as stats
 import os
+from tqdm import tqdm 
+from .kmer import kmer_dump
+
+
 
 class fastq:
     """
@@ -111,20 +115,14 @@ class fastq:
 
         return bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
-    def get_kmer_counts(self,kmer_db_file):
-        tmpfile = str(uuid4())
-        if os.path.getsize(self.r1)==0:
-            with open(self.r1,"w") as O:
-                O.write(">dummy\naaa\n")
-        if self.r2 and os.path.getsize(self.r2)==0:
-            with open(self.r2,"w") as O:
-                O.write(">dummy\naaa\n")
-        cmd = f"gmer_counter -db {kmer_db_file} --total {self.r1}" + (f" {self.r2}" if self.r2 else "") + f" > {tmpfile}"
-        run_cmd(cmd)
-        results = []
-        for l in open(tmpfile):
-            if l[0]=="#": continue
-            row = l.strip().split()
-            results.append({"name":row[0],"count":int(row[2])})
-        os.remove(tmpfile)
-        return results
+    def get_kmer_counts(self,prefix,klen = 31):
+        tmp_prefix = str(uuid4())
+        tmp_file_list = f"{tmp_prefix}.list"
+        with open(tmp_file_list,"w") as O:
+            O.write("\n".join(self.files))
+        run_cmd(f"kmc -k{klen} @{tmp_file_list} {tmp_prefix} .")
+        run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
+        os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+        run_cmd(f"rm {tmp_prefix}*")
+
+        return kmer_dump(f"{prefix}.kmers.txt")

@@ -1,25 +1,7 @@
-from .utils import stdev, log, debug
+from .utils import stdev, log, debug, iupac
 import json
 import re
 from collections import defaultdict
-
-iupac = {
-    "A":["A"],
-    "C":["C"],
-    "G":["G"],
-    "T":["T"],
-    "R":["A","G"],
-    "Y":["C","T"],
-    "S":["G","C"],
-    "W":["A","T"],
-    "K":["G","T"],
-    "M":["A","C"],
-    "B":["C","G","T"],
-    "D":["A","G","T"],
-    "H":["A","C","T"],
-    "V":["A","C","G"],
-    "N":["A","C","G","T"]
-    }
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -35,30 +17,58 @@ def get_indel_nucleotide(x):
     else:
         log("Error can't find nucleotide number in %s" % x,True)
 
-def barcode(mutations,barcode_bed,snps_file=None):
-    bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
+
+
+def get_barcoding_mutations(mutations,barcode_bed):
     bed = []
-    lineage_info = {}
     for l in open(barcode_bed):
         row = l.strip().split("\t")
         bed.append(row)
-        lineage_info[row[3]] = row
-    #{'Chromosome':{'4392120': ('Chromosome', '4392120', 'lineage4.4.1.2', 'G', 'A', 'Euro-American', 'T1', 'None')}}
+    
     barcode_support = defaultdict(list)
     snps_report = []
     for marker in bed:
         tmp = [0,0]
         chrom,pos = marker[0],int(marker[2])
         if chrom in mutations and pos in mutations[chrom]:
-            for n in iupac[marker[4]]:
+            #print(marker)
+            for n in iupac(marker[4]):
                 if n in mutations[chrom][pos]:
                     tmp[1]+= mutations[chrom][pos][n]
             tmp[0] = sum(list(mutations[chrom][pos].values())) - tmp[1]
 
         if  tmp==[0,0]: continue
         barcode_support[marker[3]].append(tmp)
-        snps_report.append([marker[3],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))])
+        snps_report.append([marker[3],marker[0],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))])
+        
+    return (barcode_support,snps_report)
 
+
+def barcode(mutations,barcode_bed,snps_file=None):
+    bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
+    # bed = []
+    lineage_info = {}
+    for l in open(barcode_bed):
+        row = l.strip().split("\t")
+        # bed.append(row)
+        lineage_info[row[3]] = row
+    # #{'Chromosome':{'4392120': ('Chromosome', '4392120', 'lineage4.4.1.2', 'G', 'A', 'Euro-American', 'T1', 'None')}}
+    # barcode_support = defaultdict(list)
+    # snps_report = []
+    # for marker in bed:
+    #     tmp = [0,0]
+    #     chrom,pos = marker[0],int(marker[2])
+    #     if chrom in mutations and pos in mutations[chrom]:
+    #         for n in iupac[marker[4]]:
+    #             if n in mutations[chrom][pos]:
+    #                 tmp[1]+= mutations[chrom][pos][n]
+    #         tmp[0] = sum(list(mutations[chrom][pos].values())) - tmp[1]
+
+    #     if  tmp==[0,0]: continue
+    #     barcode_support[marker[3]].append(tmp)
+    #     snps_report.append([marker[3],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))])
+
+    barcode_support,snps_report = get_barcoding_mutations(mutations,barcode_bed)
     with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
         for tmp in sorted(snps_report,key=lambda x: x[0]):
             O.write("%s\n" % "\t".join([str(x) for x in tmp]))

@@ -5,7 +5,167 @@ from collections import defaultdict
 import random
 import math
 import re
+import json
 rand_generator = random.SystemRandom()
+
+
+def return_fields(obj,args,i=0):
+    largs = args.split(".")
+    if i+1>len(largs):
+        return obj
+    sub_obj = obj[largs[i]]
+    if isinstance(sub_obj,dict):
+        return return_fields(sub_obj,args,i+1)
+    elif isinstance(sub_obj,list):
+        return [return_fields(x,args,i+1) for x in sub_obj]
+    else:
+        return sub_obj
+        
+def variable2string(var,quote=False):
+    q = '"' if quote else ""
+    if isinstance(var,float):
+        return "%.3f" % var
+    elif isinstance(var,dict):
+        return "%s%s%s" % (q,",".join(list(var)),q)
+    elif isinstance(var,list):
+        return "%s%s%s" % (q,",".join(var),q)
+    else:
+        return "%s%s%s" % (q,str(var),q)
+
+def dict_list2text(l,columns = None, mappings = None,sep="\t"):
+    headings = list(l[0].keys()) if not columns else columns
+    rows = []
+    header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
+    for row in l:
+        r = sep.join([variable2string(return_fields(row,x)) for x in headings])
+        rows.append(r)
+    str_rows = "\n".join(rows)
+    return  "%s\n%s\n" % (header,str_rows)
+
+
+def get_lt2drugs(bed_file):
+    lt2drugs = {}
+    for l in open(bed_file):
+        row = l.strip().split()
+        lt2drugs[row[3]] = row[5].split(",")
+    return lt2drugs
+
+def reformat_annotations(results,conf):
+    #Chromosome      4998    Rv0005  -242
+    lt2drugs = get_lt2drugs(conf["bed"])
+    results["dr_variants"] = []
+    results["other_variants"] = []
+    for var in results["variants"]:
+        if "annotation" in var:
+            tmp = var.copy()
+            drugs = tuple([x["drug"] for x in var["annotation"] if x["type"]=="drug" and x["confers"]=="resistance"])
+            if len(drugs)>0:
+                dr_ann = []
+                other_ann = []
+                while len(tmp["annotation"])>0:
+                    x = tmp["annotation"].pop()
+                    if x["type"]=="drug":
+                        dr_ann.append(x)
+                    else:
+                        other_ann.append(x)
+                tmp["drugs"] = dr_ann
+                tmp["annotation"] = other_ann
+                results["dr_variants"].append(tmp)
+            else:
+                var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
+                results["other_variants"].append(var)
+
+        else:
+            var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
+            results["other_variants"].append(var)
+    del results["variants"]
+    return results
+
+def get_genome_positions_from_json_db(json_file):
+    genome_positions = defaultdict(set)
+    db = json.load(open(json_file))
+    for gene in db:
+        for var in db[gene]:
+            drugs = tuple([x["drug"] for x in db[gene][var]["annotations"] if x["type"]=="drug"])
+            if len(drugs)==0:
+                continue
+            if db[gene][var]["genome_positions"]:
+                for pos in db[gene][var]["genome_positions"]:
+                    genome_positions[pos].add((gene,var,drugs))
+
+    return genome_positions
+
+def lt2genes(bed_file):
+    #Chromosome      759310  763325  Rv0667  rpoB    rifampicin
+    lt2gene = {}
+    for l in open(bed_file):
+        row = l.strip().split()
+        lt2gene[row[3]] = row[4]
+    return lt2gene
+
+
+def reformat_missing_genome_pos(positions,conf):
+    lt2gene = lt2genes(conf["bed"])
+    dr_associated_genome_pos = get_genome_positions_from_json_db(conf["json_db"])
+    new_results = []
+    for pos in positions:
+        if pos in dr_associated_genome_pos:
+            tmp = dr_associated_genome_pos[pos]
+            gene = list(tmp)[0][0]
+            variants = ",".join([x[1] for x in tmp])
+            drugs = ",".join(set(unlist([x[2] for x in tmp])))
+            new_results.append({"position":pos,"locus_tag":gene, "gene": lt2gene[gene], "variants": variants, "drugs":drugs})
+    return new_results
+
+def select_most_relevant_csq(csqs):
+    rank = ["transcript_ablation","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","stop_retained_variant","synonymous_variant"]
+    ranked_csq = []
+    for csq in csqs:
+        ranked_csq.append([i for i,d in enumerate(rank) if d in csq["type"]][0])
+    csq1 = csqs[ranked_csq.index(min(ranked_csq))]
+    return csq1
+
+def set_change(var):
+    protein_csqs = ["missense_variant","stop_gained"]
+    var["change"] = var["protein_change"] if var["type"] in protein_csqs else var["nucleotide_change"]
+    return var
+
+def select_csq(dict_list):
+    for d in dict_list:
+        annotated_csq = []
+        for csq in d["consequences"]:
+            if "annotation" in csq:
+                annotated_csq.append(csq)
+        if len(annotated_csq)==0:
+            csq = select_most_relevant_csq(d["consequences"])
+            alternate_consequences = [json.dumps(x) for x in d["consequences"]]
+            alternate_consequences.remove(json.dumps(csq))
+            alternate_consequences = [json.loads(x) for x in alternate_consequences]
+        elif len(annotated_csq)==1:
+            csq = annotated_csq[0]
+            alternate_consequences = []
+        else:
+            quit("ERROR! too many csqs")
+        del d["consequences"]
+        d.update(csq)
+        d["alternate_consequences"] = alternate_consequences
+        d = set_change(d)
+    return dict_list
+
+def dict_list_add_genes(dict_list,conf):
+    rv2gene = {}
+    for l in open(conf["bed"]):
+        row = l.rstrip().split()
+        rv2gene[row[3]] = row[4]
+    for d in dict_list:
+        d["locus_tag"] = d["gene_id"]
+        d["gene"] = rv2gene[d["gene_id"]]
+        del d["gene_id"]
+        if "gene_name" in d:
+            del d["gene_name"]
+    return dict_list
+
+
 
 def iupac(n):
     tmp = {
@@ -47,87 +207,6 @@ def warninglog(x):
 def debug(x):
     sys.stderr.write('\033[93m' + str(x) + '\033[0m' + '\n')
 
-
-# def reformat_mutations(x,vartype,gene,gene_info):
-#     aa_short2long = {
-#     'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
-#     'E': 'Glu', 'G': 'Gly', 'H': 'His', 'I': 'Ile', 'L': 'Leu', 'K': 'Lys',
-#     'M': 'Met', 'F': 'Phe', 'P': 'Pro', 'S': 'Ser', 'T': 'Thr', 'W': 'Trp',
-#     'Y': 'Tyr', 'V': 'Val', '*': '*', '-': '-'
-#     }
-#     # big Deletion
-#     # Chromosome_3073680_3074470
-#     if "large_deletion" in vartype:
-#         re_obj = re.search("([0-9]+)_([0-9]+)",x)
-#         if re_obj:
-#             start = re_obj.group(1)
-#             end = re_obj.group(2)
-#             return "Chromosome:g.%s_%sdel" % (start,end)
-#     # Substitution
-#     # 450S>450L
-#     if "missense" in vartype or "start_lost" in vartype or "stop_gained" in vartype:
-#         re_obj = re.search("([0-9]+)([A-Z\*])>([0-9]+)([A-Z\*])",x)
-#         if re_obj:
-#             codon_num = int(re_obj.group(1))
-#             ref = aa_short2long[re_obj.group(2)]
-#             alt = aa_short2long[re_obj.group(4)]
-#             return "p.%s%s%s" % (ref,codon_num,alt)
-#         # Deletion
-#         # 761100CAATTCATGG>C
-#     if "frame" in vartype:
-#         re_obj = re.search("([0-9]+)([A-Z][A-Z]+)>([A-Z])",x)
-#         if re_obj:
-#             chr_pos = int(re_obj.group(1))
-#             ref = re_obj.group(2)
-#             alt = re_obj.group(3)
-#             strand = "-" if gene[-1]=="c" else "+"
-#             del_len = len(ref)-len(alt)
-#             if strand == "+":
-#                 gene_start = gene_info[chr_pos] + 1
-#                 gene_end = gene_start + del_len - 1
-#                 return "c.%s_%sdel" % (gene_start,gene_end)
-#             else:
-#                 gene_start = gene_info[chr_pos+del_len]
-#                 gene_end = gene_info[chr_pos] -1
-#                 return "c.%s_%sdel" % (gene_start,gene_end)
-#         # Insertion
-#         # 1918692G>GTT
-#         re_obj = re.search("([0-9]+)([A-Z])>([A-Z][A-Z]+)",x)
-#         if re_obj:
-#             chr_pos = int(re_obj.group(1))
-#             ref = re_obj.group(2)
-#             alt = re_obj.group(3)
-#             strand = "-" if gene[-1]=="c" else "+"
-#             if strand == "+":
-#                 gene_start = gene_info[chr_pos]
-#                 gene_end = gene_start + 1
-#                 return "c.%s_%sins%s" % (gene_start,gene_end,alt[1:])
-#             else:
-#                 gene_start = gene_info[chr_pos] - 1
-#                 gene_end = gene_info[chr_pos]
-#                 return "c.%s_%sins%s" % (gene_start,gene_end,revcom(alt[1:]))
-#     if "non_coding" in vartype:
-#         re_obj = re.match("([0-9]+)([A-Z]+)>([A-Z]+)",x)
-#         if re_obj:
-#             gene_pos = int(re_obj.group(1))
-#             ref = re_obj.group(2)
-#             alt = re_obj.group(3)
-#             return "r.%s%s>%s" % (gene_pos,ref.lower(),alt.lower())
-#         re_obj = re.match("(\-[0-9]+)([A-Z]+)>([A-Z]+)",x)
-#         if re_obj:
-#             gene_pos = int(re_obj.group(1))
-#             ref = re_obj.group(2)
-#             alt = re_obj.group(3)
-#             strand = "-" if gene[-1]=="c" else "+"
-#             if strand=="+":
-#                 return "c.%s%s>%s" % (gene_pos,ref,alt)
-#             else:
-#                 return "c.%s%s>%s" % (gene_pos,revcom(ref),revcom(alt))
-#     if "synonymous" in vartype:
-#         re_obj = re.search("([\-0-9]+)([A-Z])>([A-Z])",x)
-#         if re_obj:
-#             return "c.%s" % (x)
-#     return x
 
 def get_seqs_from_bam(bamfile):
     seqs = []
@@ -347,62 +426,53 @@ def rm_files(x,verbose=True):
             os.remove(f)
 
 
-# def verify_fq(filename):
-#     """
-#     Return True if input is a valid fastQ file
-#     """
-#     FQ = open(filename) if filename[-3:]!=".gz" else gzip.open(filename)
-#     l1 = FQ.readline()
-#     if l1[0]!="@":
-#         sys.stderr.write("First character is not \"@\"\nPlease make sure this is fastq format\nExiting...")
-#         exit(1)
-#     else:
-#         return True
+class gene_class:
+    def __init__(self,name,locus_tag,strand,chrom,start,end,length):
+        self.name = name
+        self.locus_tag = locus_tag
+        self.strand = strand
+        self.chrom = chrom
+        self.feature_start = start
+        self.feature_end = end
+        self.start = self.feature_start if strand=="+" else self.feature_end
+        self.end = self.feature_end if strand=="+" else self.feature_start
+        self.length = length
 
+def load_gff(gff,aslist=False):
+    genes = {}
+    for l in open(gff):
+        if l[0]=="#": continue
+        if l.strip()=='': continue
+        fields = l.rstrip().split()
+        if fields[2] not in ["gene","rRNA_gene","ncRNA_gene"]: continue
+        strand = fields[6]
+        chrom = fields[0]
+        p1 = int(fields[3])
+        p2 = int(fields[4])
+        gene_length = p2-p1+1
+        
+        locus_tag = None
+        search_strings = [
+            "ID=gene:([a-zA-Z0-9\.\-\_]+)",
+            "gene_id=([a-zA-Z0-9\.\-\_]+)",
+            "ID=([a-zA-Z0-9\.\-\_]+)",
+            "locus_tag=([a-zA-Z0-9\.\-\_]+)",
+        ]
+        for s in search_strings:
+            re_obj = re.search(s,l)
+            if re_obj:
+                locus_tag = re_obj.group(1)
+                break
+        if not locus_tag:
+            locus_tag = "NA"
 
-
-# def file_len(filename):
-#     """
-#     Return length of a file
-#     """
-#     filecheck(filename)
-#     for l in cmd_out("wc -l %s" % filename):
-#         res = l.rstrip().split()[0]
-#     return int(res)
-
-
-# def download_from_ena(acc):
-#     if len(acc)==9:
-#         dir1 = acc[:6]
-#         cmd = "wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s*" % (dir1,acc,acc)
-#     elif len(acc)==10:
-#         dir1 = acc[:6]
-#         dir2 = "00"+acc[-1]
-#         cmd = "wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s/%s*" % (dir1,dir2,acc,acc)
-#     else:
-#         sys.stderr.write("Check Accession: %s" % acc)
-#         exit(1)
-#     run_cmd(cmd)
-
-# def which(program):
-#     import os
-#     def is_exe(fpath):
-#         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-#     fpath = os.path.split(program)[0]
-#     if fpath:
-#         if is_exe(program):
-#             return program
-#     else:
-#         for path in os.environ["PATH"].split(os.pathsep):
-#             exe_file = os.path.join(path, program)
-#             if is_exe(exe_file):
-#                 return exe_file
-
-#     return None
-
-# def programs_check(programs):
-#     for p in programs:
-#         if which(p)==None:
-#             log("Can't find %s in path... Exiting." % p)
-#             quit(1)
+        re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
+        gene_name = re_obj.group(1) if re_obj else locus_tag
+        start = p1
+        end =  p2
+        tmp = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
+        genes[locus_tag] = tmp
+    if aslist:
+        return genes.values()
+    else:
+        return genes
