@@ -116,7 +116,7 @@ def write_bed(db,gene_dict,gene_info,outfile,padding=200):
             ",".join(gene_dict[gene])
         ])
     with open(outfile,"w") as O:
-        for line in sorted(lines,key=lambda x: int(x[1])):
+        for line in sorted(lines,key=lambda x: (x[0],int(x[1]))):
             O.write("%s\n" %"\t".join(line))
 
 def load_gene_info(filename):
