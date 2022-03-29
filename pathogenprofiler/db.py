@@ -1,4 +1,5 @@
 import csv
+from glob import glob
 import json
 import re
 from collections import defaultdict
@@ -635,7 +636,9 @@ def load_resistance_db(args,extra_files = {}):
         if f=="ref":
             run_cmd(f"samtools faidx {new_file_path}")
             run_cmd(f"bwa index {new_file_path}")
-            
+    if os.path.isfile("snpEffectPredictor.bin"):
+        snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
+        load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
 
 
 def get_species_db(software_name,library_path,fcheck=True):
@@ -682,3 +685,24 @@ def create_species_db(args):
     json.dump(version,open(args.prefix+".version.json","w"))
     if args.load:
         load_species_db(args)
+
+def get_snpeff_dir():
+    tmp = glob(f"{sys.base_prefix}/share/*snpeff*")
+    if len(tmp)>0:
+        return tmp[0]
+    else: 
+        return None
+
+def load_snpEff_db(bin_file,genome_name):
+    snpeff_dir = get_snpeff_dir()
+    snpeff_config = f"{snpeff_dir}/snpEff.config"
+    with open(snpeff_config,"a") as F:
+        F.write(f"\n{genome_name}.genome : {genome_name}\n")
+    
+    data_dir = f"{snpeff_dir}/data"
+    genome_dir = f"{data_dir}/{genome_name}"
+    if not os.path.isdir(data_dir):
+        os.mkdir(data_dir)
+    if not os.path.isdir(genome_dir):
+        os.mkdir(genome_dir)
+    shutil.copy(bin_file,f"{genome_dir}/{bin_file}")
