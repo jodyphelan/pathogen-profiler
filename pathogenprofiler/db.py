@@ -630,8 +630,12 @@ def load_resistance_db(args,extra_files = {}):
     files = get_resistance_db(args.software_name,args.prefix,fcheck=False,extra_files=extra_files)
     for f in files:
         if f=='library_prefix': continue
-        shutil.copy(files[f],share_path+files[f].split("/")[-1])
-
+        new_file_path = share_path+files[f].split("/")[-1]
+        shutil.copy(files[f],new_file_path)
+        if f=="ref":
+            run_cmd(f"samtools faidx {new_file_path}")
+            run_cmd(f"bwa index {new_file_path}")
+            
 
 
 def get_species_db(software_name,library_path,fcheck=True):

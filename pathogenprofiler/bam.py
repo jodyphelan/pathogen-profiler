@@ -1,3 +1,4 @@
+from .kmer import kmer_dump
 from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam
 from .vcf import vcf, delly_bcf
 from collections import defaultdict
@@ -13,6 +14,8 @@ class bam:
         add_arguments_to_self(self, locals())
         filecheck(self.bam_file)
         index_bam(bam_file,threads=threads)
+        self.filetype = "cram" if bam_file[-5:]==".cram" else "bam"
+        
 
     def run_delly(self):
         if self.platform=="illumina":
@@ -198,3 +201,11 @@ class bam:
         if not hasattr(self,"genome_coverage"):
             self.get_region_coverage(bed_file)
         return [x[0] for x in self.genome_coverage if x[1]<cutoff]
+
+    def get_kmer_counts(self,prefix,klen = 31,threads=1):
+        tmp_prefix = str(uuid4())
+        run_cmd(f"kmc -t {threads} -k{klen} {self.bam_file} {tmp_prefix} .")
+        run_cmd(f"kmc_dump -fbam {tmp_prefix} {tmp_prefix}.kmers.txt")
+        os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+        run_cmd(f"rm {tmp_prefix}*")
+        return kmer_dump(f"{prefix}.kmers.txt")
