@@ -204,7 +204,7 @@ class bam:
 
     def get_kmer_counts(self,prefix,klen = 31,threads=1):
         tmp_prefix = str(uuid4())
-        run_cmd(f"kmc -t {threads} -k{klen} {self.bam_file} {tmp_prefix} .")
+        run_cmd(f"kmc -t{threads} -k{klen} {self.bam_file} {tmp_prefix} .")
         run_cmd(f"kmc_dump -fbam {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
         run_cmd(f"rm {tmp_prefix}*")

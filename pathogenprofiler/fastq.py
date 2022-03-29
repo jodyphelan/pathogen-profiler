@@ -115,12 +115,12 @@ class fastq:
 
         return bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
-    def get_kmer_counts(self,prefix,klen = 31):
+    def get_kmer_counts(self,prefix,klen = 31,threads=1):
         tmp_prefix = str(uuid4())
         tmp_file_list = f"{tmp_prefix}.list"
         with open(tmp_file_list,"w") as O:
             O.write("\n".join(self.files))
-        run_cmd(f"kmc -k{klen} @{tmp_file_list} {tmp_prefix} .")
+        run_cmd(f"kmc -t{threads} -k{klen} @{tmp_file_list} {tmp_prefix} .")
         run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
         run_cmd(f"rm {tmp_prefix}*")
