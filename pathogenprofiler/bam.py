@@ -1,3 +1,4 @@
+from glob import glob
 from .kmer import kmer_dump
 from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam
 from .vcf import vcf, delly_bcf
@@ -5,7 +6,6 @@ from collections import defaultdict
 import json
 from uuid import uuid4
 import os
-
 class bam:
     """
     A class to perform operations on BAM files such as SNP calling
@@ -91,20 +91,32 @@ class bam:
         os.remove(tmpfile)
         return self.num_reads_mapped,self.pct_reads_mapped
 
-    def get_median_coverage(self):
-        lines = []
-        for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
-            arr = l.split()
-            if arr[0]=="genome":
-                lines.append(arr)
-        midpoint =  int(lines[0][3])/2
-        x = 0
-        for row in lines:
-            x = x + int(row[2])
-            if x>midpoint:
-                break
-        self.median_coverage = int(row[1])
-        return int(row[1])
+    def get_median_coverage(self,ref_file,software="bedtools"):
+        if software=="bedtools":
+            lines = []
+            for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
+                arr = l.split()
+                if arr[0]=="genome":
+                    lines.append(arr)
+            midpoint =  int(lines[0][3])/2
+            x = 0
+            for row in lines:
+                x = x + int(row[2])
+                if x>midpoint:
+                    break
+            self.median_coverage = int(row[1])
+            return int(row[1])
+        elif software=="mosdepth":
+            self.median_coverage = None
+            tmp = str(uuid4())
+            run_cmd(f"mosdepth {tmp} {self.bam_file} -f {ref_file}")
+            for l in open(f"{tmp}.mosdepth.summary.txt"):
+                row = l.strip().split()
+                if row[0]=="total":
+                    self.median_coverage = int(row[1])
+            for f in glob(f"{tmp}*"):
+                os.remove(f)
+            return int(float(row[3]))
 
     def bed_zero_cov_regions(self,bed_file):
         add_arguments_to_self(self, locals())
@@ -117,7 +129,7 @@ class bam:
     def get_bed_gt(self,bed_file,ref_file,caller,platform):
         add_arguments_to_self(self, locals())
         results = defaultdict(lambda : defaultdict(dict))
-        run_cmd("samtools view -b -L %(bed_file)s %(bam_file)s -T %(ref_file)s > %(prefix)s.tmp.bam" % vars(self))
+        run_cmd("samtools view -Mb -L %(bed_file)s %(bam_file)s -T %(ref_file)s > %(prefix)s.tmp.bam" % vars(self))
         run_cmd("samtools index %(prefix)s.tmp.bam" % vars(self))
         if platform=="nanopore":
             caller="bcftools"

@@ -107,13 +107,18 @@ def write_bed(db,gene_dict,gene_info,outfile,padding=200):
             genome_start = gene_info[gene].feature_start - padding
             genome_end = gene_info[gene].feature_end + padding
 
+        drugs = [d for d in gene_dict[gene] if d!=""]
+        if len(drugs)==0:
+            drugs = "None"
+        else:
+            drugs = ",".join(drugs)
         lines.append([
             gene_info[gene].chrom,
             str(genome_start),
             str(genome_end),
             gene_info[gene].locus_tag,
             gene_info[gene].name,
-            ",".join(gene_dict[gene])
+            drugs
         ])
     with open(outfile,"w") as O:
         for line in sorted(lines,key=lambda x: (x[0],int(x[1]))):
@@ -516,35 +521,35 @@ def create_db(args):
                     row[0] = chrom_conversion[row[0]]
                     O.write("\t".join(row)+"\n")        
 
-                    
     genes = load_gff(gff_file)
     gene_name2gene_id = {g.name:g.locus_tag for g in genes.values()}
     gene_name2gene_id.update({g.locus_tag:g.locus_tag for g in genes.values()})
     db = {}
     locus_tag_to_drug_dict = defaultdict(set)
-    mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
     with open(args.prefix+".conversion.log","w") as L:
-        for row in csv.DictReader(open(args.csv)):
-            locus_tag = gene_name2gene_id[row["Gene"]]
-            drug = row["Drug"].lower()
-            mut = mutation_lookup[(row["Gene"],row["Mutation"])]
-            if args.include_original_mutation:
-                row["original_mutation"] = row["Mutation"]
-            if mut!=row["Mutation"]:
-                L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
-            locus_tag_to_drug_dict[locus_tag].add(drug)
-            if locus_tag not in db:
-                db[locus_tag] = {}
-            if mut not in db[locus_tag]:
-                db[locus_tag][mut] = {"annotations":[]}
+        if args.csv:
+            mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            for row in csv.DictReader(open(args.csv)):
+                locus_tag = gene_name2gene_id[row["Gene"]]
+                drug = row["Drug"].lower()
+                mut = mutation_lookup[(row["Gene"],row["Mutation"])]
+                if args.include_original_mutation:
+                    row["original_mutation"] = row["Mutation"]
+                if mut!=row["Mutation"]:
+                    L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
+                locus_tag_to_drug_dict[locus_tag].add(drug)
+                if locus_tag not in db:
+                    db[locus_tag] = {}
+                if mut not in db[locus_tag]:
+                    db[locus_tag][mut] = {"annotations":[]}
 
-            tmp_annotation = {"type":"drug","drug":row["Drug"]}
-            annotation_columns = set(row.keys()) - set(["Gene","Mutation","Drug"])
-            for col in annotation_columns:
-                if row[col]=="":continue
-                tmp_annotation[col.lower()] = row[col]
-            db[locus_tag][mut]["annotations"].append(tmp_annotation)
-            db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
+                tmp_annotation = {"type":"drug","drug":row["Drug"]}
+                annotation_columns = set(row.keys()) - set(["Gene","Mutation","Drug"])
+                for col in annotation_columns:
+                    if row[col]=="":continue
+                    tmp_annotation[col.lower()] = row[col]
+                db[locus_tag][mut]["annotations"].append(tmp_annotation)
+                db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
 
         if args.other_annotations:
             mutation_lookup = get_snpeff_formated_mutation_list(args.other_annotations,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])

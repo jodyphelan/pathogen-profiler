@@ -60,7 +60,7 @@ class kmer_dump:
         if not hasattr(self, 'kmer_counts'):
             self.load_kmer_counts(kmer_db_file)
         
-        tmp_counts = {x["seq"]:x["count"] for x in self.kmer_counts}
+        # tmp_counts = {x["seq"]:x["count"] for x in self.kmer_counts}
         
         taxon_set = set(l.strip().split("\t")[1] for l in open(kmer_db_file))
         

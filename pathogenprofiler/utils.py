@@ -47,7 +47,7 @@ def get_lt2drugs(bed_file):
     lt2drugs = {}
     for l in open(bed_file):
         row = l.strip().split()
-        lt2drugs[row[3]] = row[5].split(",")
+        lt2drugs[row[3]] = None if row[5]=="None" else row[5].split(",") 
     return lt2drugs
 
 def reformat_annotations(results,conf):
@@ -444,7 +444,7 @@ def load_gff(gff,aslist=False):
         if l[0]=="#": continue
         if l.strip()=='': continue
         fields = l.rstrip().split()
-        if fields[2] not in ["gene","rRNA_gene","ncRNA_gene"]: continue
+        if fields[2] not in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]: continue
         strand = fields[6]
         chrom = fields[0]
         p1 = int(fields[3])
@@ -465,7 +465,6 @@ def load_gff(gff,aslist=False):
                 break
         if not locus_tag:
             locus_tag = "NA"
-
         re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
         gene_name = re_obj.group(1) if re_obj else locus_tag
         start = p1
