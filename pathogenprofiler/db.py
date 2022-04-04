@@ -65,18 +65,6 @@ def revcom(s):
                     return ''.join(letters)
     return complement(s[::-1])
 
-# def write_gene_pos(infile,genes,outfile):
-#     with open(outfile, "w") as OUT:
-#         for l in open(infile):
-#             row = l.strip().split()
-#             rv,_,chr_start,chr_end,gene_start,gene_end = [row[0],row[1]]+[int(row[i]) for i in range(2,6)]
-#             if rv in genes:
-#                 y = 0
-#                 for i, chr_pos in enumerate(range(chr_start, chr_end+1)):
-#                     x = 1 if gene_start< gene_end else -1
-#                     if gene_start+(x*i) == 0:
-#                         y = 1 if gene_start< gene_end else -1
-#                     OUT.write("%s\t%s\t%s\t%s\n" % (chr_name,chr_pos,rv,gene_start+(x*i)+y))
 
 def extract_genome_positions(db,gene):
     pos = []
@@ -138,10 +126,9 @@ def get_ann(variants,snpEffDB):
     with open(uuid,"w") as O:
         O.write('##fileformat=VCFv4.2\n')
         O.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-        O.write('##contig=<ID=Chromosome,length=4411532>\n')
         O.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttest\n')
         for var in variants.values():
-            O.write("Chromosome\t%(pos)s\t.\t%(ref)s\t%(alt)s\t255\t.\t.\tGT\t1\n" % var) 
+            O.write("%(chrom)s\t%(pos)s\t.\t%(ref)s\t%(alt)s\t255\t.\t.\tGT\t1\n" % var) 
     results = {}
     keys = list(variants.keys())
     vals = list(variants.values())
@@ -204,9 +191,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 # "ethA" "c.1057_1059del"
                 genome_start = gene.start - del_end
                 genome_end = gene.start - del_start + 2
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         r = re.search("c.([0-9]+)_([0-9]+)del",row["Mutation"])
         if r:
@@ -220,9 +207,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 # "ethA" "c.1057_1059del"
                 genome_start = gene.start - del_end
                 genome_end = gene.start - del_start + 2
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         r = re.search("c.-([0-9]+)del",row["Mutation"])
         if r:
@@ -237,9 +224,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 genome_start = gene.start + del_end - 1
                 genome_end = gene.start + del_start + 1
 
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         
         r = re.search("c.(-[0-9]+)_(-[0-9]+)del",row["Mutation"])
@@ -254,9 +241,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 # "alr" "c.-283_-280delCAAT"
                 genome_start = gene.start - del_end - 1
                 genome_end = gene.start - del_start + 1
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         
         r = re.search("c.(-[0-9]+)_([0-9]+)del",row["Mutation"])
@@ -274,9 +261,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 genome_start = gene.start - del_end 
                 genome_end = gene.start - del_start + 1
 
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
 
         r = re.search("c.([0-9]+)_([0-9]+)ins([ACGT]+)", row["Mutation"])
@@ -294,9 +281,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 genome_start = gene.start - ins_start 
                 genome_end = gene.start - ins_end + 2
 
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref + ins_seq
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
         
 
         r = re.search("c.(-[0-9]+)_(-[0-9]+)ins([ACGT]+)",row["Mutation"])
@@ -313,9 +300,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 ins_seq = pp.revcom(ins_seq)
                 genome_start = gene.start - del_end 
                 genome_end = gene.start - del_start 
-            ref = refseq["Chromosome"][genome_start-1:genome_end-1]
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref + ins_seq
-            mutations[(row["Gene"],row["Mutation"])] = {"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
 
         if row["Mutation"] == "frameshift":
