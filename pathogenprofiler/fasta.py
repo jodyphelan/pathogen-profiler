@@ -40,3 +40,10 @@ class fasta:
             self.file_prefix=prefix
         run_cmd("minimap2 %(refseq)s %(fa_file)s --cs | sort -k6,6 -k8,8n | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(prefix)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
         return "%s.vcf.gz" % self.file_prefix
+    def get_amplicons(self,primer_file):
+        bed = []
+        for l in pp.cmd_out(f"seqkit amplicon {self.fa_file} -p {primer_file} --bed"):
+            row = l.strip().split()
+            bed.append(tuple(row[:4]))
+            
+        return bed

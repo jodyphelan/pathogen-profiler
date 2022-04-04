@@ -124,14 +124,14 @@ def write_bed(db,gene_dict,gene_info,outfile,padding=200):
         for line in sorted(lines,key=lambda x: (x[0],int(x[1]))):
             O.write("%s\n" %"\t".join(line))
 
-def load_gene_info(filename):
-    gene_info = {}
-    for l in open(filename):
-        row = l.rstrip().split()
-        strand = "-" if row[0][-1]=="c" else "+"
-        gene_info[row[0]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
-        gene_info[row[1]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
-    return gene_info
+# def load_gene_info(filename):
+#     gene_info = {}
+#     for l in open(filename):
+#         row = l.rstrip().split()
+#         strand = "-" if row[0][-1]=="c" else "+"
+#         gene_info[row[0]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
+#         gene_info[row[1]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
+#     return gene_info
 
 def get_ann(variants,snpEffDB):
     uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
@@ -159,6 +159,35 @@ def get_ann(variants,snpEffDB):
     os.remove(uuid)
     return results
 
+def assign_gene_to_amplicon(genes,chrom,start,end):
+    l = []
+    for g in genes.values():
+        if g.chrom!=chrom: continue
+        overlap = set(range(g.feature_start,g.feature_end)).intersection(set(range(int(start),int(end))))
+        if overlap:
+            l.append((g.locus_tag,g.name,len(overlap)))
+    return tuple(sorted(l,key=lambda x:x[2],reverse=True)[0][:2])
+
+
+
+def assign_amplicon_drugs(db,chrom,start,end):
+    d = set()
+    for gene in db:
+        for change in db[gene]:
+            if db[gene][change]['chromosome']!=chrom: continue
+            if db[gene][change]['genome_positions']==None: continue
+            if set(db[gene][change]['genome_positions']).intersection(set(range(1472209,1473781))):
+                for ann in db[gene][change]['annotations']:
+                    if "drug" in ann:
+                        d.add(ann['drug'])
+    return d
+
+def write_amplicon_bed(genes,db,primer_file,outfile):
+    with open(outfile,"w") as O:
+        for chrom,start,end,_ in get_amplicons(primer_file):
+            locus_tag,gene_name = assign_gene_to_amplicon(genes,chrom,start,end)
+            drugs = ",".join(assign_amplicon_drugs(db,chrom,start,end))
+        O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\n")
 
 def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
     genes = load_gff(gff,aslist=True)
@@ -574,6 +603,7 @@ def create_db(args):
                         locus_tag_to_drug_dict[locus_tag].add(val)
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
+                db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
 
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
@@ -607,7 +637,11 @@ def create_db(args):
                     row = l.strip().split("\t")
                     row[0] = chrom_conversion[row[0]]
                     O.write("\t".join(row)+"\n")
-        write_bed(db,locus_tag_to_drug_dict,genes,bed_file)
+        if args.amplicon_primers:
+            write_amplicon_bed(genes,db,args.amplicon_primers,bed_file)
+        else:
+            write_bed(db,locus_tag_to_drug_dict,genes,bed_file)
+        
         json.dump(db,open(json_file,"w"))
 
 
