@@ -6,6 +6,7 @@ from collections import defaultdict
 import json
 from uuid import uuid4
 import os
+
 class bam:
     """
     A class to perform operations on BAM files such as SNP calling

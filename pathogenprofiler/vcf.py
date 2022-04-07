@@ -109,28 +109,28 @@ class vcf:
 
 
 
-    def load_ann(self,max_promoter_length=1000, bed_file=None,intergenic=False,intragenic=False,upstream=False,downstream=False,noncoding=False,intronic=False,synonymous=False,splice=False,ablation=False):
+    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
         filter_out = []
-        if intergenic==False:
-            filter_out.append("intergenic_region")
-        if intragenic==False:
-            filter_out.append("intragenic_variant")
-        if noncoding==False:
-            filter_out.append("non_coding_transcript_variant")
-            filter_out.append("non_coding_transcript_exon_variant")
-        if downstream==False:
-            filter_out.append("downstream_gene_variant")
-        if upstream==False:
-            filter_out.append("upstream_gene_variant")
-        if intronic==False:
-            filter_out.append("intron_variant")
-        if synonymous==False:
-            filter_out.append("synonymous_variant")
-        if splice==False:
-            filter_out.append("splice_region_variant&intron_variant")
-        if ablation==False:
-            filter_out.append("transcript_ablation")
-        
+        filter_types = {
+                "intergenic":["intergenic_region"],
+                "intragenic":["intragenic_variant"],
+                "noncoding":["non_coding_transcript_variant","non_coding_transcript_exon_variant"],
+                "downstream":["downstream_gene_variant"],
+                "upstream":["upstream_gene_variant"],
+                "intron":["intron_variant"],
+                "synonymous":["synonymous_variant"],
+                "splice":["splice_region_variant&intron_variant"],
+                "ablation":["transcript_ablation"]
+            }
+        if exclude_variant_types:
+            for t in exclude_variant_types:
+                filter_out += filter_types[t]
+    
+        if keep_variant_types:
+            for t in filter_types:
+                if t in keep_variant_types: continue
+                filter_out += filter_types[t]
+
         if bed_file:
             genes_to_keep = set()
             for l in open(bed_file):

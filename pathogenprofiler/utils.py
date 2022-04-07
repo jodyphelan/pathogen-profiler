@@ -316,8 +316,9 @@ def nofolder(filename):
         return False
 
 def create_seq_dict(ref):
-    if nofile("%s.dict" % (ref.replace(".fasta","").replace(".fa",""))):
-        run_cmd("gatk CreateSequenceDictionary -R %s" % ref)
+    ref_prefix = ref.replace(".fasta","").replace(".fa","")
+    if nofile(f"{ref_prefix}.dict"):
+        run_cmd("samtools dict %s -o {ref_prefix}.dict" % ref)
 
 def bowtie_index(ref):
     if nofile("%s.1.bt2"%ref):

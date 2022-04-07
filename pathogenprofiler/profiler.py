@@ -29,9 +29,8 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     if variant_annotations:
         vcf_obj = vcf_obj.add_annotations(conf["ref"],bam_obj.bam_file)
     else:
-        chrom_conversion = conf["chromosome_conversion"] if "chromosome_conversion" in conf else None
-        ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= chrom_conversion)
-    ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],upstream=True,synonymous=True,noncoding=True)
+        ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
+    ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
 
 
     ### Get % and num reads mapping ###
@@ -72,9 +71,8 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         if delly_vcf_obj is not None:
             results["delly"] = "success"
             delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
-            chrom_conversion = conf["chromosome_conversion"] if "chromosome_conversion" in conf else None
-            ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= chrom_conversion,split_indels=False)
-            results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],ablation=True))
+            ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
+            results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"] ))
         else:
             results["delly"] = "fail"
 
@@ -89,8 +87,8 @@ def fasta_profiler(conf, prefix, filename):
     vcf_obj = vcf(wg_vcf_file)
     vcf_file = prefix+".targets.vcf.gz"
     run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,vcf_file,conf['bed']))
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf["chromosome_conversion"])
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],upstream=True,synonymous=True,noncoding=True)
+    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
+    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
 
     results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
     results["variants"]  = ann
@@ -108,15 +106,15 @@ def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
     vcf_targets_file = "%s.targets.vcf.gz" % prefix
     run_cmd("bcftools view -T %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = vcf(vcf_targets_file)
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf["chromosome_conversion"])
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],upstream=True,synonymous=True,noncoding=True)
+    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
+    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
     results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
     results["variants"]  = ann
 
     if delly_vcf_file:
         delly_vcf_obj = delly_bcf(delly_vcf_file)
         delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
-        ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf["chromosome_conversion"],split_indels=False)
+        ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
         results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],ablation=True))
  
     mutations = vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])

@@ -5,8 +5,7 @@ import re
 from collections import defaultdict
 import sys
 from datetime import datetime
-from pathogenprofiler import run_cmd, cmd_out, errlog, unlist, debug, infolog, successlog
-from .utils import load_gff
+from .utils import load_gff, run_cmd, cmd_out, errlog, unlist, debug, infolog, successlog
 from .fasta import fasta
 import os
 import shutil
@@ -526,7 +525,8 @@ def create_db(args,extra_files = None):
     json_file = "%s.dr.json" % args.prefix
     version_file = "%s.version.json" % args.prefix
 
-
+    if not extra_files:
+        extra_files = {}
 
     if args.match_ref:
         chrom_conversion = match_ref_chrom_names(args.match_ref,"genome.fasta")
@@ -679,6 +679,8 @@ def create_db(args,extra_files = None):
                 if key=="ref":
                     pp.run_cmd(f"bwa index {target}")
                     pp.run_cmd(f"samtools faidx {target}")
+                    tmp = target.replace(".fasta","")
+                    pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
             
             successlog("Sucessfully imported library")
 
