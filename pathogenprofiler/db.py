@@ -75,7 +75,8 @@ def extract_genome_positions(db,gene):
             pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
-def write_bed(db,gene_dict,gene_info,outfile,padding=200):
+def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
+
     lines = []
     for gene in gene_dict:
         if gene not in gene_info:
@@ -98,6 +99,8 @@ def write_bed(db,gene_dict,gene_info,outfile,padding=200):
 
         if genome_start<1:
             genome_start = 1
+        if genome_end>len(ref_fasta[gene_info[gene].chrom]):
+            genome_end = len(ref_fasta[gene_info[gene].chrom])
 
         drugs = [d for d in gene_dict[gene] if d!=""]
         if len(drugs)==0:
@@ -636,7 +639,8 @@ def create_db(args,extra_files = None):
             write_amplicon_bed(genome_file,genes,db,args.amplicon_primers,bed_file)
             variables['amplicon'] = True
         else:
-            write_bed(db,locus_tag_to_drug_dict,genes,bed_file)
+            ref_fasta_dict = fa2dict(genome_file)
+            write_bed(db,locus_tag_to_drug_dict,genes,ref_fasta_dict,bed_file)
             variables['amplicon'] = False
         
         for file in extra_files.values():
