@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from .utils import run_cmd
+from .utils import run_cmd, cmd_out
 class fasta:
     """
     Class to represent fasta seuqnces in a python dict.
@@ -42,7 +42,7 @@ class fasta:
         return "%s.vcf.gz" % self.file_prefix
     def get_amplicons(self,primer_file):
         bed = []
-        for l in pp.cmd_out(f"seqkit amplicon {self.fa_file} -p {primer_file} --bed"):
+        for l in cmd_out(f"seqkit amplicon {self.fa_file} -p {primer_file} --bed"):
             row = l.strip().split()
             bed.append(tuple(row[:4]))
             

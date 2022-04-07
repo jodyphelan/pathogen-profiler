@@ -5,8 +5,9 @@ import re
 from collections import defaultdict
 import sys
 from datetime import datetime
-from pathogenprofiler import run_cmd, cmd_out, errlog, unlist, debug, infolog
+from pathogenprofiler import run_cmd, cmd_out, errlog, unlist, debug, infolog, successlog
 from .utils import load_gff
+from .fasta import fasta
 import os
 import shutil
 from uuid import uuid4
@@ -95,6 +96,9 @@ def write_bed(db,gene_dict,gene_info,outfile,padding=200):
             genome_start = gene_info[gene].feature_start - padding
             genome_end = gene_info[gene].feature_end + padding
 
+        if genome_start<1:
+            genome_start = 1
+
         drugs = [d for d in gene_dict[gene] if d!=""]
         if len(drugs)==0:
             drugs = "None"
@@ -163,18 +167,21 @@ def assign_amplicon_drugs(db,chrom,start,end):
         for change in db[gene]:
             if db[gene][change]['chromosome']!=chrom: continue
             if db[gene][change]['genome_positions']==None: continue
-            if set(db[gene][change]['genome_positions']).intersection(set(range(1472209,1473781))):
+            if set(db[gene][change]['genome_positions']).intersection(set(range(int(start),int(end)))):
                 for ann in db[gene][change]['annotations']:
                     if "drug" in ann:
                         d.add(ann['drug'])
     return d
 
-def write_amplicon_bed(genes,db,primer_file,outfile):
+def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
+    ref = fasta(ref_seq)
     with open(outfile,"w") as O:
-        for chrom,start,end,_ in get_amplicons(primer_file):
+        for chrom,start,end,amplicon_name in ref.get_amplicons(primer_file):
             locus_tag,gene_name = assign_gene_to_amplicon(genes,chrom,start,end)
             drugs = ",".join(assign_amplicon_drugs(db,chrom,start,end))
-        O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\n")
+            if drugs=="":
+                drugs = "None"
+            O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
 def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
     genes = load_gff(gff,aslist=True)
@@ -508,12 +515,10 @@ def match_ref_chrom_names(source,target):
     return conversion
 
 
-def create_db(args):
-
+def create_db(args,extra_files = None):
+    variables = json.load(open("variables.json"))    
     genome_file = "%s.fasta" % args.prefix
     gff_file = "%s.gff" % args.prefix
-    if args.prefix:
-        barcode_file = "%s.barcode.bed" % args.prefix
     bed_file = "%s.bed" % args.prefix
     json_file = "%s.dr.json" % args.prefix
     version_file = "%s.version.json" % args.prefix
@@ -566,6 +571,7 @@ def create_db(args):
                     tmp_annotation[col.lower()] = row[col]
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
+                db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
 
         if args.other_annotations:
             mutation_lookup = get_snpeff_formated_mutation_list(args.other_annotations,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
@@ -614,57 +620,80 @@ def create_db(args):
             version["Author"] = args.db_author if args.db_author else "NA"
 
         json.dump(version,open(version_file,"w"))
+        json.dump(db,open(json_file,"w"))
 
-        variables = json.load(open("variables.json"))    
-        variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
-        json.dump(variables,open(args.prefix+".variables.json","w"))
-        if os.path.isfile("barcode.bed"):
+        
+        if "barcode" in extra_files:
+            barcode_file = f"{args.prefix}.{extra_files['barcode']}"
+
             with open(barcode_file,"w") as O:
                 for l in open("barcode.bed"):
                     row = l.strip().split("\t")
                     row[0] = chrom_conversion[row[0]]
                     O.write("\t".join(row)+"\n")
-        if args.amplicon_primers:
-            write_amplicon_bed(genes,db,args.amplicon_primers,bed_file)
+        
+        if "amplicon_primers" in vars(args) and args.amplicon_primers:
+            write_amplicon_bed(genome_file,genes,db,args.amplicon_primers,bed_file)
+            variables['amplicon'] = True
         else:
             write_bed(db,locus_tag_to_drug_dict,genes,bed_file)
+            variables['amplicon'] = False
         
-        json.dump(db,open(json_file,"w"))
+        for file in extra_files.values():
+            target = f"{args.prefix}.{file}"
+            shutil.copy(file,target)
+        
+        variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
+        variables_file = args.prefix+".variables.json"
+        variables["files"] = {
+            "ref": genome_file,
+            "gff": gff_file,
+            "bed": bed_file,
+            "version": version_file,
+            "json_db": json_file,
+            "variables": variables_file
+        }
+        if extra_files:
+            for key,val in extra_files.items():
+                variables["files"][key] = f"{args.prefix}.{val}"
+        json.dump(variables,open(variables_file,"w"))
+        
+        if os.path.isfile("snpEffectPredictor.bin"):
+            snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
+            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
+        
+        if args.load:
+            load_dir = f"{sys.base_prefix}/share/{args.software_name}"
+            if not os.path.isdir(load_dir):   
+                os.mkdir(load_dir)
+
+            for key,val in variables['files'].items():
+                target = f"{load_dir}/{val}"
+                infolog(f"Copying file: {val} ---> {target}")
+                shutil.copy(val,target)
+                if key=="ref":
+                    pp.run_cmd(f"bwa index {target}")
+                    pp.run_cmd(f"samtools faidx {target}")
+            
+            successlog("Sucessfully imported library")
 
 
-def get_resistance_db(software_name,library_path,fcheck=True,extra_files = {}):
-    if "/" not in library_path and not os.path.isfile (library_path+".gff"):
-        library_path = f"{sys.base_prefix}/share/{software_name}/{library_path}" 
-    files = {"gff":".gff","ref":".fasta","bed":".bed","json_db":".dr.json","version":".version.json","variables":".variables.json"}
-    files.update(extra_files)
-    conf = {'library_prefix':library_path}
-    for key in files:
-        if fcheck:
-            sys.stderr.write("Using %s file: %s\n" % (key,library_path+files[key]))
-            conf[key] = pp.filecheck(library_path+files[key])
-            if "json" in files[key]:
-                conf.update(json.load(open(conf[key])))
-        else:
-            conf[key] = library_path+files[key]
-    return conf
 
+def get_variable_file_name(software_name,library_name):
+    library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
+    return f"{library_prefix}.variables.json"
 
-def load_resistance_db(args,extra_files = {}):
-    share_path = f"{sys.base_prefix}/share/{args.software_name}/"
-    if not os.path.isdir(share_path):   
-        os.mkdir(share_path)
-    
-    files = get_resistance_db(args.software_name,args.prefix,fcheck=False,extra_files=extra_files)
-    for f in files:
-        if f=='library_prefix': continue
-        new_file_path = share_path+files[f].split("/")[-1]
-        shutil.copy(files[f],new_file_path)
-        if f=="ref":
-            run_cmd(f"samtools faidx {new_file_path}")
-            run_cmd(f"bwa index {new_file_path}")
-    if os.path.isfile("snpEffectPredictor.bin"):
-        snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
-        load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
+def get_resistance_db(software_name,db_name):
+    if "/" in db_name:
+        share_path = "/".join(db_name.split("/"))
+    else:
+        share_path = f"{sys.base_prefix}/share/{software_name}/"
+
+    variables = json.load(open(get_variable_file_name(software_name,db_name)))
+    for key,val in variables['files'].items():
+        variables[key] = f"{share_path}/{val}"
+
+    return variables    
 
 
 def get_species_db(software_name,library_path,fcheck=True):

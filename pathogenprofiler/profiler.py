@@ -29,7 +29,8 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     if variant_annotations:
         vcf_obj = vcf_obj.add_annotations(conf["ref"],bam_obj.bam_file)
     else:
-        ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf["chromosome_conversion"])
+        chrom_conversion = conf["chromosome_conversion"] if "chromosome_conversion" in conf else None
+        ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= chrom_conversion)
     ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],upstream=True,synonymous=True,noncoding=True)
 
 
@@ -71,7 +72,8 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         if delly_vcf_obj is not None:
             results["delly"] = "success"
             delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
-            ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf["chromosome_conversion"],split_indels=False)
+            chrom_conversion = conf["chromosome_conversion"] if "chromosome_conversion" in conf else None
+            ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= chrom_conversion,split_indels=False)
             results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],ablation=True))
         else:
             results["delly"] = "fail"
