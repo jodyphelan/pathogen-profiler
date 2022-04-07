@@ -647,7 +647,8 @@ def create_db(args,extra_files = None):
             target = f"{args.prefix}.{file}"
             shutil.copy(file,target)
         
-        variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
+        if list(chrom_conversion.keys())!=list(chrom_conversion.values()):
+            variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
         variables_file = args.prefix+".variables.json"
         variables["files"] = {
             "ref": genome_file,

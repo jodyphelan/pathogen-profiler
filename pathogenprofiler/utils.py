@@ -118,7 +118,7 @@ def reformat_missing_genome_pos(positions,conf):
     return new_results
 
 def select_most_relevant_csq(csqs):
-    rank = ["transcript_ablation","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","stop_retained_variant","synonymous_variant"]
+    rank = ["transcript_ablation","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","stop_retained_variant","synonymous_variant"]
     ranked_csq = []
     for csq in csqs:
         ranked_csq.append([i for i,d in enumerate(rank) if d in csq["type"]][0])
