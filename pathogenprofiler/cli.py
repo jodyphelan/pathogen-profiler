@@ -2,6 +2,7 @@ from .fastq import fastq
 from .utils import run_cmd
 from .bam import bam
 from .db import get_species_db
+from .fasta import fasta
 
 def speciate(args,bam_region=None):
     if args.external_species_db:
@@ -9,11 +10,10 @@ def speciate(args,bam_region=None):
     else:
         conf = get_species_db(args.software_name,args.species_db)
     
-    if args.bam==None:
+    if "read1" in vars(args) and args.read1:
         fastq_class = fastq(args.read1,args.read2)
         kmer_dump = fastq_class.get_kmer_counts(args.files_prefix,threads=args.threads)
-
-    else:
+    elif "bam" in vars(args) and args.bam:
         if bam_region:
             region_arg = bam_region if bam_region else ""
             run_cmd(f"samtools view -b {args.bam} {region_arg} | samtools fastq > {args.files_prefix}.tmp.fq")
@@ -25,7 +25,8 @@ def speciate(args,bam_region=None):
                 kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads)
             else:
                 kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads)
-    
+    elif "fasta" in vars(args) and args.fasta:
+        kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads)
     species = kmer_dump.get_taxonomic_support(conf['kmers'])
     return species
 

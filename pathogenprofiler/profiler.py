@@ -92,12 +92,13 @@ def fasta_profiler(conf, prefix, filename):
 
     results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
     results["variants"]  = ann
-    mutations = vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
-    if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
-    if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
-    if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
-    if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
-    results["barcode"] = barcode(mutations,conf["barcode"])
+    if "barcode" in conf:
+        mutations = vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
+        # if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
+        # if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
+        # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
+        # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
+        results["barcode"] = barcode(mutations,conf["barcode"])
     results = db_compare(db_file=conf["json_db"], mutations=results)
     run_cmd("rm %s" % wg_vcf_file)
     return results

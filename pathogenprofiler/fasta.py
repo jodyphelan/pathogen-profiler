@@ -1,5 +1,9 @@
 from collections import OrderedDict
 from .utils import run_cmd, cmd_out
+from uuid import uuid4
+from .kmer import kmer_dump
+import os
+
 class fasta:
     """
     Class to represent fasta seuqnces in a python dict.
@@ -47,3 +51,11 @@ class fasta:
             bed.append(tuple(row[:4]))
             
         return bed
+    def get_kmer_counts(self,prefix,klen = 31,threads=1):
+        tmp_prefix = str(uuid4())
+        run_cmd(f"kmc -t{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} .")
+        run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
+        os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+        run_cmd(f"rm {tmp_prefix}*")
+
+        return kmer_dump(f"{prefix}.kmers.txt")
