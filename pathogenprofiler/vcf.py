@@ -71,6 +71,8 @@ class vcf:
                 if path_el.startswith('snpeff-'):
                     snpeff_data_dir = os.path.join(snpeff_shared_dir, path_el, 'data')
                     snpeff_db_dir = os.path.join(snpeff_data_dir, self.db)
+                    if not os.path.isdir(snpeff_data_dir) and os.access(os.path.join(snpeff_shared_dir, path_el), os.W_OK | os.X_OK | os.R_OK):
+                        os.mkdir(snpeff_data_dir)
                     if (os.path.isdir(snpeff_db_dir) or 
                         (os.path.isdir(snpeff_data_dir) and os.access(snpeff_data_dir, os.W_OK | os.X_OK | os.R_OK))
                         ):
