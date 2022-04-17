@@ -6,7 +6,7 @@ import statistics as stats
 import os
 from tqdm import tqdm 
 from .kmer import kmer_dump
-
+import platform
 
 
 class fastq:
@@ -120,7 +120,8 @@ class fastq:
         tmp_file_list = f"{tmp_prefix}.list"
         with open(tmp_file_list,"w") as O:
             O.write("\n".join(self.files))
-        run_cmd(f"kmc -t{threads} -k{klen} @{tmp_file_list} {tmp_prefix} .")
+        bins = "-n128" if platform.system()=="Darwin" else ""
+        run_cmd(f"kmc {bins} -t{threads} -k{klen} @{tmp_file_list} {tmp_prefix} .")
         run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
         run_cmd(f"rm {tmp_prefix}*")

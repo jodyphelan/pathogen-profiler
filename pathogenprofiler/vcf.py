@@ -102,7 +102,7 @@ class vcf:
             run_cmd("bcftools norm -m - %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
             run_cmd("bcftools norm -m - %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
             run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
-            rm_files([self.tmp_file1, self.tmp_file2])
+            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file1+".csi", self.tmp_file2+".csi"])
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return vcf(self.vcf_csq_file,self.prefix)
@@ -259,16 +259,3 @@ class delly_bcf(vcf):
             self.outfile = self.tmpfile
         return delly_bcf(self.outfile)
 
-    # def overlap_bed(self,bed_file):
-    #     results = []
-    #     bed = load_bed(bed_file,[1,2,3,4,5],4)
-    #     calls = self.get_robust_calls()
-    #     for call in calls:
-    #         set_call_pos = set(range(int(call[1]),int(call[2])))
-    #         for region in bed:
-    #             if bed[region][0]!=call[0]: continue
-    #             set_region_pos = set(range(int(bed[region][1]),int(bed[region][2])))
-    #             intersect = set_call_pos.intersection(set_region_pos)
-    #             if len(intersect)>1:
-    #                 results.append({"chr":call[0],"region":region,"start":int(call[1]),"end":int(call[2])})
-    #     return results

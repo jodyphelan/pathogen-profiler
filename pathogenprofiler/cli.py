@@ -58,3 +58,19 @@ def get_bam_file(args):
         bam_file = args.bam
 
     return bam_file
+
+
+def set_platform_params(args):
+    if args.platform=="nanopore":
+        args.mapper = "minimap2"
+        if args.caller=="gatk":
+            args.caller = "freebayes"
+        args.no_trim=True
+        args.run_delly = True
+    else:
+        if args.no_delly:
+            args.run_delly = False
+        else:
+            args.run_delly = True
+    return args
+

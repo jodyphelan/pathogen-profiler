@@ -537,6 +537,7 @@ def create_db(args,extra_files = None):
     
     with open(gff_file,"w") as O:
         for l in open("genome.gff"):
+            if l.strip()=="": continue
             if l[0]=="#":
                 O.write(l)
             else:

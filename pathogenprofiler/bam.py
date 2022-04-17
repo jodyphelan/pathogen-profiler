@@ -6,6 +6,7 @@ from collections import defaultdict
 import json
 from uuid import uuid4
 import os
+import platform 
 
 class bam:
     """
@@ -217,7 +218,8 @@ class bam:
 
     def get_kmer_counts(self,prefix,klen = 31,threads=1):
         tmp_prefix = str(uuid4())
-        run_cmd(f"kmc -fbam -t{threads} -k{klen} {self.bam_file} {tmp_prefix} .")
+        bins = "-n128" if platform.system()=="Darwin" else ""
+        run_cmd(f"kmc {bins} -fbam -t{threads} -k{klen} {self.bam_file} {tmp_prefix} .")
         run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
         run_cmd(f"rm {tmp_prefix}*")
