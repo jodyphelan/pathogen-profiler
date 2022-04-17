@@ -1,10 +1,11 @@
 import setuptools
 
+version = [l.strip() for l in open("pathogenprofiler/__init__.py") if "version" in l][0].split('"')[1]
 
 setuptools.setup(
 
 	name="pathogen-profiler",
-	version="2.0.3",
+	version=version,
 	packages=["pathogenprofiler",],
 	license="GPL3",
 	long_description="Pathogen profiling tool",
