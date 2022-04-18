@@ -87,6 +87,7 @@ def fasta_profiler(conf, prefix, filename):
     vcf_obj = vcf(wg_vcf_file)
     vcf_file = prefix+".targets.vcf.gz"
     run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,vcf_file,conf['bed']))
+    vcf_obj = vcf(vcf_file)
     vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
     ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
 
@@ -123,13 +124,14 @@ def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
         ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
         results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],ablation=True))
  
-    mutations = vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])
-    # if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
-    # if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
-    # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
-    # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
+    if "barcode" in conf:
+        mutations = vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])
+        # if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
+        # if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
+        # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
+        # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
 
-    results["barcode"] = barcode(mutations,conf["barcode"])
+        results["barcode"] = barcode(mutations,conf["barcode"])
     results = db_compare(db_file=conf["json_db"], mutations=results)
-    run_cmd("rm %s* %s*" % (vcf_targets_file,vcf_obj.filename))
+
     return results
