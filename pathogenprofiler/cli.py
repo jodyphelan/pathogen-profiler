@@ -1,14 +1,52 @@
 from .fastq import fastq
-from .utils import run_cmd
+from .utils import infolog, run_cmd
 from .bam import bam
-from .db import get_species_db
+from .db import get_species_db, get_resistance_db
 from .fasta import fasta
+from .profiler import bam_profiler, fasta_profiler, vcf_profiler
+import json
+
+def get_resistance_db_from_species_prediction(args,species_prediction):
+    if args.resistance_db:
+        return get_resistance_db(args.software_name,args.resistance_db)
+
+    if len(species_prediction['prediction'])>1:
+        infolog(f"Multiple species found.\n")
+        return None
+    if len(species_prediction['prediction'])==0:
+        infolog(f"Species classification failed.\n")
+        return None
+    if len(species_prediction['prediction'])==1:
+        infolog("No resistance database was specified. Attempting to use database based on species prediction...\n")
+        db_name = species_prediction['prediction'][0]["species"].replace(" ","_")
+        conf = get_resistance_db(args.software_name,db_name)
+        if not conf:
+            infolog(f"No resistance db found for {db_name}.\n")
+        return conf
+    
+
+
+def run_profiler(args):
+    if args.read1 or args.bam:
+        bam_file = get_bam_file(args)
+        results = bam_profiler(
+            conf=args.conf, bam_file=bam_file, prefix=args.files_prefix, platform=args.platform,
+            caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
+            run_delly = args.run_delly, calling_params=args.calling_params,
+            coverage_fraction_threshold=args.coverage_fraction_threshold,
+            missing_cov_threshold=args.missing_cov_threshold, samclip=args.no_clip,
+            min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,call_wg=args.call_whole_genome,
+            variant_annotations=args.add_variant_annotations
+        )
+    elif args.fasta:
+        results = fasta_profiler(conf=args.conf,prefix=args.files_prefix,filename=args.fasta)
+    elif args.vcf:
+        results = vcf_profiler(conf=args.conf,prefix=args.files_prefix,sample_name=args.prefix,vcf_file=args.vcf,delly_vcf_file=args.delly_vcf)
+
+    return results
 
 def speciate(args,bam_region=None):
-    if args.external_species_db:
-        conf = get_species_db(args.software_name,args.external_species_db)
-    else:
-        conf = get_species_db(args.software_name,args.species_db)
+    conf = get_species_db(args.software_name,args.species_db)
     
     if "read1" in vars(args) and args.read1:
         fastq_class = fastq(args.read1,args.read2)
@@ -28,7 +66,7 @@ def speciate(args,bam_region=None):
     elif "fasta" in vars(args) and args.fasta:
         kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads)
     species = kmer_dump.get_taxonomic_support(conf['kmers'])
-    return species
+    return {"prediction":species,"species_db_version":json.load(open(conf['version']))}
 
 def get_bam_file(args):
     ### Create bam file if fastq has been supplied ###

@@ -697,7 +697,10 @@ def get_resistance_db(software_name,db_name):
     else:
         share_path = f"{sys.base_prefix}/share/{software_name}/"
 
-    variables = json.load(open(get_variable_file_name(software_name,db_name)))
+    variable_file_name = get_variable_file_name(software_name,db_name)
+    if not os.path.isfile(variable_file_name):
+        return None
+    variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
         variables[key] = f"{share_path}/{val}"
 
