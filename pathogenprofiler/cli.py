@@ -28,9 +28,9 @@ def get_resistance_db_from_species_prediction(args,species_prediction):
 
 def run_profiler(args):
     if args.read1 or args.bam:
-        bam_file = get_bam_file(args)
+        args.bam_file = get_bam_file(args)
         results = bam_profiler(
-            conf=args.conf, bam_file=bam_file, prefix=args.files_prefix, platform=args.platform,
+            conf=args.conf, bam_file=args.bam_file, prefix=args.files_prefix, platform=args.platform,
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
             coverage_fraction_threshold=args.coverage_fraction_threshold,
@@ -38,11 +38,13 @@ def run_profiler(args):
             min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,call_wg=args.call_whole_genome,
             variant_annotations=args.add_variant_annotations
         )
+        results["input_data_source"] = "fastq" if args.read1 else "bam"
     elif args.fasta:
         results = fasta_profiler(conf=args.conf,prefix=args.files_prefix,filename=args.fasta)
+        results["input_data_source"] = "fasta"
     elif args.vcf:
         results = vcf_profiler(conf=args.conf,prefix=args.files_prefix,sample_name=args.prefix,vcf_file=args.vcf,delly_vcf_file=args.delly_vcf)
-
+        results["input_data_source"] = "vcf"
     return results
 
 def speciate(args,bam_region=None):
@@ -70,7 +72,7 @@ def speciate(args,bam_region=None):
 
 def get_bam_file(args):
     ### Create bam file if fastq has been supplied ###
-    if args.bam==None:
+    if args.bam is None:
         if args.read1 and args.read2 and args.no_trim:
             # Paired + no trimming
             fastq_obj = fastq(args.read1,args.read2)

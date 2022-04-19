@@ -121,8 +121,9 @@ class vcf:
                 "upstream":["upstream_gene_variant"],
                 "intron":["intron_variant"],
                 "synonymous":["synonymous_variant"],
-                "splice":["splice_region_variant&intron_variant"],
-                "ablation":["transcript_ablation"]
+                "splice":["splice_region_variant&intron_variant","splice_region_variant&synonymous_variant"],
+                "ablation":["transcript_ablation"],
+                "utr":["5_prime_UTR_variant","3_prime_UTR_variant"]
             }
         if exclude_variant_types:
             for t in exclude_variant_types:

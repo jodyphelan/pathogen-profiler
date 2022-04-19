@@ -702,6 +702,7 @@ def get_resistance_db(software_name,db_name):
         return None
     variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
+        infolog(f"Using {key} file: {val}")
         variables[key] = f"{share_path}/{val}"
 
     return variables    
