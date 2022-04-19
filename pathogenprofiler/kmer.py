@@ -4,10 +4,15 @@ from .utils import debug, infolog,revcom
 from itertools import combinations, product
 
 def get_canonical_kmer(kmer):
-    t = {"A":"1","C":"2","T":"3","G":"4"}
+    t = {
+        "A":1,
+        "C":2,
+        "G":3,
+        "T":4
+    }
     rkmer = revcom(kmer)
-    nkmer = int("".join([t[x] for x in list(kmer)]))
-    nrkmer = int("".join([t[x] for x in list(rkmer)]))
+    nkmer = int("".join([str(t[x]) for x in list(kmer)]))
+    nrkmer = int("".join([str(t[x]) for x in list(rkmer)]))
     return kmer if nkmer<nrkmer else rkmer
 
 def mutate_kmer(kmer,d=1):
