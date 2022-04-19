@@ -106,9 +106,8 @@ def set_platform_params(args):
         args.no_trim=True
         args.run_delly = True
     else:
-        if args.no_delly:
-            args.run_delly = False
-        else:
-            args.run_delly = True
+        if "no_delly" in vars(args):
+            args.run_delly = False if args.no_delly else True
+
     return args
 
