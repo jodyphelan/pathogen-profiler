@@ -67,7 +67,11 @@ def speciate(args,bam_region=None):
                 kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads)
     elif "fasta" in vars(args) and args.fasta:
         kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads)
-    species = kmer_dump.get_taxonomic_support(conf['kmers'])
+    if "output_kmer_counts" not in vars(args):
+        args.output_kmer_counts = None
+    else:
+        args.output_kmer_counts = f"{args.prefix}.kmers.txt" 
+    species = kmer_dump.get_taxonomic_support(conf['kmers'],args.output_kmer_counts)
     return {"prediction":species,"species_db_version":json.load(open(conf['version']))}
 
 def get_bam_file(args):

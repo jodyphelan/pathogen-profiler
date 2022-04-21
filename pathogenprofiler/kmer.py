@@ -61,11 +61,15 @@ class kmer_dump:
             self.kmer_counts.append({"name":kmers[get_canonical_kmer(row[0])],"seq":row[0],"count":count})
         return self.kmer_counts
 
-    def get_taxonomic_support(self,kmer_db_file):
+    def get_taxonomic_support(self,kmer_db_file,output_kmer_counts=None):
         if not hasattr(self, 'kmer_counts'):
             self.load_kmer_counts(kmer_db_file)
         
-        # tmp_counts = {x["seq"]:x["count"] for x in self.kmer_counts}
+        if output_kmer_counts:
+            with open(output_kmer_counts,"w") as O:
+                for k in self.kmer_counts:
+                    O.write("%(name)s\t%(seq)s\t%(count)s\n" % k)
+        
         
         taxon_set = set(l.strip().split("\t")[1] for l in open(kmer_db_file))
         
