@@ -1,6 +1,6 @@
 from glob import glob
 from .kmer import kmer_dump
-from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam
+from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, debug
 from .vcf import vcf, delly_bcf
 from collections import defaultdict
 import json
