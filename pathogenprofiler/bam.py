@@ -220,9 +220,10 @@ class bam:
         if threads>32:
             threads = 32
         tmp_prefix = str(uuid4())
+        os.mkdir(tmp_prefix)
         bins = "-n128" if platform.system()=="Darwin" else ""
-        run_cmd(f"kmc {bins} -fbam -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} {self.bam_file} {tmp_prefix} .")
+        run_cmd(f"kmc {bins} -fbam -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} {self.bam_file} {tmp_prefix} {tmp_prefix}")
         run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
-        run_cmd(f"rm {tmp_prefix}*")
+        run_cmd(f"rm -r {tmp_prefix}*")
         return kmer_dump(f"{prefix}.kmers.txt")

@@ -68,9 +68,10 @@ class fasta:
             threads = 32
         tmp_prefix = str(uuid4())
         bins = "-n128" if platform.system()=="Darwin" else ""
-        run_cmd(f"kmc {bins} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} .")
+        os.mkdir(tmp_prefix)
+        run_cmd(f"kmc {bins} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
         run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
-        run_cmd(f"rm {tmp_prefix}*")
+        run_cmd(f"rm -r {tmp_prefix}*")
 
         return kmer_dump(f"{prefix}.kmers.txt")
