@@ -217,6 +217,8 @@ class bam:
         return [x[0] for x in self.genome_coverage if x[1]<cutoff]
 
     def get_kmer_counts(self,prefix,klen = 31,threads=1):
+        if threads>32:
+            threads = 32
         tmp_prefix = str(uuid4())
         bins = "-n128" if platform.system()=="Darwin" else ""
         run_cmd(f"kmc {bins} -fbam -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} {self.bam_file} {tmp_prefix} .")

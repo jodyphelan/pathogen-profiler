@@ -64,6 +64,8 @@ class fasta:
             
         return bed
     def get_kmer_counts(self,prefix,klen = 31,threads=1):
+        if threads>32:
+            threads = 32
         tmp_prefix = str(uuid4())
         bins = "-n128" if platform.system()=="Darwin" else ""
         run_cmd(f"kmc {bins} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} .")

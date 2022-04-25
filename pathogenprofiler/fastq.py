@@ -116,6 +116,8 @@ class fastq:
         return bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
     def get_kmer_counts(self,prefix,klen = 31,threads=1):
+        if threads>32:
+            threads = 32
         tmp_prefix = str(uuid4())
         tmp_file_list = f"{tmp_prefix}.list"
         with open(tmp_file_list,"w") as O:
