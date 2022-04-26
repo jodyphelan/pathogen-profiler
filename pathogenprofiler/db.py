@@ -779,7 +779,7 @@ def create_species_db(args,extra_files = None):
     if extra_files:
         for key,val in extra_files.items():
             variables["files"][key] = f"{args.prefix}.{val}"
-        json.dump(variables,open(variables_file,"w"))
+    json.dump(variables,open(variables_file,"w"))
 
     if args.load:
         load_dir = f"{sys.base_prefix}/share/{args.software_name}"
