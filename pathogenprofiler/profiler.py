@@ -77,7 +77,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
             results["delly"] = "fail"
 
     ### Compare variants to database ###
-    results = db_compare(db_file=conf["json_db"], mutations=results)
+    results = db_compare(db=conf["json_db"], mutations=results)
     return results
 
 

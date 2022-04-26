@@ -691,7 +691,7 @@ def get_variable_file_name(software_name,library_name):
     library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
     return f"{library_prefix}.variables.json"
 
-def get_resistance_db(software_name,db_name):
+def get_db(software_name,db_name):
     if "/" in db_name:
         share_path = "/".join(db_name.split("/"))
     else:
@@ -702,38 +702,52 @@ def get_resistance_db(software_name,db_name):
     variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
         infolog(f"Using {key} file: {share_path}/{val}")
-        variables[key] = f"{share_path}/{val}"
-
+        if ".json" in val:
+            variables[key] = json.load(open(f"{share_path}/{val}"))
+        else:
+            variables[key] = f"{share_path}/{val}"
+    
     return variables    
 
+# def load_db(args,variables):
+#     load_dir = f"{sys.base_prefix}/share/{args.software_name}"
+#     if not os.path.isdir(load_dir):   
+#         os.mkdir(load_dir)
 
-def get_species_db(software_name,library_path,fcheck=True):
-    if "/" not in library_path and not os.path.isfile (library_path+".kmers.txt"):
-        library_path = f"{sys.base_prefix}/share/{software_name}/{library_path}" 
-    files = {"kmers":".kmers.txt","version":".version.json"}
-    conf = {}
-    for key in files:
-        if fcheck:
-            sys.stderr.write("Using %s file: %s\n" % (key,library_path+files[key]))
-            conf[key] = pp.filecheck(library_path+files[key])
-            if "json" in files[key]:
-                conf.update(json.load(open(conf[key])))
-        else:
-            conf[key] = library_path+files[key]
-    return conf
+#     for key,val in variables['files'].items():
+#         target = f"{load_dir}/{val}"
+#         infolog(f"Copying file: {val} ---> {target}")
+#         shutil.copy(val,target)
+
+# def get_species_db(software_name,library_path,fcheck=True):
+#     if "/" not in library_path and not os.path.isfile (library_path+".kmers.txt"):
+#         library_path = f"{sys.base_prefix}/share/{software_name}/{library_path}" 
+#     files = {"kmers":".kmers.txt","version":".version.json"}
+#     conf = {}
+#     for key in files:
+#         if fcheck:
+#             sys.stderr.write("Using %s file: %s\n" % (key,library_path+files[key]))
+#             conf[key] = pp.filecheck(library_path+files[key])
+#             if "json" in files[key]:
+#                 conf.update(json.load(open(conf[key])))
+#         else:
+#             conf[key] = library_path+files[key]
+#     return conf
 
 
-def load_species_db(args):
-    share_path = f"{sys.base_prefix}/share/{args.software_name}/"
-    if not os.path.isdir(share_path):
-        os.mkdir(share_path)
+# def load_species_db(args):
+#     share_path = f"{sys.base_prefix}/share/{args.software_name}/"
+#     if not os.path.isdir(share_path):
+#         os.mkdir(share_path)
     
-    files = get_species_db(args.software_name,args.prefix,fcheck=False)
-    for f in files:
-        shutil.copy(files[f],share_path+files[f].split("/")[-1])
+#     files = get_species_db(args.software_name,args.prefix,fcheck=False)
+#     for f in files:
+#         shutil.copy(files[f],share_path+files[f].split("/")[-1])
 
 
-def create_species_db(args):
+def create_species_db(args,extra_files = None):
+    if not extra_files:
+        extra_files = {}
     version = {"name":args.prefix}
     if not args.db_name:
         for l in pp.cmd_out("git log | head -4"):
@@ -747,10 +761,35 @@ def create_species_db(args):
         version["commit"] = args.db_commit if args.db_name else "NA"
         version["Author"] = args.db_author if args.db_author else "NA"
 
-    shutil.copy(args.kmers,args.prefix+".kmers.txt")
-    json.dump(version,open(args.prefix+".version.json","w"))
+    kmer_file = args.prefix+".kmers.txt"
+    version_file = args.prefix+".version.json"
+    shutil.copy(args.kmers,kmer_file)
+    json.dump(version,open(version_file,"w"))
+    for file in extra_files.values():
+            target = f"{args.prefix}.{file}"
+            shutil.copy(file,target)
+    variables_file = args.prefix+".variables.json"
+    variables = {}
+    variables["files"] = {
+        "kmers": kmer_file,
+        "version": version_file,
+        "variables": variables_file
+    }
+
+    if extra_files:
+        for key,val in extra_files.items():
+            variables["files"][key] = f"{args.prefix}.{val}"
+        json.dump(variables,open(variables_file,"w"))
+
     if args.load:
-        load_species_db(args)
+        load_dir = f"{sys.base_prefix}/share/{args.software_name}"
+        if not os.path.isdir(load_dir):   
+            os.mkdir(load_dir)
+
+        for key,val in variables['files'].items():
+            target = f"{load_dir}/{val}"
+            infolog(f"Copying file: {val} ---> {target}")
+            shutil.copy(val,target)
 
 def get_snpeff_dir():
     tmp = glob(f"{sys.base_prefix}/share/*snpeff*")

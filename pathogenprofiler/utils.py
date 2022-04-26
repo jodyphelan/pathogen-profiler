@@ -6,8 +6,15 @@ import random
 import math
 import re
 import json
+import csv
 rand_generator = random.SystemRandom()
 
+def parse_csv(filename):
+    """Parses a CSV file into a dictionary using the first column as the key."""
+    with open(filename, 'r') as f:
+        reader = csv.DictReader(f)
+        key = reader.fieldnames[0]
+        return {row[key]: row for row in reader}
 
 def return_fields(obj,args,i=0):
     largs = args.split(".")
@@ -33,7 +40,12 @@ def variable2string(var,quote=False):
         return "%s%s%s" % (q,str(var),q)
 
 def dict_list2text(l,columns = None, mappings = None,sep="\t"):
-    headings = list(l[0].keys()) if not columns else columns
+    if mappings:
+        headings = list(mappings)
+    elif columns:
+        headings = columns
+    else:
+        headings = list(l[0].keys())
     rows = []
     header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
     for row in l:
@@ -81,9 +93,8 @@ def reformat_annotations(results,conf):
     del results["variants"]
     return results
 
-def get_genome_positions_from_json_db(json_file):
+def get_genome_positions_from_db(db):
     genome_positions = defaultdict(set)
-    db = json.load(open(json_file))
     for gene in db:
         for var in db[gene]:
             drugs = tuple([x["drug"] for x in db[gene][var]["annotations"] if x["type"]=="drug"])
@@ -106,7 +117,7 @@ def lt2genes(bed_file):
 
 def reformat_missing_genome_pos(positions,conf):
     lt2gene = lt2genes(conf["bed"])
-    dr_associated_genome_pos = get_genome_positions_from_json_db(conf["json_db"])
+    dr_associated_genome_pos = get_genome_positions_from_db(conf["json_db"])
     new_results = []
     for pos in positions:
         if pos in dr_associated_genome_pos:

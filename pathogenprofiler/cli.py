@@ -1,14 +1,14 @@
 from .fastq import fastq
 from .utils import infolog, run_cmd
 from .bam import bam
-from .db import get_species_db, get_resistance_db
+from .db import get_db
 from .fasta import fasta
 from .profiler import bam_profiler, fasta_profiler, vcf_profiler
 import json
 
 def get_resistance_db_from_species_prediction(args,species_prediction):
     if args.resistance_db:
-        return get_resistance_db(args.software_name,args.resistance_db)
+        return get_db(args.software_name,args.resistance_db)
 
     if len(species_prediction['prediction'])>1:
         infolog(f"Multiple species found.\n")
@@ -19,7 +19,7 @@ def get_resistance_db_from_species_prediction(args,species_prediction):
     if len(species_prediction['prediction'])==1:
         infolog("No resistance database was specified. Attempting to use database based on species prediction...\n")
         db_name = species_prediction['prediction'][0]["species"].replace(" ","_")
-        conf = get_resistance_db(args.software_name,db_name)
+        conf = get_db(args.software_name,db_name)
         if not conf:
             infolog(f"No resistance db found for {db_name}.\n")
         return conf
@@ -48,7 +48,7 @@ def run_profiler(args):
     return results
 
 def speciate(args,bam_region=None):
-    conf = get_species_db(args.software_name,args.species_db)
+    conf = get_db(args.software_name,args.species_db)
     
     if "read1" in vars(args) and args.read1:
         fastq_class = fastq(args.read1,args.read2)
@@ -72,7 +72,7 @@ def speciate(args,bam_region=None):
     else:
         args.output_kmer_counts = f"{args.prefix}.kmers.txt" 
     species = kmer_dump.get_taxonomic_support(conf['kmers'],args.output_kmer_counts)
-    return {"prediction":species,"species_db_version":json.load(open(conf['version']))}
+    return {"prediction_method":"kmers","prediction":species,"species_db_version":conf['version']}
 
 def get_bam_file(args):
     ### Create bam file if fastq has been supplied ###

@@ -123,12 +123,12 @@ class vcf:
                 "synonymous":["synonymous_variant"],
                 "splice":["splice_region_variant&intron_variant","splice_region_variant&synonymous_variant"],
                 "ablation":["transcript_ablation"],
-                "utr":["5_prime_UTR_variant","3_prime_UTR_variant"]
+                "utr":["5_prime_UTR_variant","3_prime_UTR_variant"],
+                "other":["feature_ablation"]
             }
         if exclude_variant_types:
             for t in exclude_variant_types:
                 filter_out += filter_types[t]
-    
         if keep_variant_types:
             for t in filter_types:
                 if t in keep_variant_types: continue
