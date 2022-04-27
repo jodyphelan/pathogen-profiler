@@ -105,7 +105,7 @@ def fasta_profiler(conf, prefix, filename):
         # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
         # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
         results["barcode"] = barcode(mutations,conf["barcode"])
-    results = db_compare(db_file=conf["json_db"], mutations=results)
+    results = db_compare(db=conf["json_db"], mutations=results)
     return results
 
 def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
@@ -131,6 +131,6 @@ def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
         # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
 
         results["barcode"] = barcode(mutations,conf["barcode"])
-    results = db_compare(db_file=conf["json_db"], mutations=results)
+    results = db_compare(db=conf["json_db"], mutations=results)
 
     return results
