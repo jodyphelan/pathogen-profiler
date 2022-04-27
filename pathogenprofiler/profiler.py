@@ -84,7 +84,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
 def fasta_profiler(conf, prefix, filename):
     fasta_obj = fasta(filename)
     wg_vcf_file = fasta_obj.get_ref_variants(conf["ref"], prefix)
-    vcf_obj = vcf(wg_vcf_file)
+    wg_vcf_obj = vcf(wg_vcf_file)
     vcf_file = prefix+".targets.vcf.gz"
     run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,vcf_file,conf['bed']))
     vcf_obj = vcf(vcf_file)
@@ -99,11 +99,7 @@ def fasta_profiler(conf, prefix, filename):
         }
 
     if "barcode" in conf:
-        mutations = vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
-        # if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
-        # if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
-        # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
-        # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
+        mutations = wg_vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
         results["barcode"] = barcode(mutations,conf["barcode"])
     results = db_compare(db=conf["json_db"], mutations=results)
     return results
@@ -125,11 +121,6 @@ def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
  
     if "barcode" in conf:
         mutations = vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])
-        # if "C" in mutations["Chromosome"][325505] and  mutations["Chromosome"][325505]["C"]==50:  mutations["Chromosome"][325505] = {"T":25}
-        # if "G" in mutations["Chromosome"][599868] and  mutations["Chromosome"][599868]["G"]==50:  mutations["Chromosome"][599868] = {"A":25}
-        # if "C" in mutations["Chromosome"][931123] and  mutations["Chromosome"][931123]["C"]==50:  mutations["Chromosome"][931123] = {"T":25}
-        # if "T" in mutations["Chromosome"][1759252] and  mutations["Chromosome"][1759252]["T"]==50:  mutations["Chromosome"][1759252] = {"G":25}
-
         results["barcode"] = barcode(mutations,conf["barcode"])
     results = db_compare(db=conf["json_db"], mutations=results)
 
