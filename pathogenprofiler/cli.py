@@ -1,5 +1,5 @@
 from .fastq import fastq
-from .utils import infolog, run_cmd
+from .utils import infolog, run_cmd, cmd_out
 from .bam import bam
 from .db import get_db
 from .fasta import fasta
@@ -24,7 +24,12 @@ def get_resistance_db_from_species_prediction(args,species_prediction):
             infolog(f"No resistance db found for {db_name}.\n")
         return conf
     
-
+def test_vcf_for_lofreq(vcf_file):
+    lofreq = False
+    for l in cmd_out(f"bcftools view -h {vcf_file}"):
+        if "source=lofreq call" in l:
+            lofreq = True
+    return lofreq
 
 def run_profiler(args):
     if args.read1 or args.bam:
@@ -43,6 +48,10 @@ def run_profiler(args):
         results = fasta_profiler(conf=args.conf,prefix=args.files_prefix,filename=args.fasta)
         results["input_data_source"] = "fasta"
     elif args.vcf:
+        if test_vcf_for_lofreq(args.vcf):
+            tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
+            run_cmd(f"bcftools view {args.vcf} | add_dummy_AD.py --ref {args.conf['ref']} --sample-name {args.prefix} --add-dp | bcftools view -Oz -o {tmp_vcf_file}")
+            args.vcf = tmp_vcf_file
         results = vcf_profiler(conf=args.conf,prefix=args.files_prefix,sample_name=args.prefix,vcf_file=args.vcf,delly_vcf_file=args.delly_vcf)
         results["input_data_source"] = "vcf"
     return results
