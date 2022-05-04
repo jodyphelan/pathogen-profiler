@@ -9,6 +9,9 @@ import json
 import csv
 rand_generator = random.SystemRandom()
 
+def stringify(l):
+    return [str(x) for x in list(l)]
+
 def parse_csv(filename):
     """Parses a CSV file into a dictionary using the first column as the key."""
     with open(filename, 'r') as f:
