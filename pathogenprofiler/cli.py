@@ -1,5 +1,5 @@
 from .fastq import fastq
-from .utils import infolog, run_cmd, cmd_out
+from .utils import errlog, infolog, run_cmd, cmd_out, debug
 from .bam import bam
 from .db import get_db
 from .fasta import fasta
@@ -58,6 +58,11 @@ def run_profiler(args):
 
 def speciate(args,bam_region=None):
     conf = get_db(args.software_name,args.species_db)
+    if conf==None:
+        errlog(
+            f"\nDatabase '{args.species_db}' not found. You may need to load this database first... Exiting!\n",
+            ext=True
+        )
     
     if "read1" in vars(args) and args.read1:
         fastq_class = fastq(args.read1,args.read2)
@@ -79,7 +84,7 @@ def speciate(args,bam_region=None):
     if "output_kmer_counts" not in vars(args):
         args.output_kmer_counts = None
     else:
-        args.output_kmer_counts = f"{args.prefix}.kmers.txt" 
+        args.output_kmer_counts = f"{args.prefix}.kmers.txt"  if args.output_kmer_counts else False
     species = kmer_dump.get_taxonomic_support(conf['kmers'],args.output_kmer_counts)
     return {"prediction_method":"kmers","prediction":species,"species_db_version":conf['version']}
 
