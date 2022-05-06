@@ -62,7 +62,7 @@ class fastq:
         else:
             {"bwa":bwa_index,"bwa-mem2":bwa2_index,"bowtie2":bowtie_index}[self.aligner](ref_file)
 
-        self.bwa_prefix = "bwa mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
+        self.bwa_prefix = "bwa mem -t %(threads)s -K 10000000 -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bwa2_prefix = "bwa-mem2 mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bowtie2_prefix = "bowtie2 -p %(threads)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' --rg 'PL:%(platform)s'" % vars(self)
         self.minimap2_prefix = "minimap2 -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % vars(self)
