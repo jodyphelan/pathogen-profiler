@@ -63,13 +63,13 @@ class fasta:
             bed.append(tuple(row[:4]))
             
         return bed
-    def get_kmer_counts(self,prefix,klen = 31,threads=1):
+    def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2):
         if threads>32:
             threads = 32
         tmp_prefix = str(uuid4())
         bins = "-n128" if platform.system()=="Darwin" else ""
         os.mkdir(tmp_prefix)
-        run_cmd(f"kmc {bins} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
+        run_cmd(f"kmc {bins} -sm -m{max_mem} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
         run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
         run_cmd(f"rm -r {tmp_prefix}*")
