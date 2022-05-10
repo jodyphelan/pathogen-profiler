@@ -22,6 +22,8 @@ def get_indel_nucleotide(x):
 def get_barcoding_mutations(mutations,barcode_bed):
     bed = []
     for l in open(barcode_bed):
+        if l[0]=="#":
+            continue
         row = l.strip().split("\t")
         bed.append(row)
     

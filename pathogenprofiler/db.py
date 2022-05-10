@@ -632,6 +632,7 @@ def create_db(args,extra_files = None):
 
             with open(barcode_file,"w") as O:
                 for l in open("barcode.bed"):
+                    if l[0]=="#": continue
                     row = l.strip().split("\t")
                     row[0] = chrom_conversion[row[0]]
                     O.write("\t".join(row)+"\n")

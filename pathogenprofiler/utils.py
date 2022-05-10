@@ -287,6 +287,9 @@ def load_bed(filename,columns,key1,key2=None,intasint=False):
     results = defaultdict(lambda: defaultdict(tuple))
     for l in open(filename):
         row = l.rstrip().split("\t")
+        if l[0]=="#":
+            header = row
+            continue
         if key2:
             if max(columns+[key1,key2])>len(row):
                 errlog("Can't access a column in BED file. The largest column specified is too big",True)
