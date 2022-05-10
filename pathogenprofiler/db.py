@@ -530,10 +530,10 @@ def create_db(args,extra_files = None):
 
     if args.match_ref:
         chrom_conversion = match_ref_chrom_names(args.match_ref,"genome.fasta")
-        shutil.copy(args.match_ref,genome_file)
+        shutil.copyfile(args.match_ref,genome_file)
     else:
         chrom_conversion = match_ref_chrom_names("genome.fasta","genome.fasta")
-        shutil.copy("genome.fasta",genome_file)    
+        shutil.copyfile("genome.fasta",genome_file)    
     
     with open(gff_file,"w") as O:
         for l in open("genome.gff"):
@@ -647,7 +647,7 @@ def create_db(args,extra_files = None):
         
         for file in extra_files.values():
             target = f"{args.prefix}.{file}"
-            shutil.copy(file,target)
+            shutil.copyfile(file,target)
         
         if list(chrom_conversion.keys())!=list(chrom_conversion.values()):
             variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
@@ -677,7 +677,7 @@ def create_db(args,extra_files = None):
             for key,val in variables['files'].items():
                 target = f"{load_dir}/{val}"
                 infolog(f"Copying file: {val} ---> {target}")
-                shutil.copy(val,target)
+                shutil.copyfile(val,target)
                 if key=="ref":
                     pp.run_cmd(f"bwa index {target}")
                     pp.run_cmd(f"samtools faidx {target}")
@@ -718,7 +718,7 @@ def get_db(software_name,db_name):
 #     for key,val in variables['files'].items():
 #         target = f"{load_dir}/{val}"
 #         infolog(f"Copying file: {val} ---> {target}")
-#         shutil.copy(val,target)
+#         shutil.copyfile(val,target)
 
 # def get_species_db(software_name,library_path,fcheck=True):
 #     if "/" not in library_path and not os.path.isfile (library_path+".kmers.txt"):
@@ -743,7 +743,7 @@ def get_db(software_name,db_name):
     
 #     files = get_species_db(args.software_name,args.prefix,fcheck=False)
 #     for f in files:
-#         shutil.copy(files[f],share_path+files[f].split("/")[-1])
+#         shutil.copyfile(files[f],share_path+files[f].split("/")[-1])
 
 
 def create_species_db(args,extra_files = None):
@@ -764,11 +764,11 @@ def create_species_db(args,extra_files = None):
 
     kmer_file = args.prefix+".kmers.txt"
     version_file = args.prefix+".version.json"
-    shutil.copy(args.kmers,kmer_file)
+    shutil.copyfile(args.kmers,kmer_file)
     json.dump(version,open(version_file,"w"))
     for file in extra_files.values():
             target = f"{args.prefix}.{file}"
-            shutil.copy(file,target)
+            shutil.copyfile(file,target)
     variables_file = args.prefix+".variables.json"
     variables = {}
     variables["files"] = {
@@ -790,7 +790,7 @@ def create_species_db(args,extra_files = None):
         for key,val in variables['files'].items():
             target = f"{load_dir}/{val}"
             infolog(f"Copying file: {val} ---> {target}")
-            shutil.copy(val,target)
+            shutil.copyfile(val,target)
 
 def get_snpeff_dir():
     tmp = glob(f"{sys.base_prefix}/share/*snpeff*")
@@ -811,4 +811,4 @@ def load_snpEff_db(bin_file,genome_name):
         os.mkdir(data_dir)
     if not os.path.isdir(genome_dir):
         os.mkdir(genome_dir)
-    shutil.copy(bin_file,f"{genome_dir}/{bin_file}")
+    shutil.copyfile(bin_file,f"{genome_dir}/{bin_file}")
