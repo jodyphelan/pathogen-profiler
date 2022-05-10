@@ -54,21 +54,7 @@ def barcode(mutations,barcode_bed,snps_file=None):
         row = l.strip().split("\t")
         # bed.append(row)
         lineage_info[row[3]] = row
-    # #{'Chromosome':{'4392120': ('Chromosome', '4392120', 'lineage4.4.1.2', 'G', 'A', 'Euro-American', 'T1', 'None')}}
-    # barcode_support = defaultdict(list)
-    # snps_report = []
-    # for marker in bed:
-    #     tmp = [0,0]
-    #     chrom,pos = marker[0],int(marker[2])
-    #     if chrom in mutations and pos in mutations[chrom]:
-    #         for n in iupac[marker[4]]:
-    #             if n in mutations[chrom][pos]:
-    #                 tmp[1]+= mutations[chrom][pos][n]
-    #         tmp[0] = sum(list(mutations[chrom][pos].values())) - tmp[1]
 
-    #     if  tmp==[0,0]: continue
-    #     barcode_support[marker[3]].append(tmp)
-    #     snps_report.append([marker[3],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))])
 
     barcode_support,snps_report = get_barcoding_mutations(mutations,barcode_bed)
     with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
