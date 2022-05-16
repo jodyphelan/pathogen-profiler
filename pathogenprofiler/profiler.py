@@ -117,7 +117,7 @@ def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
         delly_vcf_obj = delly_bcf(delly_vcf_file)
         delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
         ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
-        results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],ablation=True))
+        results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"]))
  
     if "barcode" in conf:
         mutations = vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])
