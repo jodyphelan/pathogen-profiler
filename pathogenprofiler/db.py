@@ -694,10 +694,13 @@ def get_variable_file_name(software_name,library_name):
 
 def get_db(software_name,db_name):
     if "/" in db_name:
-        share_path = "/".join(db_name.split("/"))
+        share_path = "/".join(db_name.split("/")[:-1])
+        db_name = db_name.split("/")[-1]
+        variable_file_name = f"{share_path}/{db_name}.variables.json"
     else:
         share_path = f"{sys.base_prefix}/share/{software_name}/"
-    variable_file_name = get_variable_file_name(software_name,db_name)
+        variable_file_name = get_variable_file_name(software_name,db_name)
+    
     if not os.path.isfile(variable_file_name):
         return None
     variables = json.load(open(variable_file_name))
