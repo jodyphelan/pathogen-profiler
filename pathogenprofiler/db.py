@@ -625,6 +625,11 @@ def create_db(args,extra_files = None):
 
         json.dump(version,open(version_file,"w"))
         json.dump(db,open(json_file,"w"))
+        
+        
+        for file in extra_files.values():
+            target = f"{args.prefix}.{file}"
+            shutil.copyfile(file,target)
 
         
         if "barcode" in extra_files:
@@ -645,10 +650,7 @@ def create_db(args,extra_files = None):
             write_bed(db,locus_tag_to_drug_dict,genes,ref_fasta_dict,bed_file)
             variables['amplicon'] = False
         
-        for file in extra_files.values():
-            target = f"{args.prefix}.{file}"
-            shutil.copyfile(file,target)
-        
+                
         if list(chrom_conversion.keys())!=list(chrom_conversion.values()):
             variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
         variables_file = args.prefix+".variables.json"
