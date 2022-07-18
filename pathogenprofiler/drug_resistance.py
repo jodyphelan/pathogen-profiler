@@ -43,9 +43,6 @@ def get_summary(json_results,conf,columns = None,drug_order = None,reporting_af=
     drug_table = []
     results = {}
     annotation = {}
-    for key in columns:
-        if key not in json_results["dr_variants"][0]: 
-            errlog("%s not found in variant annotation, is this a valid column in the database CSV file? Exiting!" % key,True)
 
     pool = json_results["dr_variants"].copy()
     if 'resistance_genes' in json_results:
@@ -63,7 +60,7 @@ def get_summary(json_results,conf,columns = None,drug_order = None,reporting_af=
             if drug not in annotation: 
                 annotation[drug] = {key:[] for key in columns}
             for key in columns:
-                annotation[drug][key].append(x["drugs"][drug][key])
+                annotation[drug][key].append(d.get(key,""))
 
     for d in drugs:
         if d in results:
