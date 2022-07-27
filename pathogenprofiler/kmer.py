@@ -57,7 +57,7 @@ class kmer_dump:
         
         for l in open(kmer_db_file):
             row = l.strip().split("\t")
-            count = tmp_counts.get(get_canonical_kmer(row[0]),0)
+            count = sum([tmp_counts.get(k,0) for k in mutate_kmer(row[0],d=1)])
             self.kmer_counts.append({"name":kmers[get_canonical_kmer(row[0])],"seq":row[0],"count":count})
         return self.kmer_counts
 
