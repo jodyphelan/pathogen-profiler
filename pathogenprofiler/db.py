@@ -672,23 +672,26 @@ def create_db(args,extra_files = None):
             load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
         
         if args.load:
-            load_dir = f"{sys.base_prefix}/share/{args.software_name}"
-            if not os.path.isdir(load_dir):   
-                os.mkdir(load_dir)
+            load_db(variables_file,args.software_name)
 
-            for key,val in variables['files'].items():
-                target = f"{load_dir}/{val}"
-                infolog(f"Copying file: {val} ---> {target}")
-                shutil.copyfile(val,target)
-                if key=="ref":
-                    pp.run_cmd(f"bwa index {target}")
-                    pp.run_cmd(f"samtools faidx {target}")
-                    tmp = target.replace(".fasta","")
-                    pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
-            
-            successlog("Sucessfully imported library")
+def load_db(variables_file,software_name,source_dir="."):
+    variables = json.load(open(variables_file))
+    load_dir = f"{sys.base_prefix}/share/{software_name}"
+    if not os.path.isdir(load_dir):   
+        os.mkdir(load_dir)
 
-
+    for key,val in variables['files'].items():
+        source = f"{source_dir}/{val}"
+        target = f"{load_dir}/{val}"
+        infolog(f"Copying file: {source} ---> {target}")
+        shutil.copyfile(source,target)
+        if key=="ref":
+            pp.run_cmd(f"bwa index {target}")
+            pp.run_cmd(f"samtools faidx {target}")
+            tmp = target.replace(".fasta","")
+            pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
+    
+    successlog("Sucessfully imported library")
 
 def get_variable_file_name(software_name,library_name):
     library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
