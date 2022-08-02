@@ -2,7 +2,7 @@ from tqdm import tqdm
 import statistics as stats
 from .utils import debug, infolog,revcom
 from itertools import combinations, product
-
+import os
 def get_canonical_kmer(kmer):
     t = {
         "A":1,
@@ -41,7 +41,7 @@ class kmer_dump:
         self.kmer_file = kmer_file
 
 
-    def load_kmer_counts(self,kmer_db_file):
+    def load_kmer_counts(self,kmer_db_file,remove_after_processing=True):
         self.kmer_counts = []
         kmers = {}
         for l in open(kmer_db_file):
@@ -59,6 +59,8 @@ class kmer_dump:
             row = l.strip().split("\t")
             count = sum([tmp_counts.get(k,0) for k in mutate_kmer(row[0],d=1)])
             self.kmer_counts.append({"name":kmers[get_canonical_kmer(row[0])],"seq":row[0],"count":count})
+        if remove_after_processing:
+            os.remove(self.kmer_file)
         return self.kmer_counts
 
     def get_taxonomic_support(self,kmer_db_file,output_kmer_counts=None):
