@@ -625,6 +625,11 @@ def create_db(args,extra_files = None):
 
         json.dump(version,open(version_file,"w"))
         json.dump(db,open(json_file,"w"))
+        
+        
+        for file in extra_files.values():
+            target = f"{args.prefix}.{file}"
+            shutil.copyfile(file,target)
 
         
         if "barcode" in extra_files:
@@ -645,10 +650,7 @@ def create_db(args,extra_files = None):
             write_bed(db,locus_tag_to_drug_dict,genes,ref_fasta_dict,bed_file)
             variables['amplicon'] = False
         
-        for file in extra_files.values():
-            target = f"{args.prefix}.{file}"
-            shutil.copyfile(file,target)
-        
+                
         if list(chrom_conversion.keys())!=list(chrom_conversion.values()):
             variables["chromosome_conversion"] = {"target":list(chrom_conversion.keys()),"source":list(chrom_conversion.values())}
         variables_file = args.prefix+".variables.json"
@@ -670,23 +672,26 @@ def create_db(args,extra_files = None):
             load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
         
         if args.load:
-            load_dir = f"{sys.base_prefix}/share/{args.software_name}"
-            if not os.path.isdir(load_dir):   
-                os.mkdir(load_dir)
+            load_db(variables_file,args.software_name)
 
-            for key,val in variables['files'].items():
-                target = f"{load_dir}/{val}"
-                infolog(f"Copying file: {val} ---> {target}")
-                shutil.copyfile(val,target)
-                if key=="ref":
-                    pp.run_cmd(f"bwa index {target}")
-                    pp.run_cmd(f"samtools faidx {target}")
-                    tmp = target.replace(".fasta","")
-                    pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
-            
-            successlog("Sucessfully imported library")
+def load_db(variables_file,software_name,source_dir="."):
+    variables = json.load(open(variables_file))
+    load_dir = f"{sys.base_prefix}/share/{software_name}"
+    if not os.path.isdir(load_dir):   
+        os.mkdir(load_dir)
 
-
+    for key,val in variables['files'].items():
+        source = f"{source_dir}/{val}"
+        target = f"{load_dir}/{val}"
+        infolog(f"Copying file: {source} ---> {target}")
+        shutil.copyfile(source,target)
+        if key=="ref":
+            pp.run_cmd(f"bwa index {target}")
+            pp.run_cmd(f"samtools faidx {target}")
+            tmp = target.replace(".fasta","")
+            pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
+    
+    successlog("Sucessfully imported library")
 
 def get_variable_file_name(software_name,library_name):
     library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
@@ -713,40 +718,12 @@ def get_db(software_name,db_name):
     
     return variables    
 
-# def load_db(args,variables):
-#     load_dir = f"{sys.base_prefix}/share/{args.software_name}"
-#     if not os.path.isdir(load_dir):   
-#         os.mkdir(load_dir)
+def list_db(software_name):
+    share_path = f"{sys.base_prefix}/share/{software_name}"
+    if not os.path.isdir(share_path):
+        return []
+    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".version.json")]
 
-#     for key,val in variables['files'].items():
-#         target = f"{load_dir}/{val}"
-#         infolog(f"Copying file: {val} ---> {target}")
-#         shutil.copyfile(val,target)
-
-# def get_species_db(software_name,library_path,fcheck=True):
-#     if "/" not in library_path and not os.path.isfile (library_path+".kmers.txt"):
-#         library_path = f"{sys.base_prefix}/share/{software_name}/{library_path}" 
-#     files = {"kmers":".kmers.txt","version":".version.json"}
-#     conf = {}
-#     for key in files:
-#         if fcheck:
-#             sys.stderr.write("Using %s file: %s\n" % (key,library_path+files[key]))
-#             conf[key] = pp.filecheck(library_path+files[key])
-#             if "json" in files[key]:
-#                 conf.update(json.load(open(conf[key])))
-#         else:
-#             conf[key] = library_path+files[key]
-#     return conf
-
-
-# def load_species_db(args):
-#     share_path = f"{sys.base_prefix}/share/{args.software_name}/"
-#     if not os.path.isdir(share_path):
-#         os.mkdir(share_path)
-    
-#     files = get_species_db(args.software_name,args.prefix,fcheck=False)
-#     for f in files:
-#         shutil.copyfile(files[f],share_path+files[f].split("/")[-1])
 
 
 def create_species_db(args,extra_files = None):
