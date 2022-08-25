@@ -8,4 +8,4 @@ from .db import *
 from .drug_resistance import *
 from .barcode import *
 from .cli import *
-__version__ = "2.0.1"
+__version__ = "2.0.2"
