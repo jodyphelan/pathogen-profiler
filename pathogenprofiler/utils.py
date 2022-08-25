@@ -71,25 +71,21 @@ def reformat_annotations(results,conf):
     results["dr_variants"] = []
     results["other_variants"] = []
     for var in results["variants"]:
-        if "annotation" in var:
+        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug" and x["confers"]=="resistance"])
+        if len(drugs)>0:
             tmp = var.copy()
-            drugs = tuple([x["drug"] for x in var["annotation"] if x["type"]=="drug" and x["confers"]=="resistance"])
-            if len(drugs)>0:
-                dr_ann = []
-                other_ann = []
-                while len(tmp["annotation"])>0:
-                    x = tmp["annotation"].pop()
-                    if x["type"]=="drug":
-                        dr_ann.append(x)
-                    else:
-                        other_ann.append(x)
-                tmp["drugs"] = dr_ann
-                tmp["annotation"] = other_ann
-                results["dr_variants"].append(tmp)
-            else:
-                var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
-                results["other_variants"].append(var)
-
+            dr_ann = []
+            other_ann = []
+            while len(tmp["annotation"])>0:
+                x = tmp["annotation"].pop()
+                if x["type"]=="drug":
+                    dr_ann.append(x)
+                else:
+                    other_ann.append(x)
+            tmp["drugs"] = dr_ann
+            tmp["annotation"] = other_ann
+            tmp["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
+            results["dr_variants"].append(tmp)
         else:
             var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
             results["other_variants"].append(var)
