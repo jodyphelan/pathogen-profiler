@@ -18,8 +18,8 @@ class sequence_ontology:
             if e[0]==node:
                 children.add(e[1])
         return children
-    def get_sucessors(self,current_node):
-        nodes = set()
+    def get_sucessors_id(self,current_node):
+        nodes = set([current_node])
         def recurse(n):
             children = self.get_children(n)
             if len(children)==0:
@@ -31,6 +31,11 @@ class sequence_ontology:
             return 
         recurse(current_node)
         return nodes
+    def get_sucessors(self,label):
+        if self.is_valid_term(label):
+            return [self.id2label(x) for x in  self.get_sucessors_id(self.label2id(label))]
+        else:
+            return set()
     def label2id(self,label):
         return self._labels2id[label]
     def id2label(self,label):
