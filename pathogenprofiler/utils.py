@@ -158,7 +158,10 @@ def select_csq(dict_list):
             csq = annotated_csq[0]
             alternate_consequences = []
         else:
-            quit("ERROR! too many csqs")
+            errlog("ERROR! too many csqs")
+            errlog(annotated_csq)
+            errlog(d)
+            raise Exception("Too many csqs")
         del d["consequences"]
         d.update(csq)
         d["alternate_consequences"] = alternate_consequences
