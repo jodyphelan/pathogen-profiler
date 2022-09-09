@@ -99,7 +99,7 @@ def get_bam_file(args):
             untrimmed_fastq_obj = fastq(args.read1,args.read2)
             fastq_obj = untrimmed_fastq_obj.trim(args.files_prefix,threads=args.threads)
         elif args.read1 and not args.read2 and args.no_trim:
-            # Unpaired + trimming
+            # Unpaired + no trimming
             fastq_obj = fastq(args.read1,args.read2)
         elif args.read1 and not args.read2 and not args.no_trim:
             # Unpaired + trimming
