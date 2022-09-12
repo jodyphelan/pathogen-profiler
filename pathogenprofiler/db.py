@@ -11,7 +11,24 @@ import os
 import shutil
 from uuid import uuid4
 import pathogenprofiler as pp
-from .sequence_ontology import sequence_ontology
+
+
+supported_so_terms = [
+    'coding_sequence_variant', 'chromosome', 'duplication', 'inversion', 'coding_sequence_variant', 
+    'inframe_insertion', 'disruptive_inframe_insertion', 'inframe_deletion', 'disruptive_inframe_deletion', 
+    'downstream_gene_variant', 'exon_variant', 'exon_loss_variant', 'exon_loss_variant', 'duplication', 
+    'duplication', 'inversion', 'inversion', 'frameshift_variant', 'gene_variant', 'feature_ablation', 
+    'duplication', 'gene_fusion', 'gene_fusion', 'bidirectional_gene_fusion', 'rearranged_at_DNA_level', 
+    'intergenic_region', 'conserved_intergenic_variant', 'intragenic_variant', 'intron_variant', 
+    'conserved_intron_variant', 'miRNA', 'missense_variant', 'initiator_codon_variant', 'stop_retained_variant', 
+    'protein_protein_contact', 'structural_interaction_variant', 'rare_amino_acid_variant', 
+    'splice_acceptor_variant', 'splice_donor_variant', 'splice_region_variant', 'splice_region_variant', 
+    'splice_region_variant', 'stop_lost', '5_prime_UTR_premature_', 'start_codon_gain_variant', 
+    'start_lost', 'stop_gained', 'synonymous_variant', 'start_retained', 'stop_retained_variant', 
+    'transcript_variant', 'feature_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
+    '3_prime_UTR_variant', '3_prime_UTR_truncation + exon_loss', '5_prime_UTR_variant', 
+    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant'
+]
 
 def generate_kmer_database(kmer_file,outfile):
     from itertools import combinations, product
@@ -185,7 +202,7 @@ def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
                 drugs = "None"
             O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
-def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB,sequence_ontology_file=None):
+def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
     genes = load_gff(gff,aslist=True)
     refseq = fa2dict(ref)
     mutations  =  {}
@@ -344,14 +361,11 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB,sequence_ontolog
 
 
         if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
-            if sequence_ontology_file:
-                so = sequence_ontology(sequence_ontology_file)
-                if so.is_valid_term(row["Mutation"]):
-                    for term in so.get_sucessors(row["Mutation"]):
-                        converted_mutations[(row["Gene"],term)] = term
+                if row['Mutation'] in supported_so_terms:
+                    converted_mutations[(row["Gene"],row['Mutation'])] = row['Mutation']
         if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
-            quit(f"Don't know how to handle this mutation: {row['Gene']} {row['Mutation']}\n")
-            
+            raise Exception(f"Don't know how to handle this mutation: {row['Gene']} {row['Mutation']}")            
+
     infolog("Converting %s mutations" % len(mutations))
     if len(mutations)>0:
         mutation_conversion = get_ann(mutations,snpEffDB)
@@ -512,7 +526,7 @@ def match_ref_chrom_names(source,target):
     return conversion
 
 
-def create_db(args,extra_files = None,sequence_ontology_file=None):
+def create_db(args,extra_files = None):
     variables = json.load(open("variables.json"))    
     genome_file = "%s.fasta" % args.prefix
     gff_file = "%s.gff" % args.prefix
@@ -546,14 +560,11 @@ def create_db(args,extra_files = None,sequence_ontology_file=None):
     gene_name2gene_id.update({g.locus_tag:g.locus_tag for g in genes.values()})
     db = {}
     locus_tag_to_drug_dict = defaultdict(set)
-    if sequence_ontology_file:
-        so = sequence_ontology(sequence_ontology_file)
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
-            mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],sequence_ontology_file=sequence_ontology_file)
+            mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 pp.debug(row)
-                is_so = so.is_valid_term(row["Mutation"])
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 drug = row["Drug"].lower()
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])]
@@ -573,14 +584,8 @@ def create_db(args,extra_files = None,sequence_ontology_file=None):
                     if row[col]=="":continue
                     tmp_annotation[col.lower()] = row[col]
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
-                db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if not is_so else None
+                db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
                 db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
-                if is_so:
-                    for term in so.get_sucessors(row["Mutation"]):
-                        debug(term)
-                        debug(mut)
-                        debug(row)
-                        db[locus_tag][term] = db[locus_tag][row["Mutation"]]
         if args.other_annotations:
             mutation_lookup = get_snpeff_formated_mutation_list(args.other_annotations,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.other_annotations)):
