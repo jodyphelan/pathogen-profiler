@@ -2,6 +2,7 @@ from .utils import stdev, log, debug, iupac
 import json
 import re
 from collections import defaultdict
+from .db import supported_so_terms
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -114,4 +115,5 @@ def db_compare(mutations,db):
 def check_for_so_wildcard(csq,db):
     r = re.search("p.([A-Z]+)([0-9]+)",csq["protein_change"])
     if r:
-        for dbvar in db[csq['gene_id']]:
+        return False
+    elif csq['protein_change'] in :
