@@ -100,19 +100,18 @@ def db_compare(mutations,db):
                     db_var_match = db[csq["gene_id"]][csq["nucleotide_change"]]
                 elif  csq["protein_change"] in db[csq["gene_id"]]:
                     db_var_match = db[csq["gene_id"]][csq["protein_change"]]
-                elif "frameshift" in csq["type"] and "frameshift" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["frameshift"]
-                elif "missense" in csq["type"] and "any_missense_codon_%s" % get_missense_codon(csq["protein_change"]) in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["any_missense_codon_%s" % get_missense_codon(csq["protein_change"])]
-                elif "frame" in csq["type"] and "any_indel_nucleotide_%s" % get_indel_nucleotide(csq["nucleotide_change"]) in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["any_indel_nucleotide_%s" % get_indel_nucleotide(csq["nucleotide_change"])]
-                elif "stop_gained" in csq["type"] and "premature_stop" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["premature_stop"]
-                elif "transcript_ablation" in csq["type"] and "transcript_ablation" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["transcript_ablation"]
+                elif csq["type"] in db[csq["gene_id"]]:
+                    db_var_match = db[csq["gene_id"]][csq["type"]]
+                elif f"{csq["type"]}_{}"
                 if db_var_match:
                     if "annotation" not in annotated_results["variants"][i]["consequences"][j]:
                         annotated_results["variants"][i]["consequences"][j]["annotation"] = []
                     for ann in db_var_match["annotations"]:
                         annotated_results["variants"][i]["consequences"][j]["annotation"].append(ann)
     return annotated_results
+
+
+def check_for_so_wildcard(csq,db):
+    r = re.search("p.([A-Z]+)([0-9]+)",csq["protein_change"])
+    if r:
+        for dbvar in db[csq['gene_id']]:

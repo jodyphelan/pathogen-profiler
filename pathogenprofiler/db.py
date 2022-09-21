@@ -25,7 +25,7 @@ supported_so_terms = [
     'splice_acceptor_variant', 'splice_donor_variant', 'splice_region_variant', 'splice_region_variant', 
     'splice_region_variant', 'stop_lost', '5_prime_UTR_premature_', 'start_codon_gain_variant', 
     'start_lost', 'stop_gained', 'synonymous_variant', 'start_retained', 'stop_retained_variant', 
-    'transcript_variant', 'feature_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
+    'transcript_variant', 'transcript_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
     '3_prime_UTR_variant', '3_prime_UTR_truncation + exon_loss', '5_prime_UTR_variant', 
     '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant'
 ]
@@ -564,7 +564,6 @@ def create_db(args,extra_files = None):
         if args.csv:
             mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
-                pp.debug(row)
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 drug = row["Drug"].lower()
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])]
