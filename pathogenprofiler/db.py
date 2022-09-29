@@ -377,8 +377,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
 
 
 def get_genome_position(gene_object,change):
-    if change in ["frameshift","large_deletion","functional_gene","transcript_ablation"]:
-        return None
+    for term in supported_so_terms:
+        if term in change:
+            return None
     if "any_missense_codon" in change:
         codon = int(change.replace("any_missense_codon_",""))
         change = f"p.Xyz{codon}Xyz"
