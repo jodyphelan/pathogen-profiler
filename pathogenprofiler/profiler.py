@@ -14,7 +14,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     platform = platform.lower()
     caller = caller.lower()
 
-    ### Set caller to bcftools if platform is nanopre and wrong caller has been used ###
+    ### Set caller to freebayes if platform is nanopre and wrong caller has been used ###
     if platform == "nanopore":
         run_delly = False
         caller = "freebayes"
