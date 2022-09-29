@@ -143,6 +143,9 @@ def set_change(var):
     var["change"] = var["protein_change"] if var["type"] in protein_csqs else var["nucleotide_change"]
     return var
 
+def annotation_has_drug_type(ann):
+    return any([x["type"]=="drug" for x in ann])
+
 def select_csq(dict_list):
     for d in dict_list:
         annotated_csq = []
@@ -158,10 +161,18 @@ def select_csq(dict_list):
             csq = annotated_csq[0]
             alternate_consequences = []
         else:
-            errlog("ERROR! too many csqs")
-            errlog(annotated_csq)
-            errlog(d)
-            raise Exception("Too many csqs")
+            chosen_annotation = None
+            for csq in annotated_csq:
+                if annotation_has_drug_type(csq["annotation"]):
+                    chosen_annotation = csq
+                    break
+            if chosen_annotation:
+                csq = chosen_annotation
+            else:
+                csq = annotated_csq[0]
+            alternate_consequences = [json.dumps(x) for x in d["consequences"]]
+            alternate_consequences.remove(json.dumps(csq))
+            alternate_consequences = [json.loads(x) for x in alternate_consequences]
         del d["consequences"]
         d.update(csq)
         d["alternate_consequences"] = alternate_consequences
