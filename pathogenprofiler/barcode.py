@@ -112,7 +112,6 @@ def db_compare(mutations,db):
                     for match in db_var_match:
                         for ann in json.loads(match)["annotations"]:
                             annotated_results["variants"][i]["consequences"][j]["annotation"].append(ann)
-    infolog(json.dumps(annotated_results))
     return annotated_results
 
 
