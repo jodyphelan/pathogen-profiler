@@ -53,7 +53,7 @@ class fastq:
             quit("ERROR: %s not in accepted aligners\n" % aligner)
 
         self.platform = platform.lower()
-        accepted_platforms = ["illumina","nanopore"]
+        accepted_platforms = ["illumina","nanopore","pacbio"]
         if self.platform not in accepted_platforms:
             quit("ERROR: %s not in accepted platforms\n" % platform)
 
@@ -72,6 +72,8 @@ class fastq:
         self.bam_unsort_file = "%s.unsort.bam" % self.prefix
         if self.platform == "nanopore":
             run_cmd("%(minimap2_prefix)s -x map-ont  %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
+        elif self.platform == "pacbio":
+            run_cmd("%(minimap2_prefix)s -x map-pb  %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
         else:
             if aligner=="bwa" and self.paired:
                 run_cmd("%(bwa_prefix)s %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
