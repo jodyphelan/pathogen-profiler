@@ -1,7 +1,8 @@
-from .utils import stdev, log, debug, iupac
+from .utils import infolog, stdev, log, debug, iupac
 import json
 import re
 from collections import defaultdict
+from .db import supported_so_terms
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -94,25 +95,60 @@ def db_compare(mutations,db):
         for j in range(len(var["consequences"])):
             csq = var["consequences"][j]
             if csq["gene_id"] in db:
-                db_var_match = None
+                db_var_match = set()
                 
                 if csq["nucleotide_change"] in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]][csq["nucleotide_change"]]
-                elif  csq["protein_change"] in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]][csq["protein_change"]]
-                elif "frameshift" in csq["type"] and "frameshift" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["frameshift"]
-                elif "missense" in csq["type"] and "any_missense_codon_%s" % get_missense_codon(csq["protein_change"]) in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["any_missense_codon_%s" % get_missense_codon(csq["protein_change"])]
-                elif "frame" in csq["type"] and "any_indel_nucleotide_%s" % get_indel_nucleotide(csq["nucleotide_change"]) in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["any_indel_nucleotide_%s" % get_indel_nucleotide(csq["nucleotide_change"])]
-                elif "stop_gained" in csq["type"] and "premature_stop" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["premature_stop"]
-                elif "transcript_ablation" in csq["type"] and "transcript_ablation" in db[csq["gene_id"]]:
-                    db_var_match = db[csq["gene_id"]]["transcript_ablation"]
-                if db_var_match:
+                    db_var_match.add(json.dumps(db[csq["gene_id"]][csq["nucleotide_change"]]))
+                if  csq["protein_change"] in db[csq["gene_id"]]:
+                    db_var_match.add(json.dumps(db[csq["gene_id"]][csq["protein_change"]]))
+                if csq["type"] in db[csq["gene_id"]]:
+                    db_var_match.add(json.dumps(db[csq["gene_id"]][csq["type"]]))
+                if check_for_so_wildcard(csq,db):
+                    db_var_match.add(json.dumps(check_for_so_wildcard(csq,db)))
+                
+                if len(db_var_match)>0:
                     if "annotation" not in annotated_results["variants"][i]["consequences"][j]:
                         annotated_results["variants"][i]["consequences"][j]["annotation"] = []
-                    for ann in db_var_match["annotations"]:
-                        annotated_results["variants"][i]["consequences"][j]["annotation"].append(ann)
+                    for match in db_var_match:
+                        for ann in json.loads(match)["annotations"]:
+                            annotated_results["variants"][i]["consequences"][j]["annotation"].append(ann)
+    infolog(json.dumps(annotated_results))
     return annotated_results
+
+
+def extract_affected_positions(change):
+    r = re.search("p.[A-Za-z]+(\d+)_[A-Za-z]+(\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(2))+1))
+    r = re.search("p.[A-Za-z]+(\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(1))+1))
+    r = re.search("c.(-*\d+)_(-*\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(1))+1))
+    r = re.search("c.(-*\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(1))+1))
+    r = re.search("n.(-*\d+)_(-*\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(1))+1))
+    r = re.search("n.(-*\d+)",change)
+    if r:
+        return set(range(int(r.group(1)),int(r.group(1))+1))
+    raise ValueError(f"Can't parse {change}")
+    
+def check_for_so_wildcard(csq,db):
+    for var in db[csq['gene_id']]:
+        r = re.search(f"{csq['type']}_([pcn])\.(\d+)_(\d+)",var)
+        if r: 
+            context = r.group(1)
+            positions = set(range(int(r.group(2)),int(r.group(3))+1))
+            if context=="p":
+                change = csq['protein_change']
+            elif context=="c":
+                change = csq['nucleotide_change']
+            elif context=="n":
+                change = csq['nucleotide_change']
+            affected_positions = extract_affected_positions(change)
+            if len(positions.intersection(affected_positions))>0:
+                return db[csq['gene_id']][var]
