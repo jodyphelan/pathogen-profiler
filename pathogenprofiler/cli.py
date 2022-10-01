@@ -119,7 +119,7 @@ def get_bam_file(args):
 
 
 def set_platform_params(args):
-    if args.platform=="nanopore":
+    if args.platform in ("nanopore","pacbio"):
         args.mapper = "minimap2"
         if args.caller=="gatk":
             args.caller = "freebayes"

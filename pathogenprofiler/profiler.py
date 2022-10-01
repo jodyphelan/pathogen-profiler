@@ -15,9 +15,10 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     caller = caller.lower()
 
     ### Set caller to freebayes if platform is nanopre and wrong caller has been used ###
-    if platform == "nanopore":
+    if platform in ("nanopore","pacbio"):
         run_delly = False
-        caller = "freebayes"
+        if caller=="gatk":
+            caller = "freebayes"
 
     ### Create bam object and call variants ###
     bam_obj = bam(bam_file, prefix, platform=platform, threads=threads)
