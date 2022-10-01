@@ -111,7 +111,7 @@ class vcf:
 
 
 
-    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
+    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None,min_af=0.1):
         filter_out = []
         filter_types = {
                 "intergenic":["intergenic_region"],
@@ -142,9 +142,9 @@ class vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%ANN\\t[%AD]\\n' {self.filename}"):
-            chrom,pos,ref,alt_str,ann_str,ad_str = l.strip().split()
-            
+        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%QUAL\\t%ANN\\t[%AD]\\n' {self.filename}"):
+            chrom,pos,ref,alt_str,qual_str,ann_str,ad_str = l.strip().split()
+            qual = float(qual_str)
             alleles = [ref] + alt_str.split(",")
             if alt_str=="<DEL>":
                 af_dict = {"<DEL>":1.0}
@@ -153,16 +153,18 @@ class vcf:
                 af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
             ann_list = [x.split("|") for x in ann_str.split(",")]
             for alt in alleles[1:]:
+                if af_dict[alt]<min_af: continue
                 tmp_var = {
                     "chrom": chrom,
                     "genome_pos": int(pos),
                     "ref": ref,
                     "alt":alt,
+                    "qual":qual,
+                    "depth":sum(ad),
                     "freq":af_dict[alt],
                     "consequences":[]
                 }
-                # if pos=="1673425":
-                    # import pdb; pdb.set_trace()
+
                 for ann in ann_list:
                     ann[3] = ann[3].replace("gene:","")
                     ann[4] = ann[4].replace("gene:","")
