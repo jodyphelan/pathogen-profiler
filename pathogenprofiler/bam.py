@@ -62,7 +62,7 @@ class bam:
             self.calling_cmd = "freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(bam_file)s | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform=="pacbio" and self.caller == "pilon":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = """pillon --genome %(ref_file)s --targets {1} %(calling_params)s --pacbio %(bam_file)s --variant --output %(prefix)s.{2} && bcftools view -e 'ALT=\\".\\"' -c 1 %(prefix)s.{2}.vcf | bcftools view -e 'AF<0.6' |add_dummy_AD.py | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
+            self.calling_cmd = """pilon --genome %(ref_file)s --targets {1} %(calling_params)s --pacbio %(bam_file)s --variant --output %(prefix)s.{2} && bcftools view -e 'ALT=\\".\\"' -c 1 %(prefix)s.{2}.vcf | bcftools view -e 'AF<0.6' |add_dummy_AD.py | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
         elif self.platform=="illumina" and self.caller == "bcftools":
             self.calling_params = calling_params if calling_params else "-ABq8 -Q0"
             self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD -r {1} %(prefix)s.{2}.tmp.bam | bcftools call -mv | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
@@ -137,14 +137,14 @@ class bam:
         results = defaultdict(lambda : defaultdict(dict))
         run_cmd("samtools view -Mb -L %(bed_file)s %(bam_file)s -T %(ref_file)s > %(prefix)s.tmp.bam" % vars(self))
         run_cmd("samtools index %(prefix)s.tmp.bam" % vars(self))
-        if platform=="nanopore":
+        if platform in ("nanopore","pacbio"):
             caller="bcftools"
         if caller == "gatk":
             cmd = "gatk HaplotypeCaller -I %(prefix)s.tmp.bam -R %(ref_file)s -L %(bed_file)s -OVI false -O /dev/stdout | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         elif caller == "freebayes":
             cmd = "freebayes -f %(ref_file)s -t %(bed_file)s %(prefix)s.tmp.bam --haplotype-length -1 | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         elif caller == "bcftools":
-            cmd = "bcftools mpileup -f %(ref_file)s -R %(bed_file)s %(prefix)s.tmp.bam -BI -a AD | bcftools call -mv | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+            cmd = "bcftools mpileup -f %(ref_file)s -T %(bed_file)s %(prefix)s.tmp.bam -BI -a AD | bcftools call -mv | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         else:
             cmd = "freebayes -f %(ref_file)s -t %(bed_file)s %(prefix)s.tmp.bam --haplotype-length -1 | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
 
@@ -161,7 +161,7 @@ class bam:
                 d[ref] = 0
             else:
                 genotypes = list([ref]+alts)
-                if self.platform == "nanopore":
+                if platform in ("nanopore","pacbio"):
                     idx = ad.index(max(ad))
                     d[genotypes[idx]] = ad[idx]
                 else:

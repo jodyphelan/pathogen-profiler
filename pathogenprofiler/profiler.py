@@ -59,7 +59,12 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     results["variants"]  = ann
 
     if "barcode" in conf:
-        mutations = bam_obj.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=platform)
+        if platform in ("nanopore","pacbio"):
+            mutations = bam_obj.get_bed_gt(conf["barcode"],conf["ref"], caller="bcftools",platform=platform)
+        else:
+            mutations = bam_obj.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=platform)
+
+            
         results["barcode"] = barcode(mutations,conf["barcode"])
     
 
