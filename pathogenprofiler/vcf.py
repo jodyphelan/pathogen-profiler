@@ -142,9 +142,8 @@ class vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%QUAL\\t%ANN\\t[%AD]\\n' {self.filename}"):
-            chrom,pos,ref,alt_str,qual_str,ann_str,ad_str = l.strip().split()
-            qual = float(qual_str)
+        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%ANN\\t[%AD]\\n' {self.filename}"):
+            chrom,pos,ref,alt_str,ann_str,ad_str = l.strip().split()
             alleles = [ref] + alt_str.split(",")
             if alt_str=="<DEL>":
                 af_dict = {"<DEL>":1.0}
@@ -159,8 +158,7 @@ class vcf:
                     "genome_pos": int(pos),
                     "ref": ref,
                     "alt":alt,
-                    "qual":qual,
-                    "depth":sum(ad),
+Zz                    "depth":sum(ad),
                     "freq":af_dict[alt],
                     "consequences":[]
                 }
