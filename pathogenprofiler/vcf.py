@@ -158,7 +158,7 @@ class vcf:
                     "genome_pos": int(pos),
                     "ref": ref,
                     "alt":alt,
-                    "depth":sum(ad),
+                    "depth":sum(ad) if ad_str!="." else None,
                     "freq":af_dict[alt],
                     "consequences":[]
                 }
