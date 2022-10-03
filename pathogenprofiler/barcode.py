@@ -101,8 +101,9 @@ def db_compare(mutations,db):
                     db_var_match.add(json.dumps(db[csq["gene_id"]][csq["nucleotide_change"]]))
                 if  csq["protein_change"] in db[csq["gene_id"]]:
                     db_var_match.add(json.dumps(db[csq["gene_id"]][csq["protein_change"]]))
-                if csq["type"] in db[csq["gene_id"]]:
-                    db_var_match.add(json.dumps(db[csq["gene_id"]][csq["type"]]))
+                for t in csq["type"].split("&"):
+                    if t in db[csq["gene_id"]]:
+                        db_var_match.add(json.dumps(db[csq["gene_id"]][t]))
                 if check_for_so_wildcard(csq,db):
                     db_var_match.add(json.dumps(check_for_so_wildcard(csq,db)))
                 
@@ -138,16 +139,17 @@ def extract_affected_positions(change):
     
 def check_for_so_wildcard(csq,db):
     for var in db[csq['gene_id']]:
-        r = re.search(f"{csq['type']}_([pcn])\.(\d+)_(\d+)",var)
-        if r: 
-            context = r.group(1)
-            positions = set(range(int(r.group(2)),int(r.group(3))+1))
-            if context=="p":
-                change = csq['protein_change']
-            elif context=="c":
-                change = csq['nucleotide_change']
-            elif context=="n":
-                change = csq['nucleotide_change']
-            affected_positions = extract_affected_positions(change)
-            if len(positions.intersection(affected_positions))>0:
-                return db[csq['gene_id']][var]
+        for t in csq['type'].split('&'):
+            r = re.search(f"{t}_([pcn])\.(\d+)_(\d+)",var)
+            if r: 
+                context = r.group(1)
+                positions = set(range(int(r.group(2)),int(r.group(3))+1))
+                if context=="p":
+                    change = csq['protein_change']
+                elif context=="c":
+                    change = csq['nucleotide_change']
+                elif context=="n":
+                    change = csq['nucleotide_change']
+                affected_positions = extract_affected_positions(change)
+                if len(positions.intersection(affected_positions))>0:
+                    return db[csq['gene_id']][var]
