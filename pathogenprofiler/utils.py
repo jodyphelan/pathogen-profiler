@@ -129,14 +129,16 @@ def reformat_missing_genome_pos(positions,conf):
 
 def select_most_relevant_csq(csqs):
     rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
-    ranked_csq = []
-    for csq in csqs:
-        try:
-            ranked_csq.append([i for i,d in enumerate(rank) if d in csq["type"]][0])
-        except:
-            errlog("Unknown variant type (%s). Don't know how to rank... Exiting!" % csq,True)
-    csq1 = csqs[ranked_csq.index(min(ranked_csq))]
-    return csq1
+    # debug(csqs)
+    ranked_csq = sorted(csqs,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x['type'].split("&")]))
+    # for csq in csqs:
+    #     try:
+    #         ranked_csq.append([i for i,d in enumerate(rank) if d in csq["type"]][0])
+    #     except:
+    #         errlog("Unknown variant type (%s). Don't know how to rank... Exiting!" % csq,True)
+    # csq1 = csqs[ranked_csq.index(min(ranked_csq))]
+    # return csq1
+    return ranked_csq[0]
 
 def set_change(var):
     protein_csqs = ["missense_variant","stop_gained"]
