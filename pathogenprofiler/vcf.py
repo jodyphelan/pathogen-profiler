@@ -5,6 +5,7 @@ import re
 from uuid import uuid4
 import sys
 import os.path
+import quickle
 
 # re_seq = re.compile("([0-9\-]*)([A-Z\*]+)")
 # re_I = re.compile("([A-Z\*]+)")
@@ -247,7 +248,28 @@ class vcf:
             if x in lines:
                 found_annotations.append(x)
         return found_annotations
-
+    def write_set(self, exclude_bed,af_cutoff=0.8):
+        ref_diffs = set()
+        missing = set()
+        for l in cmd_out(f"bcftools view -V indels -T ^{exclude_bed} {self.filename} | bcftools query -f '%POS[\t%GT:%AD]\n'"):
+            if l[0]=="#": continue
+            row = l.strip().split()
+            pos = int(row[0])
+            gt,ad = row[1].split(":")
+            if gt==".": 
+                missing.add(pos)
+                continue
+            ad = [int(x) for x in ad.split(",")]
+            if sum(ad)<=10:
+                missing.add(pos)
+                continue
+            adf = sorted([float(x/sum(ad)) for x in ad])
+            if adf[-1]<af_cutoff:
+                missing.add(pos)
+                continue
+            if gt=="1/1":
+                ref_diffs.add(int(pos))
+        open(self.prefix + ".non_ref.qkl","wb").write(quickle.dumps((ref_diffs,missing)))
 class delly_bcf(vcf):
     def __init__(self,filename):
          vcf.__init__(self,filename)
