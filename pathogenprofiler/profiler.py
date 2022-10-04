@@ -3,11 +3,13 @@ from .bam import bam
 from .barcode import barcode, db_compare
 from .vcf import vcf,delly_bcf
 from .fasta import fasta
+from .variant_set import variant_set
+import os
 
 
 
 
-def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, run_coverage=True, coverage_fraction_threshold=0, min_depth = 10, missing_cov_threshold=10, min_af=0.1, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
+def bam_profiler(conf, bam_file, prefix, platform, caller, dir, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, run_coverage=True, coverage_fraction_threshold=0, min_depth = 10, missing_cov_threshold=10, min_af=0.1, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
     infolog("Using %s\n\nPlease ensure that this BAM was made using the same reference as in the database.\nIf you are not sure what reference was used it is best to remap the reads." % bam_file)
 
     ### Put user specified arguments to lower case ###
@@ -82,6 +84,9 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         else:
             results["delly"] = "fail"
 
+    if call_wg:
+        var_set = variant_set(wg_vcf_obj.filename,exclude_bed="/home/jody/refgenome/excluded_loci.bed")
+        results["close_samples"] = var_set.get_close_samples(os.path.join(dir,"results"))
     ### Compare variants to database ###
     results = db_compare(db=conf["json_db"], mutations=results)
     return results
@@ -102,7 +107,7 @@ def fasta_profiler(conf, prefix, filename):
         "qc":{
             "gene_coverage":fasta_obj.get_aln_coverage(conf['bed']),
             "num_reads_mapped":"NA"}
-        }
+    }
 
     if "barcode" in conf:
         mutations = wg_vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])

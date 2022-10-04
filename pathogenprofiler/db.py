@@ -526,6 +526,16 @@ def match_ref_chrom_names(source,target):
             conversion[s] = tmp[0]
     return conversion
 
+def replace_file_column(oldfilename,newfilename,column,conversion,sep="\t"):
+    
+    with open(newfilename,"w") as f:
+        for line in open(oldfilename):
+            row = line.strip().split(sep)
+            if len(row)<column: continue
+            for key,val in conversion.items():
+                if row[column-1]==key:
+                    row[column-1] = val
+            f.write(sep.join(row)+"\n")
 
 def create_db(args,extra_files = None):
     variables = json.load(open("variables.json"))    
@@ -673,7 +683,11 @@ def create_db(args,extra_files = None):
         }
         if extra_files:
             for key,val in extra_files.items():
-                variables["files"][key] = f"{args.prefix}.{val}"
+                if isinstance(val,str):
+                    variables["files"][key] = f"{args.prefix}.{val}"
+                else:
+                    variables["files"][key] = f"{args.prefix}.{val['name']}"
+                    replace_file_column(key['name'],variables['files'][key],column=val['convert'],conversion=chrom_conversion)
         json.dump(variables,open(variables_file,"w"))
         
         if os.path.isfile("snpEffectPredictor.bin"):
