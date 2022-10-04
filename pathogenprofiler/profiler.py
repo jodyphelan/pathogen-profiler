@@ -85,7 +85,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, dir, threads=1, no_fl
             results["delly"] = "fail"
 
     if call_wg:
-        var_set = variant_set(wg_vcf_obj.filename,exclude_bed="/home/jody/refgenome/excluded_loci.bed")
+        var_set = variant_set(wg_vcf_obj.filename,exclude_bed=conf['bedmask'])
         results["close_samples"] = var_set.get_close_samples(os.path.join(dir,"results"))
     ### Compare variants to database ###
     results = db_compare(db=conf["json_db"], mutations=results)

@@ -647,8 +647,12 @@ def create_db(args,extra_files = None):
         
         
         for file in extra_files.values():
-            target = f"{args.prefix}.{file}"
-            shutil.copyfile(file,target)
+            if  isinstance(file,str):
+                target = f"{args.prefix}.{file}"
+                shutil.copyfile(file,target)
+            else:
+                target = f"{args.prefix}.{file['name']}"
+                replace_file_column(file['name'],target,column=file['convert'],conversion=chrom_conversion)
 
         
         if "barcode" in extra_files:
@@ -687,7 +691,7 @@ def create_db(args,extra_files = None):
                     variables["files"][key] = f"{args.prefix}.{val}"
                 else:
                     variables["files"][key] = f"{args.prefix}.{val['name']}"
-                    replace_file_column(key['name'],variables['files'][key],column=val['convert'],conversion=chrom_conversion)
+                    
         json.dump(variables,open(variables_file,"w"))
         
         if os.path.isfile("snpEffectPredictor.bin"):
