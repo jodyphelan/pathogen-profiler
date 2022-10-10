@@ -100,13 +100,7 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
             quit()
         if gene_info[gene].locus_tag in db:
             genome_positions = extract_genome_positions(db,gene_info[gene].locus_tag)
-            debug(f"{gene} {len(genome_positions)}")
-            if len(genome_positions)>0:
-                debug(f"{vars(gene_info[gene])} {max(genome_positions)} {min(genome_positions)}")
             if gene_info[gene].strand=="+":
-                # if gene=="Rv3794":
-                #     import pdb
-                #     pdb.set_trace()
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
                     genome_start = min(genome_positions) - padding
                 else:
@@ -117,9 +111,6 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
                 else:
                     genome_end = gene_info[gene].end + padding
             else:
-                # if gene=="Rv1267c":
-                #     import pdb
-                #     pdb.set_trace()
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
                     genome_start = min(genome_positions) - padding
                 else:
