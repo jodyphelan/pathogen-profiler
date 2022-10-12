@@ -87,7 +87,7 @@ def extract_genome_positions(db,gene):
     pos = []
     for mut in db[gene]:
         if any([a["type"]=="drug" for a in db[gene][mut]["annotations"]]):
-            if mut[:1] not in ["p.","c.","n."]: continue
+            if mut[:2] not in ["p.","c.","n."]: continue
             pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
@@ -100,15 +100,26 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
             quit()
         if gene_info[gene].locus_tag in db:
             genome_positions = extract_genome_positions(db,gene_info[gene].locus_tag)
-            if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
-                genome_start = min(genome_positions) - padding
+            if gene_info[gene].strand=="+":
+                if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
+                    genome_start = min(genome_positions) - padding
+                else:
+                    genome_start = gene_info[gene].start - padding
+                
+                if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
+                    genome_end = max(genome_positions) + padding
+                else:
+                    genome_end = gene_info[gene].end + padding
             else:
-                genome_start = gene_info[gene].feature_start - padding
-            
-            if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
-                genome_end = max(genome_positions) + padding
-            else:
-                genome_end = gene_info[gene].feature_end + padding
+                if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
+                    genome_start = min(genome_positions) - padding
+                else:
+                    genome_start = gene_info[gene].end - padding
+                
+                if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
+                    genome_end = max(genome_positions) + padding
+                else:
+                    genome_end = gene_info[gene].start + padding
         else:
             genome_start = gene_info[gene].feature_start - padding
             genome_end = gene_info[gene].feature_end + padding
