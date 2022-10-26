@@ -712,6 +712,12 @@ def create_db(args,extra_files = None):
         if args.load:
             load_db(variables_file,args.software_name)
 
+def index_ref(target):
+    pp.run_cmd(f"bwa index {target}")
+    pp.run_cmd(f"samtools faidx {target}")
+    tmp = target.replace(".fasta","")
+    pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
+
 def load_db(variables_file,software_name,source_dir="."):
     variables = json.load(open(variables_file))
     load_dir = f"{sys.base_prefix}/share/{software_name}"
@@ -724,16 +730,20 @@ def load_db(variables_file,software_name,source_dir="."):
         infolog(f"Copying file: {source} ---> {target}")
         shutil.copyfile(source,target)
         if key=="ref":
-            pp.run_cmd(f"bwa index {target}")
-            pp.run_cmd(f"samtools faidx {target}")
-            tmp = target.replace(".fasta","")
-            pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
+            index_ref(target)
     
     successlog("Sucessfully imported library")
 
 def get_variable_file_name(software_name,library_name):
     library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
     return f"{library_prefix}.variables.json"
+
+def check_db_files(variables):
+    for key,val in variables.items():
+        if key=="ref":
+            if not os.path.isfile(val+".fai"):
+                index_ref(val)
+
 
 def get_db(software_name,db_name):
     if "/" in db_name:
@@ -754,6 +764,7 @@ def get_db(software_name,db_name):
         else:
             variables[key] = f"{share_path}/{val}"
     
+    check_db_files(variables)
     return variables    
 
 def list_db(software_name):
