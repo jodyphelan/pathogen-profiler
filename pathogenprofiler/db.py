@@ -11,7 +11,7 @@ import os
 import shutil
 from uuid import uuid4
 import pathogenprofiler as pp
-
+import math
 
 supported_so_terms = [
     'coding_sequence_variant', 'chromosome', 'duplication', 'inversion', 'coding_sequence_variant', 
@@ -384,8 +384,31 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             converted_mutations[key] = mutation_conversion[key]
     return converted_mutations
     
+def get_exon_to_aa_coords(exons):
+    converter = []
+    offset = 0
+    if exons[0].strand == "+":
+        for e in exons:
+            aa = [math.floor((x - e.phase)/3) + 1 + offset for x in range(e.start - e.start  , e.end - e.start +1)]
+            genome = range(e.start,e.end+1)
+            converter.extend(list(zip(genome,aa)))
+            offset = aa[-1]
+    else:
+        for e in exons[::-1]:
+            aa = [math.floor((x - e.phase)/3) + 1 + offset for x in range(e.start - e.start  , e.end - e.start +1)]
+            genome = range(e.end,e.start-1,-1)
+            converter.extend(list(zip(genome,aa)))
+            print("\n")
+            print(list(zip(genome,aa)))
+            offset = aa[-1]
+    return converter
 
-
+def get_aa2genome_coords(exons):
+    converter = get_exon_to_aa_coords(exons)
+    aa2genome = defaultdict(list)
+    for g,a in converter:
+        aa2genome[a].append(g)
+    return aa2genome
 
 def get_genome_position(gene_object,change):
     for term in supported_so_terms:
@@ -397,15 +420,11 @@ def get_genome_position(gene_object,change):
 
 
     g = gene_object
+    aa2genome = get_aa2genome_coords(g.exons)
     r = re.search("p.[A-Za-z]+([0-9]+)",change)
     if r:
         codon = int(r.group(1))
-        if g.strand=="+":
-            p = g.start + codon*3-3
-            return [p,p+1,p+2]
-        else:
-            p = g.start - codon*3 + 1
-            return [p,p+1,p+2]
+        return aa2genome[codon]
     r = re.search("c.(-[0-9]+)[ACGT]+>[ACGT]+",change)
     if r:
         pos = int(r.group(1))

@@ -9,6 +9,7 @@ import json
 import csv
 rand_generator = random.SystemRandom()
 
+
 def stringify(l):
     return [str(x) for x in list(l)]
 
@@ -470,41 +471,103 @@ class gene_class:
         self.start = self.feature_start if strand=="+" else self.feature_end
         self.end = self.feature_end if strand=="+" else self.feature_start
         self.length = length
+        self.exons = []
+
+class exon_class:
+    def __init__(self, chrom, start, end, strand, phase):
+        self.chrom = chrom
+        self.start = start
+        self.end = end
+        self.strand = strand
+        self.phase = phase
+    def __repr__(self):
+        return "Exon: %s-%s (%s)" % (self.start, self.end, self.strand)
+
+
 
 def load_gff(gff,aslist=False):
+    GFF = open(gff)
     genes = {}
-    for l in open(gff):
+    while True:
+        
+        l = GFF.readline()
+        if not l: break
         if l[0]=="#": continue
         if l.strip()=='': continue
-        fields = l.rstrip().split()
-        if fields[2] not in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]: continue
+        fields = l.rstrip().split("\t")
         strand = fields[6]
         chrom = fields[0]
         p1 = int(fields[3])
         p2 = int(fields[4])
-        gene_length = p2-p1+1
-        
-        locus_tag = None
-        search_strings = [
-            "ID=gene:([a-zA-Z0-9\.\-\_]+)",
-            "gene_id=([a-zA-Z0-9\.\-\_]+)",
-            "ID=([a-zA-Z0-9\.\-\_]+)",
-            "locus_tag=([a-zA-Z0-9\.\-\_]+)",
-        ]
-        for s in search_strings:
-            re_obj = re.search(s,l)
-            if re_obj:
-                locus_tag = re_obj.group(1)
-                break
-        if not locus_tag:
-            locus_tag = "NA"
-        re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
-        gene_name = re_obj.group(1) if re_obj else locus_tag
-        start = p1
-        end =  p2
-        tmp = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
-        genes[locus_tag] = tmp
+
+        if fields[2] in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
+            
+            gene_length = p2-p1+1
+            
+            locus_tag = None
+            search_strings = [
+                "ID=gene:([a-zA-Z0-9\.\-\_]+)",
+                "gene_id=([a-zA-Z0-9\.\-\_]+)",
+                "ID=([a-zA-Z0-9\.\-\_]+)",
+                "locus_tag=([a-zA-Z0-9\.\-\_]+)",
+            ]
+            for s in search_strings:
+                re_obj = re.search(s,l)
+                if re_obj:
+                    locus_tag = re_obj.group(1)
+                    break
+            if not locus_tag:
+                continue
+            re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
+            gene_name = re_obj.group(1) if re_obj else locus_tag
+            start = p1
+            end =  p2
+            
+            genes[locus_tag] = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
+        if fields[2] in ["CDS"]:
+            if locus_tag not in l: continue
+            phase = int(fields[7])
+            genes[locus_tag].exons.append(exon_class(chrom,p1,p2,strand,phase))
     if aslist:
-        return genes.values()
+        return list(genes.values())
     else:
         return genes
+
+
+# def load_gff(gff,aslist=False):
+#     genes = {}
+#     for l in open(gff):
+#         if l[0]=="#": continue
+#         if l.strip()=='': continue
+#         fields = l.rstrip().split()
+#         if fields[2] not in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]: continue
+#         strand = fields[6]
+#         chrom = fields[0]
+#         p1 = int(fields[3])
+#         p2 = int(fields[4])
+#         gene_length = p2-p1+1
+        
+#         locus_tag = None
+#         search_strings = [
+#             "ID=gene:([a-zA-Z0-9\.\-\_]+)",
+#             "gene_id=([a-zA-Z0-9\.\-\_]+)",
+#             "ID=([a-zA-Z0-9\.\-\_]+)",
+#             "locus_tag=([a-zA-Z0-9\.\-\_]+)",
+#         ]
+#         for s in search_strings:
+#             re_obj = re.search(s,l)
+#             if re_obj:
+#                 locus_tag = re_obj.group(1)
+#                 break
+#         if not locus_tag:
+#             locus_tag = "NA"
+#         re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
+#         gene_name = re_obj.group(1) if re_obj else locus_tag
+#         start = p1
+#         end =  p2
+#         tmp = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
+#         genes[locus_tag] = tmp
+#     if aslist:
+#         return genes.values()
+#     else:
+#         return genes
