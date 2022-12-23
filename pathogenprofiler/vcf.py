@@ -80,7 +80,7 @@ class vcf:
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
         if self.set_snpeff_datadir() is None:
-            print("WARNING: snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
+            warninglog("WARNING: snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
             self.snpeff_data_dir_opt = ''
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
