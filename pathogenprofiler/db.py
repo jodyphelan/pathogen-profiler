@@ -27,7 +27,7 @@ supported_so_terms = [
     'start_lost', 'stop_gained', 'synonymous_variant', 'start_retained', 'stop_retained_variant', 
     'transcript_variant', 'transcript_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
     '3_prime_UTR_variant', '3_prime_UTR_truncation + exon_loss', '5_prime_UTR_variant', 
-    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant'
+    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal'
 ]
 
 def generate_kmer_database(kmer_file,outfile):
@@ -398,8 +398,6 @@ def get_exon_to_aa_coords(exons):
             aa = [math.floor((x - e.phase)/3) + 1 + offset for x in range(e.start - e.start  , e.end - e.start +1)]
             genome = range(e.end,e.start-1,-1)
             converter.extend(list(zip(genome,aa)))
-            print("\n")
-            print(list(zip(genome,aa)))
             offset = aa[-1]
     return converter
 
@@ -411,16 +409,18 @@ def get_aa2genome_coords(exons):
     return aa2genome
 
 def get_genome_position(gene_object,change):
+    g = gene_object
     for term in supported_so_terms:
         if term in change:
             return None
     if "any_missense_codon" in change:
         codon = int(change.replace("any_missense_codon_",""))
         change = f"p.Xyz{codon}Xyz"
+    
+    if change[0]=="p":
+        aa2genome = get_aa2genome_coords(g.exons)
 
 
-    g = gene_object
-    aa2genome = get_aa2genome_coords(g.exons)
     r = re.search("p.[A-Za-z]+([0-9]+)",change)
     if r:
         codon = int(r.group(1))
@@ -591,7 +591,7 @@ def create_db(args,extra_files = None):
             if l[0]=="#":
                 O.write(l)
             else:
-                row = l.strip().split()
+                row = l.strip().split("\t")
                 if row[0] in chrom_conversion:
                     row[0] = chrom_conversion[row[0]]
                     O.write("\t".join(row)+"\n")        
