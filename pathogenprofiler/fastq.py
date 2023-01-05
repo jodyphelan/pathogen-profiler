@@ -1,6 +1,6 @@
 from __future__ import division
 from .bam import bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom, debug
 from uuid import uuid4
 import statistics as stats
 import os
@@ -120,12 +120,12 @@ class fastq:
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2):
         if threads>32:
             threads = 32
-        tmp_prefix = str(uuid4())
-        tmp_file_list = f"{tmp_prefix}.list"
+        tmp_prefix = f"{prefix}_kmers"
+        tmp_file_list = f"{prefix}.kmc.list"
+        os.mkdir(tmp_prefix)
         with open(tmp_file_list,"w") as O:
             O.write("\n".join(self.files))
         bins = "-n128" if platform.system()=="Darwin" else ""
-        os.mkdir(tmp_prefix)
         run_cmd(f"kmc {bins} -m{max_mem} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} @{tmp_file_list} {tmp_prefix} {tmp_prefix}")
         run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
         os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
