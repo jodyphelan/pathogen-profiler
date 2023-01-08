@@ -81,7 +81,7 @@ class bam:
 
         run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "%(calling_cmd)s"' % vars(self))
         run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "bcftools index  %(prefix)s.{2}.vcf.gz"' % vars(self) )
-        run_cmd("bcftools concat -aD `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz\"}'` | bcftools view -c1 -a -Oz -o %(vcf_file)s" % vars(self))
+        run_cmd("bcftools concat -aD `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz\"}'` | bcftools view -Oz -o %(vcf_file)s" % vars(self))
         run_cmd("rm `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz*\"}'`" % vars(self))
         if self.platform=="illumina":
             run_cmd("rm `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".tmp.bam*\"}'`" % vars(self))
@@ -220,14 +220,17 @@ class bam:
             self.get_region_coverage(bed_file)
         return [x[0] for x in self.genome_coverage if x[1]<cutoff]
 
-    def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2):
-        if threads>32:
-            threads = 32
-        tmp_prefix = str(uuid4())
-        os.mkdir(tmp_prefix)
-        bins = "-n128" if platform.system()=="Darwin" else ""
-        run_cmd(f"kmc {bins} -fbam -sm -m{max_mem} -t{threads} -sf{threads} -sp{threads} -sr{threads} -k{klen} {self.bam_file} {tmp_prefix} {tmp_prefix}")
-        run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
-        os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
-        run_cmd(f"rm -r {tmp_prefix}*")
-        return kmer_dump(f"{prefix}.kmers.txt")
+    def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2,counter = "kmc"):
+        if counter=="kmc":
+            if threads>32:
+                threads = 32
+            tmp_prefix = str(uuid4())
+            os.mkdir(tmp_prefix)
+            bins = "-n128" if platform.system()=="Darwin" else ""
+            run_cmd(f"kmc {bins} -fbam -m{max_mem} -t{threads} -k{klen} {self.bam_file} {tmp_prefix} {tmp_prefix}")
+            run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
+            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"rm -r {tmp_prefix}*")
+            return kmer_dump(f"{prefix}.kmers.txt",counter)
+        else:
+            errlog("Can't use dsk for bam files, please use kmc instead")

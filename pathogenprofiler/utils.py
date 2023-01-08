@@ -56,7 +56,8 @@ def dict_list2text(l,columns = None, mappings = None,sep="\t"):
         r = sep.join([variable2string(return_fields(row,x)) for x in headings])
         rows.append(r)
     str_rows = "\n".join(rows)
-    return  "%s\n%s\n" % (header,str_rows)
+    out ="%s\n%s" % (header,str_rows)
+    return out.strip()
 
 
 def get_lt2drugs(bed_file):
@@ -130,15 +131,8 @@ def reformat_missing_genome_pos(positions,conf):
 
 def select_most_relevant_csq(csqs):
     rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
-    # debug(csqs)
+
     ranked_csq = sorted(csqs,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x['type'].split("&")]))
-    # for csq in csqs:
-    #     try:
-    #         ranked_csq.append([i for i,d in enumerate(rank) if d in csq["type"]][0])
-    #     except:
-    #         errlog("Unknown variant type (%s). Don't know how to rank... Exiting!" % csq,True)
-    # csq1 = csqs[ranked_csq.index(min(ranked_csq))]
-    # return csq1
     return ranked_csq[0]
 
 def set_change(var):
@@ -488,6 +482,8 @@ class exon_class:
 def load_gff(gff,aslist=False):
     GFF = open(gff)
     genes = {}
+    relationships = {}
+    id2locus_tag = {}
     while True:
         
         l = GFF.readline()
@@ -499,9 +495,19 @@ def load_gff(gff,aslist=False):
         chrom = fields[0]
         p1 = int(fields[3])
         p2 = int(fields[4])
-
+        feature_id = re.search("ID=([^;]*)",l)
+        feature_id = feature_id.group(1) if feature_id else None
+        parent_id = re.search("Parent=([^;]*)",l)
+        parent_id = parent_id.group(1) if parent_id else None
+        if parent_id:
+            relationships[feature_id] = parent_id
+        root_id = feature_id
+        while True:
+            if root_id in relationships:
+                root_id = relationships[root_id]
+            else:
+                break
         if fields[2] in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
-            
             gene_length = p2-p1+1
             
             locus_tag = None
@@ -524,50 +530,13 @@ def load_gff(gff,aslist=False):
             end =  p2
             
             genes[locus_tag] = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
+            id2locus_tag[feature_id] = locus_tag
         if fields[2] in ["CDS"]:
-            if locus_tag not in l: continue
+            if fields[7]=="":
+                continue
             phase = int(fields[7])
-            genes[locus_tag].exons.append(exon_class(chrom,p1,p2,strand,phase))
+            genes[id2locus_tag[root_id]].exons.append(exon_class(chrom,p1,p2,strand,phase))
     if aslist:
         return list(genes.values())
     else:
         return genes
-
-
-# def load_gff(gff,aslist=False):
-#     genes = {}
-#     for l in open(gff):
-#         if l[0]=="#": continue
-#         if l.strip()=='': continue
-#         fields = l.rstrip().split()
-#         if fields[2] not in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]: continue
-#         strand = fields[6]
-#         chrom = fields[0]
-#         p1 = int(fields[3])
-#         p2 = int(fields[4])
-#         gene_length = p2-p1+1
-        
-#         locus_tag = None
-#         search_strings = [
-#             "ID=gene:([a-zA-Z0-9\.\-\_]+)",
-#             "gene_id=([a-zA-Z0-9\.\-\_]+)",
-#             "ID=([a-zA-Z0-9\.\-\_]+)",
-#             "locus_tag=([a-zA-Z0-9\.\-\_]+)",
-#         ]
-#         for s in search_strings:
-#             re_obj = re.search(s,l)
-#             if re_obj:
-#                 locus_tag = re_obj.group(1)
-#                 break
-#         if not locus_tag:
-#             locus_tag = "NA"
-#         re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
-#         gene_name = re_obj.group(1) if re_obj else locus_tag
-#         start = p1
-#         end =  p2
-#         tmp = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
-#         genes[locus_tag] = tmp
-#     if aslist:
-#         return genes.values()
-#     else:
-#         return genes

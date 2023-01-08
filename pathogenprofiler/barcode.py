@@ -34,7 +34,6 @@ def get_barcoding_mutations(mutations,barcode_bed):
         tmp = [0,0]
         chrom,pos = marker[0],int(marker[2])
         if chrom in mutations and pos in mutations[chrom]:
-            #print(marker)
             for n in iupac(marker[4]):
                 if n in mutations[chrom][pos]:
                     tmp[1]+= mutations[chrom][pos][n]
