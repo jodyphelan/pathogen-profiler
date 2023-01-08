@@ -63,15 +63,26 @@ class fasta:
             bed.append(tuple(row[:4]))
             
         return bed
-    def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2):
-        if threads>32:
-            threads = 32
-        tmp_prefix = f"{prefix}_kmers"
-        os.mkdir(tmp_prefix)
-        bins = "-n128" if platform.system()=="Darwin" else ""
-        run_cmd(f"kmc {bins} -m{max_mem} -t{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
-        run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
-        os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
-        run_cmd(f"rm -r {tmp_prefix}*")
+    def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2, counter = "kmc"):
+        if counter=="kmc":
+            if threads>32:
+                threads = 32
+            tmp_prefix = f"{prefix}_kmers"
+            os.mkdir(tmp_prefix)
+            bins = "-n128" if platform.system()=="Darwin" else ""
+            run_cmd(f"kmc {bins} -m{max_mem} -t{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
+            run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
+            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"rm -r {tmp_prefix}*")
 
-        return kmer_dump(f"{prefix}.kmers.txt")
+            return kmer_dump(f"{prefix}.kmers.txt",counter)
+        elif counter=="dsk":
+            max_mem = max_mem * 1000
+            tmp_prefix = f"{prefix}_kmers"
+            os.mkdir(tmp_prefix)
+            run_cmd(f"dsk -file {self.fa_file} -abundance-min 1 -nb-cores {threads} -kmer-size {klen} -max-memory {max_mem} -out {tmp_prefix} -out-tmp {tmp_prefix}")
+            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {tmp_prefix}.kmers.txt")
+            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"rm -r {tmp_prefix}*")
+
+            return kmer_dump(f"{prefix}.kmers.txt",counter)

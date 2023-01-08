@@ -66,21 +66,21 @@ def speciate(args,bam_region=None):
     
     if "read1" in vars(args) and args.read1:
         fastq_class = fastq(args.read1,args.read2)
-        kmer_dump = fastq_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem)
+        kmer_dump = fastq_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem,counter = args.kmer_counter)
     elif "bam" in vars(args) and args.bam:
         if bam_region:
             region_arg = bam_region if bam_region else ""
             run_cmd(f"samtools view -b {args.bam} {region_arg} | samtools fastq > {args.files_prefix}.tmp.fq")
-            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem)
+            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem,counter = args.kmer_counter)
         else:
             bam_class = bam(args.bam,args.files_prefix,"illumina")
             if bam_class.filetype=="cram":
                 run_cmd(f"samtools fastq {bam_class.bam_file} > {args.files_prefix}.tmp.fq")
-                kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem)
+                kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem,counter = args.kmer_counter)
             else:
-                kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem)
+                kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem,counter = args.kmer_counter)
     elif "fasta" in vars(args) and args.fasta:
-        kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem)
+        kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.mem,counter = args.kmer_counter)
     if "output_kmer_counts" not in vars(args):
         args.output_kmer_counts = None
     else:

@@ -3,50 +3,25 @@ import statistics as stats
 from .utils import debug, infolog,revcom
 from itertools import combinations, product
 import os
-def get_canonical_kmer(kmer):
-    t = {
-        "A":1,
-        "C":2,
-        "G":3,
-        "T":4
-    }
-    rkmer = revcom(kmer)
-    nkmer = int("".join([str(t[x]) for x in list(kmer)]))
-    nrkmer = int("".join([str(t[x]) for x in list(rkmer)]))
-    return kmer if nkmer<nrkmer else rkmer
 
-def mutate_kmer(kmer,d=1):
 
-    def generate(s, d=1):
-        N = len(s)
-        letters = 'ACGT'
-        pool = list(s)
 
-        for indices in combinations(range(N), d):
-            for replacements in product(letters, repeat=d):
-                skip = False
-                for i, a in zip(indices, replacements):
-                    if pool[i] == a: skip = True
-                if skip: continue
-
-                keys = dict(zip(indices, replacements))
-                yield ''.join([pool[i] if i not in indices else keys[i] 
-                            for i in range(N)])
-
-    kmers = set([get_canonical_kmer(k) for k in [get_canonical_kmer(kmer)] + list(generate(kmer,d=d))])
-    return kmers
 
 class kmer_dump:
-    def __init__(self,kmer_file):
+    def __init__(self,kmer_file,counter):
         self.kmer_file = kmer_file
-
+        if counter=="kmc":
+            nuc_order = "ACGT"
+        elif counter=="dsk":
+            nuc_order = "ACTG"
+        self.nuc_order = {n:i for i,n in enumerate(nuc_order)}
 
     def load_kmer_counts(self,kmer_db_file,remove_after_processing=True,max_mismatch=1):
         self.kmer_counts = []
         kmers = {}
         for l in open(kmer_db_file):
             row = l.strip().split("\t")
-            for k in mutate_kmer(row[0],d=max_mismatch):
+            for k in self.mutate_kmer(row[0],d=max_mismatch):
                 kmers[k] = row[1]
         tmp_counts = {}
         infolog(f"Looking for {len(kmers)} kmers")
@@ -57,8 +32,8 @@ class kmer_dump:
         
         for l in open(kmer_db_file):
             row = l.strip().split("\t")
-            count = sum([tmp_counts.get(k,0) for k in mutate_kmer(row[0],d=max_mismatch)])
-            self.kmer_counts.append({"name":kmers[get_canonical_kmer(row[0])],"seq":row[0],"count":count})
+            count = sum([tmp_counts.get(k,0) for k in self.mutate_kmer(row[0],d=max_mismatch)])
+            self.kmer_counts.append({"name":kmers[self.get_canonical_kmer(row[0])],"seq":row[0],"count":count})
         if remove_after_processing:
             os.remove(self.kmer_file)
         return self.kmer_counts
@@ -84,3 +59,31 @@ class kmer_dump:
             taxon_support.append({"species":s,"mean":mean,"std":std})
 
         return taxon_support
+
+    def get_canonical_kmer(self,kmer):
+        t = self.nuc_order
+        rkmer = revcom(kmer)
+        nkmer = int("".join([str(t[x]) for x in list(kmer)]))
+        nrkmer = int("".join([str(t[x]) for x in list(rkmer)]))
+        return kmer if nkmer<nrkmer else rkmer
+    
+    def mutate_kmer(self,kmer,d=1):
+
+        def generate(s, d=1):
+            N = len(s)
+            letters = 'ACGT'
+            pool = list(s)
+
+            for indices in combinations(range(N), d):
+                for replacements in product(letters, repeat=d):
+                    skip = False
+                    for i, a in zip(indices, replacements):
+                        if pool[i] == a: skip = True
+                    if skip: continue
+
+                    keys = dict(zip(indices, replacements))
+                    yield ''.join([pool[i] if i not in indices else keys[i] 
+                                for i in range(N)])
+
+        kmers = set([self.get_canonical_kmer(k) for k in [self.get_canonical_kmer(kmer)] + list(generate(kmer,d=d))])
+        return kmers
