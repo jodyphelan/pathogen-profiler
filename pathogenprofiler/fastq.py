@@ -128,8 +128,8 @@ class fastq:
                 O.write("\n".join(self.files))
             bins = "-n128" if platform.system()=="Darwin" else ""
             run_cmd(f"kmc {bins} -m{max_mem} -t{threads} -k{klen} @{tmp_file_list} {tmp_prefix} {tmp_prefix}")
-            run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
-            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"kmc_dump {tmp_prefix} {prefix}.kmers.txt")
+            # run_cmd(f"mv {tmp_prefix}.kmers.txt" {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return kmer_dump(f"{prefix}.kmers.txt",counter)
@@ -139,8 +139,8 @@ class fastq:
             os.mkdir(tmp_prefix)
             r2 = f"-file {self.r2}" if self.r2 else ""
             run_cmd(f"dsk -file {self.r1} {r2} -abundance-min 2 -nb-cores {threads} -kmer-size {klen} -max-memory {max_mem} -out {tmp_prefix} -out-tmp {tmp_prefix}")
-            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {tmp_prefix}.kmers.txt")
-            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {refix}.kmers.txt")
+            # run_cmd(f"mv {tmp_prefix}.kmers.txt" {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return kmer_dump(f"{prefix}.kmers.txt",counter)
