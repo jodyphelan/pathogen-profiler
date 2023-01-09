@@ -228,8 +228,7 @@ class bam:
             os.mkdir(tmp_prefix)
             bins = "-n128" if platform.system()=="Darwin" else ""
             run_cmd(f"kmc {bins} -fbam -m{max_mem} -t{threads} -k{klen} {self.bam_file} {tmp_prefix} {tmp_prefix}")
-            run_cmd(f"kmc_dump {tmp_prefix} {tmp_prefix}.kmers.txt")
-            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"kmc_dump {tmp_prefix} {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
             return kmer_dump(f"{prefix}.kmers.txt",counter)
         else:
