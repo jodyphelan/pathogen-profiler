@@ -71,8 +71,7 @@ class fasta:
             os.mkdir(tmp_prefix)
             bins = "-n128" if platform.system()=="Darwin" else ""
             run_cmd(f"kmc {bins} -m{max_mem} -t{threads} -k{klen} -ci1 -fm  {self.fa_file} {tmp_prefix} {tmp_prefix}")
-            run_cmd(f"kmc_dump -ci1 {tmp_prefix} {tmp_prefix}.kmers.txt")
-            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"kmc_dump -ci1 {tmp_prefix} {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return kmer_dump(f"{prefix}.kmers.txt",counter)
@@ -81,8 +80,7 @@ class fasta:
             tmp_prefix = f"{prefix}_kmers"
             os.mkdir(tmp_prefix)
             run_cmd(f"dsk -file {self.fa_file} -abundance-min 1 -nb-cores {threads} -kmer-size {klen} -max-memory {max_mem} -out {tmp_prefix} -out-tmp {tmp_prefix}")
-            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {tmp_prefix}.kmers.txt")
-            os.rename(f"{tmp_prefix}.kmers.txt", f"{prefix}.kmers.txt")
+            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return kmer_dump(f"{prefix}.kmers.txt",counter)

@@ -261,7 +261,9 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             alt = ref[0]
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
-        r = re.search("c.([0-9]+)_([0-9]+)del",row["Mutation"])
+        # r = re.search("c.-1_1insT")
+
+        r = re.search("c.([\-0-9]+)_([0-9]+)del",row["Mutation"])
         if r:
             del_start = int(r.group(1))
             del_end = int(r.group(2))
@@ -332,7 +334,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
 
-        r = re.search("c.([0-9]+)_([0-9]+)ins([ACGT]+)", row["Mutation"])
+        r = re.search("c.([\-0-9]+)_([0-9]+)ins([ACGT]+)", row["Mutation"])
         if r:
             ins_start = int(r.group(1))
             ins_end = int(r.group(2))
