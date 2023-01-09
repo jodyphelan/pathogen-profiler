@@ -29,6 +29,7 @@ class vcf:
             tabix(filename,threads)
         for l in cmd_out("bcftools query -l %(filename)s" % vars(self)):
             self.samples.append(l.rstrip())
+        self.vcf_dir = "/".join(os.path.abspath(filename).split("/")[:-1])
     def view_regions(self,bed_file):
         self.bed_file = bed_file
         self.newfile = "%(prefix)s.targets.vcf.gz" % vars(self)
@@ -85,8 +86,8 @@ class vcf:
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
         if split_indels:
-            self.tmp_file1 = "%s.vcf.gz" % uuid4()
-            self.tmp_file2 = "%s.vcf.gz" % uuid4()
+            self.tmp_file1 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
+            self.tmp_file2 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
 
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools norm -m - | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools norm -m - | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
