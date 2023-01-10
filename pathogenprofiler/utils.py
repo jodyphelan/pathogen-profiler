@@ -485,8 +485,7 @@ def load_gff(gff,aslist=False):
     relationships = {}
     id2locus_tag = {}
     while True:
-        
-        l = GFF.readline()
+        l = GFF.readline().strip()
         if not l: break
         if l[0]=="#": continue
         if l.strip()=='': continue
@@ -499,7 +498,7 @@ def load_gff(gff,aslist=False):
         feature_id = feature_id.group(1) if feature_id else None
         parent_id = re.search("Parent=([^;]*)",l)
         parent_id = parent_id.group(1) if parent_id else None
-        if parent_id:
+        if parent_id and parent_id!=feature_id:
             relationships[feature_id] = parent_id
         root_id = feature_id
         while True:
