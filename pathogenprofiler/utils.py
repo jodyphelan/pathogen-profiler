@@ -507,7 +507,7 @@ def load_gff(gff,aslist=False):
                 root_id = relationships[root_id]
             else:
                 break
-        if fields[2] in ["gene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
+        if fields[2] in ["gene","pseudogene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
             gene_length = p2-p1+1
             
             locus_tag = None
