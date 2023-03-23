@@ -673,16 +673,13 @@ def create_db(args,extra_files = None):
 
 
         version = {"name":args.prefix}
-        if not args.custom:
+        if os.path.isdir('.git'):
             for l in cmd_out("git log | head -4"):
-                row = l.strip().split()
                 if row == []: continue
                 version[row[0].replace(":","")] = " ".join(row[1:])
             version["commit"] = version["commit"][:7]
         else:
             version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
-            version["name"] = args.db_name if args.db_name else "NA"
-            version["commit"] = args.db_commit if args.db_name else "NA"
             version["Author"] = args.db_author if args.db_author else "NA"
 
         json.dump(version,open(version_file,"w"))
@@ -811,16 +808,14 @@ def create_species_db(args,extra_files = None):
     if not extra_files:
         extra_files = {}
     version = {"name":args.prefix}
-    if not args.db_name:
+    if os.path.isdir('.git'):
         for l in pp.cmd_out("git log | head -4"):
             row = l.strip().split()
             if row == []: continue
             version[row[0].replace(":","")] = " ".join(row[1:])
         version["commit"] = version["commit"][:7]
     else:
-        version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
-        version["name"] = args.db_name if args.db_name else "NA"
-        version["commit"] = args.db_commit if args.db_name else "NA"
+        version["Date"] = str(datetime.now())
         version["Author"] = args.db_author if args.db_author else "NA"
 
     kmer_file = args.prefix+".kmers.txt"
