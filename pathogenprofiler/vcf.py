@@ -140,7 +140,6 @@ class vcf:
                 ad = [int(x) for x in ad_str.split(",")]
                 af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
             ann_list = [x.split("|") for x in ann_str.split(",")]
-            debug(ann_list)
             for alt in alleles[1:]:
                 if af_dict[alt]<min_af: continue
                 tmp_var = {
