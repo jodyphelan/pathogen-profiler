@@ -138,7 +138,7 @@ class fastq:
             os.mkdir(tmp_prefix)
             r2 = f"-file {self.r2}" if self.r2 else ""
             run_cmd(f"dsk -file {self.r1} {r2} -abundance-min 2 -nb-cores {threads} -kmer-size {klen} -max-memory {max_mem} -out {tmp_prefix} -out-tmp {tmp_prefix}")
-            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {refix}.kmers.txt")
+            run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return kmer_dump(f"{prefix}.kmers.txt",counter)

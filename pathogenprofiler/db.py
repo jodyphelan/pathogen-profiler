@@ -242,8 +242,6 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
         
 
-
-
         r = re.search("c.([0-9]+)del",row["Mutation"])
         if r:
             # "ethA" "c.341del"
@@ -371,6 +369,20 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             ref = refseq[gene.chrom][genome_start-1:genome_end-1]
             alt = ref + ins_seq
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+
+        r = re.search("c.([0-9]+)([ACGT])>([ACGT])",row["Mutation"])
+        if r:
+            # "pncA" "c.7G>C"
+            if gene.strand == "+":
+                genome_start = gene.start + int(r.group(1)) - 1
+                ref = refseq[gene.chrom][genome_start-1]
+                alt = r.group(3)
+                mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
+            else:
+                genome_start = gene.start - int(r.group(1)) + 1
+                ref = refseq[gene.chrom][genome_start-1]
+                alt = revcom(r.group(3))
+                mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
 
         if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
@@ -531,18 +543,17 @@ def get_genome_position(gene_object,change):
 
     
 
-    # r = re.search("n.([0-9]+)([0-9]+)dup[A-Z]+",change)
-    # if r:
-    #     pos1 = int(r.group(1))
-    #     pos2 = int(r.group(2))
-    #     if g.strand=="+":
-    #         p1 = g.start + pos1 - 1
-    #         p2 = g.start + pos2 - 1
-    #         return list(range(p1,p2+1))
-    #     else:
-    #         p = g.start - pos + 1
-    #         quit(f"Don't know how to handle {change}")
-    #         return [p]
+    r = re.search("[c].([0-9]+)([ACGT])>([ACGT])",change)
+    if r:
+        pos = int(r.group(1))
+        if g.strand=="+":
+            p = g.start + pos - 1
+            return [p]
+        else:
+            p = g.start - pos + 1
+            return [p]
+    
+
     quit(f"Don't know how to handle {str(vars(g))} {change}")
 
 def match_ref_chrom_names(source,target):
@@ -662,7 +673,7 @@ def create_db(args,extra_files = None):
 
 
         version = {"name":args.prefix}
-        if not args.custom:
+        if os.path.isdir('.git'):
             for l in cmd_out("git log | head -4"):
                 row = l.strip().split()
                 if row == []: continue
@@ -670,8 +681,6 @@ def create_db(args,extra_files = None):
             version["commit"] = version["commit"][:7]
         else:
             version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
-            version["name"] = args.db_name if args.db_name else "NA"
-            version["commit"] = args.db_commit if args.db_name else "NA"
             version["Author"] = args.db_author if args.db_author else "NA"
 
         json.dump(version,open(version_file,"w"))
@@ -800,16 +809,14 @@ def create_species_db(args,extra_files = None):
     if not extra_files:
         extra_files = {}
     version = {"name":args.prefix}
-    if not args.db_name:
+    if os.path.isdir('.git'):
         for l in pp.cmd_out("git log | head -4"):
             row = l.strip().split()
             if row == []: continue
             version[row[0].replace(":","")] = " ".join(row[1:])
         version["commit"] = version["commit"][:7]
     else:
-        version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
-        version["name"] = args.db_name if args.db_name else "NA"
-        version["commit"] = args.db_commit if args.db_name else "NA"
+        version["Date"] = str(datetime.now())
         version["Author"] = args.db_author if args.db_author else "NA"
 
     kmer_file = args.prefix+".kmers.txt"

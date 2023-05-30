@@ -86,7 +86,6 @@ def barcode(mutations,barcode_bed,snps_file=None):
     return final_results
 
 def db_compare(mutations,db):
-    # db = json.load(open(db_file))
     annotated_results = mutations
     for i in range(len(mutations["variants"])):
         #var = {'genome_pos': 6140, 'gene_id': 'Rv0005', 'chr': 'Chromosome', 'freq': 0.975609756097561, 'type': 'missense', 'change': '301V>301L'}

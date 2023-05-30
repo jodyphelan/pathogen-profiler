@@ -5,6 +5,7 @@ import re
 from uuid import uuid4
 import sys
 import os.path
+import json
 
 class vcf:
     def __init__(self,filename,prefix=None,threads=1):
@@ -89,8 +90,8 @@ class vcf:
             self.tmp_file1 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
             self.tmp_file2 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
 
-            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools norm -m - | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
-            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools norm -m - | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
+            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
+            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
             run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
             rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file1+".csi", self.tmp_file2+".csi"])
         else :
@@ -178,8 +179,9 @@ class vcf:
                     }
                     tmp_var["consequences"].append(tmp)
                 variants.append(tmp_var)
-                    
+        variants = uniqify_dict_list(variants)            
         return variants
+
 
     
     def add_annotations(self,ref_file,bam_file):
@@ -249,3 +251,11 @@ class delly_bcf(vcf):
             self.outfile = self.tmpfile
         return delly_bcf(self.outfile)
 
+def uniqify_dict_list(data):
+    s = []
+    for obj in data:
+        t = json.dumps(obj)
+        if t not in s:
+            s.append(t)
+    
+    return [json.loads(d) for d in s]
