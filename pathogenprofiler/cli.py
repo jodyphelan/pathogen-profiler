@@ -38,10 +38,8 @@ def run_profiler(args):
             conf=args.conf, bam_file=args.bam_file, prefix=args.files_prefix, platform=args.platform,
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
-            coverage_fraction_threshold=args.coverage_fraction_threshold,
-            missing_cov_threshold=args.missing_cov_threshold, samclip=args.no_clip,
-            min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,call_wg=args.call_whole_genome,
-            variant_annotations=args.add_variant_annotations, min_af=args.af
+            samclip=args.no_clip,min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,
+            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations, min_af=args.af
         )
         results["input_data_source"] = "fastq" if args.read1 else "bam"
     elif args.fasta:

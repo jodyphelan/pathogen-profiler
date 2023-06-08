@@ -3,12 +3,11 @@ from .bam import bam
 from .barcode import barcode, db_compare
 from .vcf import vcf,delly_bcf
 from .fasta import fasta
-import os
-import json
+import statistics as stats
 
 
 
-def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, run_coverage=True, coverage_fraction_threshold=0, min_depth = 10, missing_cov_threshold=10, min_af=0.1, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
+def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, min_depth = 10, min_af=0.1, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
     infolog("Using %s\n\nPlease ensure that this BAM was made using the same reference as in the database.\nIf you are not sure what reference was used it is best to remap the reads." % bam_file)
 
     ### Put user specified arguments to lower case ###
@@ -34,30 +33,22 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
     ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"],min_af=min_af)
 
+    # bam_obj.get_region_qc(conf["bed"],conf["ref"],min_dp=min_depth)
 
+    results = {}
+    
     ### Get % and num reads mapping ###
-    if no_flagstat:
-        bam_obj.pct_reads_mapped = "NA"
-        bam_obj.num_reads_mapped = "NA"
-        bam_obj.median_coverage = "NA"
-    else:
-        bam_obj.flagstat()
-        bed = conf["bed"] if "amplicon" in conf and conf['amplicon']==True else None
-        bam_obj.get_median_coverage(ref_file=conf["ref"],bed=bed,software=coverage_tool)
-
-    ### Put results into a dictionary ###
-    results = {
-        "variants":[],
-        "qc":{
-            "pct_reads_mapped":bam_obj.pct_reads_mapped,
-            "num_reads_mapped":bam_obj.num_reads_mapped,
-            "median_coverage":bam_obj.median_coverage
-        }
-    }
-
-    if run_coverage:
-        results["qc"]["gene_coverage"] = bam_obj.get_region_coverage(conf["bed"], fraction_threshold= coverage_fraction_threshold)
-        results["qc"]["missing_positions"] = bam_obj.get_missing_genomic_positions(cutoff=missing_cov_threshold)
+    if not no_flagstat:
+        results['qc'] = {}
+        bam_obj.calculate_bamstats()
+        results['qc']['pct_reads_mapped'] = bam_obj.pct_reads_mapped
+        results['qc']['num_reads_mapped'] = bam_obj.mapped_reads
+        results['qc']['region_qc'] = bam_obj.get_region_qc(bed_file=conf['bed'],cutoff=min_depth)
+        results['qc']['region_median_depth'] = stats.median([x['median_depth'] for x in results['qc']['region_qc']])
+        results["qc"]["missing_positions"] = bam_obj.get_missing_genomic_positions(cutoff=min_depth)
+        if 'amplicon' not in conf or conf['amplicon']==False:
+            results['qc']['genome_median_depth'] = bam_obj.get_median_depth(ref_file=conf['ref'],software=coverage_tool)
+        
     results["variants"]  = ann
 
     if "barcode" in conf:

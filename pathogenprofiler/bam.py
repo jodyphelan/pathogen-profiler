@@ -1,6 +1,6 @@
 from glob import glob
 from .kmer import kmer_dump
-from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, debug
+from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, errlog, debug
 from .vcf import vcf, delly_bcf
 from collections import defaultdict
 import json
@@ -89,29 +89,44 @@ class bam:
 
         return vcf(self.vcf_file)
 
-    def flagstat(self):
-        tmpfile = str(uuid4())
-        run_cmd(f"samtools flagstat -O json {self.bam_file} > {tmpfile}")
-        flagstat = json.load(open(tmpfile))
-        self.num_reads_mapped = flagstat["QC-passed reads"]["mapped"]
-        self.pct_reads_mapped = round(flagstat["QC-passed reads"]["mapped"]/flagstat["QC-passed reads"]["total"]*100,2)
-        os.remove(tmpfile)
-        return self.num_reads_mapped,self.pct_reads_mapped
-    def median_bedcov(self,bed_file):
-        tmpfile = str(uuid4())
-        run_cmd(f"samtools bedcov {bed_file} {self.bam_file}  > {tmpfile}")
-        bedcov = []
-        for l in open(tmpfile):
-            row = l.strip().split()
-            bedcov.append(int(row[-1])/(int(row[2])-int(row[1])))
-        os.remove(tmpfile)
-
-        return stats.median(bedcov)
-    def get_median_coverage(self,ref_file,bed=None,software="bedtools"):
+    # def flagstat(self):
+    #     tmpfile = str(uuid4())
+    #     run_cmd(f"samtools flagstat -O json {self.bam_file} > {tmpfile}")
+    #     flagstat = json.load(open(tmpfile))
+    #     self.num_reads_mapped = flagstat["QC-passed reads"]["mapped"]
+    #     self.pct_reads_mapped = round(flagstat["QC-passed reads"]["mapped"]/flagstat["QC-passed reads"]["total"]*100,2)
+    #     os.remove(tmpfile)
+    #     return self.num_reads_mapped,self.pct_reads_mapped
+    
+    def get_median_depth(self,ref_file,software="bedtools"):
         if software=="bedtools":
-            if bed:
-                self.median_coverage =  self.median_bedcov(bed)
-                return self.median_coverage
+            lines = []
+            for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
+                arr = l.split()
+                if arr[0]=="genome":
+                    lines.append(arr)
+            midpoint =  int(lines[0][3])/2
+            x = 0
+            for row in lines:
+                x = x + int(row[2])
+                if x>midpoint:
+                    break
+            self.median_coverage = int(row[1])
+            return int(row[1])
+        elif software=="mosdepth":
+            self.median_coverage = None
+            tmp = str(uuid4())
+            run_cmd(f"mosdepth {tmp} {self.bam_file} -f {ref_file}")
+            for l in open(f"{tmp}.mosdepth.summary.txt"):
+                row = l.strip().split()
+                if row[0]=="total":
+                    self.median_coverage = int(row[1])
+            for f in glob(f"{tmp}*"):
+                os.remove(f)
+            return int(float(row[3]))
+
+    def calculate_median_coverage(self,ref_file,software="bedtools"):
+        if software=="bedtools":
             lines = []
             for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
                 arr = l.split()
@@ -138,13 +153,13 @@ class bam:
                 os.remove(f)
             return int(float(row[3]))
 
-    def bed_zero_cov_regions(self,bed_file):
-        add_arguments_to_self(self, locals())
-        cmd = "bedtools coverage -sorted -b %(bam_file)s -a %(bed_file)s" % vars(self)
-        results = []
-        for l in cmd_out(cmd):
-            results.append(l.split())
-        return results
+    # def bed_zero_cov_regions(self,bed_file):
+    #     add_arguments_to_self(self, locals())
+    #     cmd = "bedtools coverage -sorted -b %(bam_file)s -a %(bed_file)s" % vars(self)
+    #     results = []
+    #     for l in cmd_out(cmd):
+    #         results.append(l.split())
+    #     return results
 
     def get_bed_gt(self,bed_file,ref_file,caller,platform):
         add_arguments_to_self(self, locals())
@@ -205,14 +220,14 @@ class bam:
 
         return results
 
-    def get_region_coverage(self,bed_file,per_base=False,group_column=4,fraction_threshold=0,region_column=3):
+    def calculate_region_coverage(self,bed_file,depth_threshold=0,region_column=3):
+
         add_arguments_to_self(self, locals())
         self.region_cov = defaultdict(list)
-        self.region_fraction = []
+        self.region_qc = []
         self.genome_coverage = []
 
         for l in cmd_out(f"samtools view -Mb -L {bed_file} {self.bam_file} | bedtools coverage -a {bed_file} -b - -d -sorted"):
-
             row = l.split()
             region = row[region_column]
             depth = int(row[-1])
@@ -221,19 +236,33 @@ class bam:
             self.region_cov[region].append(depth)
 
         for region in self.region_cov:
-            total_num = len(self.region_cov[region])
-            num_thresh = len([d for d in self.region_cov[region] if d<=fraction_threshold])
-            self.region_fraction.append({"gene_id":region, "fraction":num_thresh/total_num, "cutoff": fraction_threshold})
-        if per_base:
-            return self.region_cov
-        else:
-            return self.region_fraction
+            region_len = len(self.region_cov[region])
+            pos_pass_thresh = len([d for d in self.region_cov[region] if d>=depth_threshold])
+            self.region_qc.append({
+                "gene_id":region, 
+                "pct_depth_pass":round(pos_pass_thresh/region_len*100,2), 
+                "median_depth":stats.median(self.region_cov[region]),
+            })
 
+    def calculate_bamstats(self):
+        temp_file = str(uuid4())
+        run_cmd(f"samtools stats {self.bam_file} > {temp_file}")
+        for l in open(temp_file):
+            row = l.strip().split("\t")
+            if row[0]!="SN": continue
+            if row[1]=='raw total sequences:': self.total_reads = int(row[2])
+            if row[1]=='reads mapped:': self.mapped_reads = int(row[2])
+        self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
     def get_missing_genomic_positions(self,bed_file=None,cutoff=10):
         if not hasattr(self,"genome_coverage"):
-            self.get_region_coverage(bed_file)
+            self.calculate_region_coverage(bed_file)
         return [x[0] for x in self.genome_coverage if x[1]<cutoff]
 
+    def get_region_qc(self,bed_file=None,cutoff=10):
+        if not hasattr(self,"region_qc"):
+            self.calculate_region_coverage(bed_file,depth_threshold=cutoff)
+        return self.region_qc
+    
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2,counter = "kmc"):
         if counter=="kmc":
             if threads>32:
@@ -247,11 +276,3 @@ class bam:
             return kmer_dump(f"{prefix}.kmers.txt",counter)
         else:
             errlog("Can't use dsk for bam files, please use kmc instead")
-
-def load_bed_positions(bed):
-    positions = set()
-    for l in open(bed):
-        row = l.strip().split()
-        for i in range(int(row[1]),int(row[2])):
-            positions.add((row[0],i))
-    return positions
