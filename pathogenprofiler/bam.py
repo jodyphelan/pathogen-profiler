@@ -7,6 +7,7 @@ import json
 from uuid import uuid4
 import os
 import platform 
+import statistics as stats
 
 class bam:
     """
@@ -96,12 +97,25 @@ class bam:
         self.pct_reads_mapped = round(flagstat["QC-passed reads"]["mapped"]/flagstat["QC-passed reads"]["total"]*100,2)
         os.remove(tmpfile)
         return self.num_reads_mapped,self.pct_reads_mapped
+    def median_bedcov(self,bed_file):
+        tmpfile = str(uuid4())
+        run_cmd(f"samtools bedcov {bed_file} {self.bam_file}  > {tmpfile}")
+        bedcov = []
+        for l in open(tmpfile):
+            row = l.strip().split()
+            bedcov.append(int(row[-1])/(int(row[2])-int(row[1])))
+        os.remove(tmpfile)
 
-    def get_median_coverage(self,ref_file,software="bedtools"):
+        return stats.median(bedcov)
+    def get_median_coverage(self,ref_file,bed=None,software="bedtools"):
         if software=="bedtools":
+            if bed:
+                self.median_coverage =  self.median_bedcov(bed)
+                return self.median_coverage
             lines = []
             for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
                 arr = l.split()
+
                 if arr[0]=="genome":
                     lines.append(arr)
             midpoint =  int(lines[0][3])/2
@@ -233,3 +247,11 @@ class bam:
             return kmer_dump(f"{prefix}.kmers.txt",counter)
         else:
             errlog("Can't use dsk for bam files, please use kmc instead")
+
+def load_bed_positions(bed):
+    positions = set()
+    for l in open(bed):
+        row = l.strip().split()
+        for i in range(int(row[1]),int(row[2])):
+            positions.add((row[0],i))
+    return positions

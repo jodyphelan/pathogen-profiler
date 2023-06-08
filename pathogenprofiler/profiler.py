@@ -42,7 +42,8 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         bam_obj.median_coverage = "NA"
     else:
         bam_obj.flagstat()
-        bam_obj.get_median_coverage(ref_file=conf["ref"],software=coverage_tool)
+        bed = conf["bed"] if "amplicon" in conf and conf['amplicon']==True else None
+        bam_obj.get_median_coverage(ref_file=conf["ref"],bed=bed,software=coverage_tool)
 
     ### Put results into a dictionary ###
     results = {
