@@ -253,6 +253,7 @@ class bam:
             if row[1]=='raw total sequences:': self.total_reads = int(row[2])
             if row[1]=='reads mapped:': self.mapped_reads = int(row[2])
         self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
+        os.remove(temp_file)
     def get_missing_genomic_positions(self,bed_file=None,cutoff=10):
         if not hasattr(self,"genome_coverage"):
             self.calculate_region_coverage(bed_file)
