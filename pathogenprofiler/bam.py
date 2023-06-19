@@ -227,10 +227,8 @@ class bam:
         if region_column is None:
             if numrows==7:
                 region_column = 7
-                debug(f"Setting column number to {region_column}")
             else:
                 region_column = 5
-                debug(f"Setting column number to {region_column}")
         self.region_cov = defaultdict(list)
         self.region_qc = []
         self.genome_coverage = []
