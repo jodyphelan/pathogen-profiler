@@ -220,16 +220,24 @@ class bam:
 
         return results
 
-    def calculate_region_coverage(self,bed_file,depth_threshold=0,region_column=3):
+    def calculate_region_coverage(self,bed_file,depth_threshold=0,region_column=None):
 
         add_arguments_to_self(self, locals())
+        numrows =len(open(bed_file).readline().split())
+        if region_column is None:
+            if numrows==7:
+                region_column = 7
+                debug(f"Setting column number to {region_column}")
+            else:
+                region_column = 5
+                debug(f"Setting column number to {region_column}")
         self.region_cov = defaultdict(list)
         self.region_qc = []
         self.genome_coverage = []
 
         for l in cmd_out(f"samtools view -Mb -L {bed_file} {self.bam_file} | bedtools coverage -a {bed_file} -b - -d -sorted"):
             row = l.split()
-            region = row[region_column]
+            region = row[region_column-1]
             depth = int(row[-1])
             genomic_position = int(row[1]) + int(row[-2]) -1
             self.genome_coverage.append((genomic_position, depth))
@@ -254,6 +262,7 @@ class bam:
             if row[1]=='reads mapped:': self.mapped_reads = int(row[2])
         self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
         os.remove(temp_file)
+    
     def get_missing_genomic_positions(self,bed_file=None,cutoff=10):
         if not hasattr(self,"genome_coverage"):
             self.calculate_region_coverage(bed_file)
