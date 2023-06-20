@@ -20,13 +20,17 @@ class bam:
         self.filetype = "cram" if bam_file[-5:]==".cram" else "bam"
         
 
-    def run_delly(self):
+    def run_delly(self,bed_file):
+        self.bed_file = bed_file
         if self.platform=="illumina":
             _,stderr = run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self),terminate_on_error=False)
             if "not enough data to estimate library parameters" in stderr:
                 return None
             else:
-                return delly_bcf("%(prefix)s.delly.bcf" % vars(self))
+                run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
+                run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))
+                run_cmd("bcftools view -R %(bed_file)s %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
+                return vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
         else:
             _,stderr = run_cmd("delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self),terminate_on_error=False)
             if "not enough data to estimate library parameters" in stderr:

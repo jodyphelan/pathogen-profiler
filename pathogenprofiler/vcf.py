@@ -89,11 +89,13 @@ class vcf:
         if split_indels:
             self.tmp_file1 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
             self.tmp_file2 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
+            self.tmp_file3 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
 
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
-            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file1+".csi", self.tmp_file2+".csi"])
+            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
+            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file3, self.tmp_file1+".csi", self.tmp_file2+".csi", self.tmp_file3+".csi"])
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return vcf(self.vcf_csq_file,self.prefix)

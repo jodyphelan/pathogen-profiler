@@ -31,7 +31,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         vcf_obj = vcf_obj.add_annotations(conf["ref"],bam_obj.bam_file)
     else:
         ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"],min_af=min_af)
+    ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"],min_af=min_af)
 
     # bam_obj.get_region_qc(conf["bed"],conf["ref"],min_dp=min_depth)
 
@@ -64,12 +64,12 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     ### Run delly if specified ###
     if run_delly:
         if delly_vcf_file:
-            delly_vcf_obj = delly_bcf(delly_vcf_file)
+            delly_vcf_obj = vcf(delly_vcf_file)
         else:
-            delly_vcf_obj = bam_obj.run_delly()
+            delly_vcf_obj = bam_obj.run_delly(conf['bed'])
         if delly_vcf_obj is not None:
             results["delly"] = "success"
-            delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
+            # delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
             ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
             results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"] ))
         else:
@@ -88,7 +88,7 @@ def fasta_profiler(conf, prefix, filename):
     run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,vcf_file,conf['bed']))
     vcf_obj = vcf(vcf_file)
     vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
+    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
     results = {
         "variants":ann,
@@ -105,16 +105,16 @@ def fasta_profiler(conf, prefix, filename):
 
 def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
     vcf_targets_file = "%s.targets.vcf.gz" % prefix
-    run_cmd("bcftools view -T %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
+    run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = vcf(vcf_targets_file)
     vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["upstream","synonymous","noncoding"])
+    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
     results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
     results["variants"]  = ann
 
     if delly_vcf_file:
         delly_vcf_obj = delly_bcf(delly_vcf_file)
-        delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
+        # delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
         ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
         results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"]))
  
