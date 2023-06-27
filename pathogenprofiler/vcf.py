@@ -133,11 +133,13 @@ class vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%ANN\\t[%AD]\\n' {self.filename}"):
-            chrom,pos,ref,alt_str,ann_str,ad_str = l.strip().split()
+        for l in cmd_out(r"bcftools query -u -f '%CHROM\t%POS\t%REF\t%ALT\t%ANN\t[%AD\t%DR:%RR:%DV:%RV]\n'" + f" {self.filename}"):
+            chrom,pos,ref,alt_str,ann_str,ad_str,sv_str = l.strip().split()
             alleles = [ref] + alt_str.split(",")
-            if alt_str=="<DEL>":
-                af_dict = {"<DEL>":1.0}
+            if alt_str in ["<DEL>","<DUP>","<INV>"]:
+                tmp = [int(x) for x in sv_str.split(":")]
+                ad = [tmp[0]+tmp[1],tmp[2]+tmp[3]]
+                af_dict = {ref:ad[0]/sum(ad),alt_str:ad[1]/sum(ad)}
             else:
                 ad = [int(x) for x in ad_str.split(",")]
                 af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
@@ -149,7 +151,7 @@ class vcf:
                     "genome_pos": int(pos),
                     "ref": ref,
                     "alt":alt,
-                    "depth":sum(ad) if ad_str!="." else None,
+                    "depth":sum(ad),
                     "freq":af_dict[alt],
                     "consequences":[]
                 }
