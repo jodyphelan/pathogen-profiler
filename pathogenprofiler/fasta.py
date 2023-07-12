@@ -1,11 +1,11 @@
 from collections import OrderedDict
 from .utils import run_cmd, cmd_out, debug
 from uuid import uuid4
-from .kmer import kmer_dump
+from .kmer import KmerDump
 import os
 import platform 
 
-class fasta:
+class Fasta:
     """
     Class to represent fasta seuqnces in a python dict.
 
@@ -74,7 +74,7 @@ class fasta:
             run_cmd(f"kmc_dump -ci1 {tmp_prefix} {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
-            return kmer_dump(f"{prefix}.kmers.txt",counter)
+            return KmerDump(f"{prefix}.kmers.txt",counter)
         elif counter=="dsk":
             max_mem = max_mem * 1000
             tmp_prefix = f"{prefix}_kmers"
@@ -83,4 +83,4 @@ class fasta:
             run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
-            return kmer_dump(f"{prefix}.kmers.txt",counter)
+            return KmerDump(f"{prefix}.kmers.txt",counter)

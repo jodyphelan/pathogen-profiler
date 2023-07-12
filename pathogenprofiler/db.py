@@ -6,7 +6,7 @@ from collections import defaultdict
 import sys
 from datetime import datetime
 from .utils import load_gff, run_cmd, cmd_out, errlog, unlist, debug, infolog, successlog
-from .fasta import fasta
+from .fasta import Fasta
 import os
 import shutil
 from uuid import uuid4
@@ -204,7 +204,7 @@ def assign_amplicon_drugs(db,chrom,start,end):
     return d
 
 def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
-    ref = fasta(ref_seq)
+    ref = Fasta(ref_seq)
     with open(outfile,"w") as O:
         for chrom,start,end,amplicon_name in ref.get_amplicons(primer_file):
             locus_tag,gene_name = assign_gene_to_amplicon(genes,chrom,start,end)

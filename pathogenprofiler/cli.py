@@ -1,8 +1,8 @@
-from .fastq import fastq
+from .fastq import Fastq
 from .utils import errlog, infolog, run_cmd, cmd_out, debug
-from .bam import bam
+from .bam import Bam
 from .db import get_db
-from .fasta import fasta
+from .fasta import Fasta
 from .profiler import bam_profiler, fasta_profiler, vcf_profiler
 import json
 
@@ -63,22 +63,19 @@ def speciate(args,bam_region=None):
         )
     
     if "read1" in vars(args) and args.read1:
-        fastq_class = fastq(args.read1,args.read2)
-        kmer_dump = fastq_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+        fastq = Fastq(args.read1,args.read2)
+        kmer_dump = fastq.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     elif "bam" in vars(args) and args.bam:
         if bam_region:
             region_arg = bam_region if bam_region else ""
             run_cmd(f"samtools view -b {args.bam} {region_arg} | samtools fastq > {args.files_prefix}.tmp.fq")
-            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+            kmer_dump = Fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
         else:
-            bam_class = bam(args.bam,args.files_prefix,"illumina")
-            # if bam_class.filetype=="cram":
-            run_cmd(f"samtools fastq {bam_class.bam_file} > {args.files_prefix}.tmp.fq")
-            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
-            # else:
-                # kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+            bam = Bam(args.bam,args.files_prefix,"illumina")
+            run_cmd(f"samtools fastq {bam.bam_file} > {args.files_prefix}.tmp.fq")
+            kmer_dump = Fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     elif "fasta" in vars(args) and args.fasta:
-        kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+        kmer_dump = Fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     if "output_kmer_counts" not in vars(args):
         args.output_kmer_counts = None
     else:
@@ -91,17 +88,17 @@ def get_bam_file(args):
     if args.bam is None:
         if args.read1 and args.read2 and args.no_trim:
             # Paired + no trimming
-            fastq_obj = fastq(args.read1,args.read2)
+            fastq_obj = Fastq(args.read1,args.read2)
         elif args.read1 and args.read2 and not args.no_trim:
             # Paired + trimming
-            untrimmed_fastq_obj = fastq(args.read1,args.read2)
+            untrimmed_fastq_obj = Fastq(args.read1,args.read2)
             fastq_obj = untrimmed_fastq_obj.trim(args.files_prefix,threads=args.threads)
         elif args.read1 and not args.read2 and args.no_trim:
             # Unpaired + no trimming
-            fastq_obj = fastq(args.read1,args.read2)
+            fastq_obj = Fastq(args.read1,args.read2)
         elif args.read1 and not args.read2 and not args.no_trim:
             # Unpaired + trimming
-            untrimmed_fastq_obj = fastq(args.read1)
+            untrimmed_fastq_obj = Fastq(args.read1)
             fastq_obj = untrimmed_fastq_obj.trim(args.files_prefix,threads=args.threads)
         else:
             exit("\nPlease provide a bam file or a fastq file(s)...Exiting!\n")

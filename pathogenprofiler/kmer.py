@@ -7,7 +7,7 @@ import os
 
 
 
-class kmer_dump:
+class KmerDump:
     def __init__(self,kmer_file,counter):
         self.kmer_file = kmer_file
         if counter=="kmc":

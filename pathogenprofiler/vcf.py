@@ -1,5 +1,5 @@
 from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, log, load_bed, debug, warninglog
-from .fasta import fasta
+from .fasta import Fasta
 from collections import defaultdict
 import re
 from uuid import uuid4
@@ -7,7 +7,7 @@ import sys
 import os.path
 import json
 
-class vcf:
+class Vcf:
     def __init__(self,filename,prefix=None,threads=1):
         self.samples = []
         add_arguments_to_self(self,locals())
@@ -35,7 +35,7 @@ class vcf:
         self.bed_file = bed_file
         self.newfile = "%(prefix)s.targets.vcf.gz" % vars(self)
         run_cmd("bcftools view -R %(bed_file)s %(filename)s -Oz -o %(newfile)s" % vars(self))
-        return vcf(self.newfile)
+        return Vcf(self.newfile)
 
 
     def set_snpeff_datadir(self):
@@ -98,7 +98,7 @@ class vcf:
             rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file3, self.tmp_file1+".csi", self.tmp_file2+".csi", self.tmp_file3+".csi"])
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
-        return vcf(self.vcf_csq_file,self.prefix)
+        return Vcf(self.vcf_csq_file,self.prefix)
 
 
 
@@ -193,7 +193,7 @@ class vcf:
         self.new_file = self.prefix + ".ann.vcf.gz"
 
         run_cmd("gatk VariantAnnotator -R %(ref_file)s -I %(bam_file)s -V %(filename)s -O %(new_file)s -A MappingQualityRankSumTest -A ReadPosRankSumTest -A QualByDepth -A BaseQualityRankSumTest -A TandemRepeat -A StrandOddsRatio -OVI false" % vars(self))
-        return vcf(self.new_file,self.prefix)
+        return Vcf(self.new_file,self.prefix)
 
 
     def get_positions(self):
@@ -207,7 +207,7 @@ class vcf:
         add_arguments_to_self(self,locals())
         cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         results = defaultdict(lambda : defaultdict(dict))
-        ref_seq = fasta(ref_file).fa_dict
+        ref_seq = Fasta(ref_file).fa_dict
         for l in cmd_out(cmd):
             #Chromosome    4348079    0/0    51
             chrom,pos,ref,alt,gt,ad = l.rstrip().split()
@@ -241,9 +241,10 @@ class vcf:
             if x in lines:
                 found_annotations.append(x)
         return found_annotations
-class delly_bcf(vcf):
+
+class DellyVcf(Vcf):
     def __init__(self,filename):
-         vcf.__init__(self,filename)
+        Vcf.__init__(self,filename)
     def get_robust_calls(self,prefix,bed_file = None):
         self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
         self.outfile = f"{prefix}.delly.vcf.gz"
@@ -253,7 +254,7 @@ class delly_bcf(vcf):
             run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
         else:
             self.outfile = self.tmpfile
-        return delly_bcf(self.outfile)
+        return DellyVcf(self.outfile)
 
 def uniqify_dict_list(data):
     s = []

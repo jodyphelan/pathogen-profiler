@@ -1,7 +1,7 @@
 from glob import glob
-from .kmer import kmer_dump
+from .kmer import KmerDump
 from .utils import add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, errlog, debug
-from .vcf import vcf, delly_bcf
+from .vcf import Vcf, DellyVcf
 from collections import defaultdict
 import json
 from uuid import uuid4
@@ -9,7 +9,7 @@ import os
 import platform 
 import statistics as stats
 
-class bam:
+class Bam:
     """
     A class to perform operations on BAM files such as SNP calling
     """
@@ -30,13 +30,13 @@ class bam:
                 run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
                 run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))
                 run_cmd("bcftools view -R %(bed_file)s %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
-                return vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+                return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
         else:
             _,stderr = run_cmd("delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self),terminate_on_error=False)
             if "not enough data to estimate library parameters" in stderr:
                 return None
             else:
-                return delly_bcf("%(prefix)s.delly.bcf" % vars(self))
+                return DellyVcf("%(prefix)s.delly.bcf" % vars(self))
                 
     def call_variants(self,ref_file,caller,bed_file=None,threads=1,calling_params=None,remove_missing=False, samclip=False,min_dp=10):
         add_arguments_to_self(self, locals())
@@ -91,7 +91,7 @@ class bam:
         if self.platform=="illumina":
             run_cmd("rm `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".tmp.bam*\"}'`" % vars(self))
 
-        return vcf(self.vcf_file)
+        return Vcf(self.vcf_file)
 
     # def flagstat(self):
     #     tmpfile = str(uuid4())
@@ -285,6 +285,6 @@ class bam:
             run_cmd(f"kmc {bins} -fbam -m{max_mem} -t{threads} -k{klen} {self.bam_file} {tmp_prefix} {tmp_prefix}")
             run_cmd(f"kmc_dump {tmp_prefix} {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
-            return kmer_dump(f"{prefix}.kmers.txt",counter)
+            return KmerDump(f"{prefix}.kmers.txt",counter)
         else:
             errlog("Can't use dsk for bam files, please use kmc instead")
