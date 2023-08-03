@@ -6,6 +6,12 @@ from .fasta import Fasta
 from .profiler import bam_profiler, fasta_profiler, vcf_profiler
 import json
 
+def get_variant_filters(args):
+    filters = {}
+    for f in ['depth_soft','depth_hard','af_soft','af_hard','strand_soft','strand_hard']:
+        filters[f] = getattr(args,f)
+    return filters
+
 def get_resistance_db_from_species_prediction(args,species_prediction):
     if args.resistance_db:
         return get_db(args.software_name,args.resistance_db)
@@ -39,7 +45,7 @@ def run_profiler(args):
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
             samclip=args.no_clip,min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,
-            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations, min_af=args.af
+            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations
         )
         results["input_data_source"] = "fastq" if args.read1 else "bam"
     elif args.fasta:
@@ -48,7 +54,7 @@ def run_profiler(args):
     elif args.vcf:
         if test_vcf_for_lofreq(args.vcf):
             tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
-            run_cmd(f"bcftools view {args.vcf} | add_dummy_AD.py --ref {args.conf['ref']} --sample-name {args.prefix} --add-dp | bcftools view -Oz -o {tmp_vcf_file}")
+            run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py | bcftools view -Oz -o {tmp_vcf_file}")
             args.vcf = tmp_vcf_file
         results = vcf_profiler(conf=args.conf,prefix=args.files_prefix,sample_name=args.prefix,vcf_file=args.vcf,delly_vcf_file=args.delly_vcf)
         results["input_data_source"] = "vcf"

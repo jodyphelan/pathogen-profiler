@@ -38,12 +38,11 @@ class Bam:
             else:
                 return DellyVcf("%(prefix)s.delly.bcf" % vars(self))
                 
-    def call_variants(self,ref_file,caller,bed_file=None,threads=1,calling_params=None,remove_missing=False, samclip=False,min_dp=10):
+    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False,min_dp=10):
         add_arguments_to_self(self, locals())
         filecheck(ref_file)
         self.caller = caller.lower()
-        self.missing_cmd = "" if remove_missing else "-S ."
-
+        self.af_hard = filters['af_hard']
         # Set up final vcf file name
         # Make the windows for parallel calling based on chunking the whole
         # genome or by providing a bed file
@@ -57,33 +56,37 @@ class Bam:
         self.samclip_cmd = "| samclip --ref %(ref_file)s" % vars(self) if samclip else ""
         # Run through different options. 
         if self.platform == "nanopore" and self.caller=="bcftools":
-            self.calling_params = calling_params if calling_params else "-Bq8"
-            self.calling_cmd = "bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD -r {1} %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools call -mv | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s | bcftools filter -e 'IMF < 0.7' -S 0 -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_params = calling_params if calling_params else ""
+            self.calling_cmd = "bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD,ADF,ADR -r {1} %(bam_file)s | bcftools call -mv | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -e 'IMF < 0.7' -S 0 -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform == "nanopore" and self.caller=="freebayes":
-            self.calling_params = calling_params if calling_params else "-F 0.7"
-            self.calling_cmd = "freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_params = calling_params if calling_params else ""
+            self.calling_cmd = "freebayes -f %(ref_file)s -F %(af_hard)s -r {1} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+        elif self.platform=="nanopore" and self.caller == "pilon":
+            self.calling_params = calling_params if calling_params else ""
+            self.calling_cmd = """pilon --genome %(ref_file)s --targets {1} %(calling_params)s --nanopore %(bam_file)s --variant --output %(prefix)s.{2} && bcftools view -i 'AF>0' -c 1 %(prefix)s.{2}.vcf |add_dummy_AD.py | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
         elif self.platform == "pacbio" and self.caller=="freebayes":
-            self.calling_params = calling_params if calling_params else "-F 0.6"
-            self.calling_cmd = "freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_params = calling_params if calling_params else ""
+            self.calling_cmd = "freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform=="pacbio" and self.caller == "pilon":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = """pilon --genome %(ref_file)s --targets {1} %(calling_params)s --pacbio %(bam_file)s --variant --output %(prefix)s.{2} && bcftools view -e 'ALT=\\".\\"' -c 1 %(prefix)s.{2}.vcf | bcftools view -e 'AF<0.6' |add_dummy_AD.py | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
+            self.calling_cmd = """pilon --genome %(ref_file)s --targets {1} %(calling_params)s --pacbio %(bam_file)s --variant --output %(prefix)s.{2} && bcftools view -i 'AF>0' -c 1 %(prefix)s.{2}.vcf |add_dummy_AD.py | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
         elif self.platform=="illumina" and self.caller == "bcftools":
-            self.calling_params = calling_params if calling_params else "-ABq8 -Q0"
-            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD -r {1} %(prefix)s.{2}.tmp.bam | bcftools call -mv | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_params = calling_params if calling_params else ""
+            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD,ADF,ADR -r {1} %(prefix)s.{2}.tmp.bam | bcftools call -mv | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform=="illumina" and self.caller == "gatk":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && gatk HaplotypeCaller -R %(ref_file)s -I %(prefix)s.{2}.tmp.bam -O /dev/stdout -L {1} %(calling_params)s -OVI false | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && gatk HaplotypeCaller -R %(ref_file)s -I %(prefix)s.{2}.tmp.bam -O /dev/stdout -L {1} %(calling_params)s -OVI false | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform=="illumina" and self.caller == "freebayes":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(prefix)s.{2}.tmp.bam | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && freebayes -f %(ref_file)s -r {1} --haplotype-length -1 %(calling_params)s %(prefix)s.{2}.tmp.bam | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
         elif self.platform=="illumina" and self.caller == "pilon":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = """samtools view -T %(ref_file)s -f 0x1 -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && pilon --genome %(ref_file)s --targets {1} --diploid %(calling_params)s --frags %(prefix)s.{2}.tmp.bam --variant --output %(prefix)s.{2} && bcftools view -e 'ALT=\\".\\"' -c 1 %(prefix)s.{2}.vcf | add_dummy_AD.py | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
+            self.calling_cmd = """samtools view -T %(ref_file)s -f 0x1 -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && pilon --genome %(ref_file)s --targets {1} --diploid %(calling_params)s --frags %(prefix)s.{2}.tmp.bam --variant --output %(prefix)s.{2} && bcftools view -e 'ALT=\\".\\"' -c 1 %(prefix)s.{2}.vcf | add_dummy_AD.py | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz""" % vars(self)
         elif self.platform=="illumina" and self.caller == "lofreq":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "samtools view -T %(ref_file)s  -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && lofreq call --call-indels -f %(ref_file)s -r {1} %(calling_params)s  %(prefix)s.{2}.tmp.bam  | add_dummy_AD.py --ref %(ref_file)s --sample-name %(prefix)s --add-dp | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -t {1} -e 'FMT/DP<%(min_dp)s' %(missing_cmd)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
-
+            self.calling_cmd = "samtools view -T %(ref_file)s  -h %(bam_file)s {1} %(samclip_cmd)s | samtools view -b > %(prefix)s.{2}.tmp.bam && samtools index %(prefix)s.{2}.tmp.bam && lofreq call --call-indels -f %(ref_file)s -r {1} %(calling_params)s  %(prefix)s.{2}.tmp.bam  | modify_lofreq_vcf.py | add_dummy_AD.py --ref %(ref_file)s --sample-name %(prefix)s --add-dp | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{2}.vcf.gz" % vars(self)
+        else:
+            debug("Unknown combination %(platform)s + %(caller)s" % vars(self))
         run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "%(calling_cmd)s"' % vars(self))
         run_cmd('%(windows_cmd)s | parallel -j %(threads)s --col-sep " " "bcftools index  %(prefix)s.{2}.vcf.gz"' % vars(self) )
         run_cmd("bcftools concat -aD `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".vcf.gz\"}'` | bcftools view -Oz -o %(vcf_file)s" % vars(self))
@@ -92,15 +95,6 @@ class Bam:
             run_cmd("rm `%(windows_cmd)s | awk '{print \"%(prefix)s.\"$2\".tmp.bam*\"}'`" % vars(self))
 
         return Vcf(self.vcf_file)
-
-    # def flagstat(self):
-    #     tmpfile = str(uuid4())
-    #     run_cmd(f"samtools flagstat -O json {self.bam_file} > {tmpfile}")
-    #     flagstat = json.load(open(tmpfile))
-    #     self.num_reads_mapped = flagstat["QC-passed reads"]["mapped"]
-    #     self.pct_reads_mapped = round(flagstat["QC-passed reads"]["mapped"]/flagstat["QC-passed reads"]["total"]*100,2)
-    #     os.remove(tmpfile)
-    #     return self.num_reads_mapped,self.pct_reads_mapped
     
     def get_median_depth(self,ref_file,software="bedtools"):
         if software=="bedtools":
@@ -232,7 +226,7 @@ class Bam:
             if numrows==7:
                 region_column = 7
             else:
-                region_column = 5
+                region_column = 4
         self.region_cov = defaultdict(list)
         self.region_qc = []
         self.genome_coverage = []
@@ -249,7 +243,7 @@ class Bam:
             region_len = len(self.region_cov[region])
             pos_pass_thresh = len([d for d in self.region_cov[region] if d>=depth_threshold])
             self.region_qc.append({
-                "gene_id":region, 
+                "region":region, 
                 "pct_depth_pass":round(pos_pass_thresh/region_len*100,2), 
                 "median_depth":stats.median(self.region_cov[region]),
             })

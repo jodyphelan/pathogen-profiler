@@ -6,7 +6,28 @@ from uuid import uuid4
 import sys
 import os.path
 import json
+import pysam
 
+def get_stand_support(var,alt,caller):
+    alt_index = list(var.alts).index(alt)
+    forward_support = None
+    reverse_support = None
+    if caller == "freebayes" or caller=="lofreq":
+        forward_support = var.info['SAF'][alt_index]
+        reverse_support = var.info['SAR'][alt_index]
+    elif caller=="bcftools":
+        forward_support = var.samples[0]['ADF'][alt_index+1]
+        reverse_support = var.samples[0]['ADR'][alt_index+1]
+    else:
+        forward_support = None
+        reverse_support = None
+    return forward_support, reverse_support
+
+def get_sv_ad(var):
+    return {
+        var.ref: var.samples[0]['DR']+var.samples[0]['RR'],
+        list(var.alts)[0]:var.samples[0]['DV']+var.samples[0]['RV']
+    }
 class Vcf:
     def __init__(self,filename,prefix=None,threads=1):
         self.samples = []
@@ -28,9 +49,25 @@ class Vcf:
             index_bcf(filename,threads)
         else:
             tabix(filename,threads)
+        self.vcf_dir = "/".join(os.path.abspath(filename).split("/")[:-1])
         for l in cmd_out("bcftools query -l %(filename)s" % vars(self)):
             self.samples.append(l.rstrip())
-        self.vcf_dir = "/".join(os.path.abspath(filename).split("/")[:-1])
+        self.nsamples = len(self.samples)
+        header = "\n".join([l.strip() for l in cmd_out("bcftools view -h %(filename)s" % vars(self))])
+        if "bcftools_callCommand" in header:
+            self.caller = "bcftools"
+        elif "source=lofreq call" in header:
+            self.caller = "lofreq"
+        elif "GATKCommandLine=<ID=HaplotypeCaller" in header:
+            self.caller = "gatk"
+        elif 'source="Pilon' in header:
+            self.caller = 'pilon'
+        elif 'source=freeBayes' in header:
+            self.caller = 'freebayes'
+        else:
+            self.caller = 'Unknown'
+        
+
     def view_regions(self,bed_file):
         self.bed_file = bed_file
         self.newfile = "%(prefix)s.targets.vcf.gz" % vars(self)
@@ -102,7 +139,7 @@ class Vcf:
 
 
 
-    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None,min_af=0.1):
+    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
         filter_out = []
         filter_types = {
                 "intergenic":["intergenic_region"],
@@ -133,19 +170,24 @@ class Vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for l in cmd_out(r"bcftools query -u -f '%CHROM\t%POS\t%REF\t%ALT\t%ANN\t[%AD\t%DR:%RR:%DV:%RV]\n'" + f" {self.filename}"):
-            chrom,pos,ref,alt_str,ann_str,ad_str,sv_str = l.strip().split()
-            alleles = [ref] + alt_str.split(",")
+        for var in pysam.VariantFile(self.filename):
+            chrom = var.chrom
+            pos = var.pos
+            ref = var.ref
+            alleles = var.alleles
+            ann_strs = var.info['ANN']
+            
+            ann_list = [x.split("|") for x in ann_strs]
+            # alleles = [ref] + alt_str.split(",")
+            alt_str = list(var.alts)[0]
             if alt_str in ["<DEL>","<DUP>","<INV>"]:
-                tmp = [int(x) for x in sv_str.split(":")]
-                ad = [tmp[0]+tmp[1],tmp[2]+tmp[3]]
-                af_dict = {ref:ad[0]/sum(ad),alt_str:ad[1]/sum(ad)}
+                af_dict = get_sv_ad(var)
             else:
-                ad = [int(x) for x in ad_str.split(",")]
+                ad = [int(x) for x in var.samples[0]['AD']]
                 af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
-            ann_list = [x.split("|") for x in ann_str.split(",")]
+            # ann_list = [x.split("|") for x in ann_str.split(",")]
             for alt in alleles[1:]:
-                if af_dict[alt]<min_af: continue
+                strand_support = get_stand_support(var,alt,self.caller)
                 tmp_var = {
                     "chrom": chrom,
                     "genome_pos": int(pos),
@@ -153,6 +195,8 @@ class Vcf:
                     "alt":alt,
                     "depth":sum(ad),
                     "freq":af_dict[alt],
+                    "forward_reads": strand_support[0],
+                    "reverse_reads": strand_support[1],
                     "consequences":[]
                 }
 

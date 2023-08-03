@@ -15,12 +15,13 @@ def main(args):
 			if "ID=DP,Number=1,Type=String" in l:
 				l = re.sub(r'ID=DP,Number=1,Type=String', r'ID=DP,Number=1,Type=Integer',l)
 			if "source=lofreq call" in l:
-				r = re.search("(\S+).bam",l)
-				sample_name = args.sample_name if args.sample_name else r.group(1) 
-				sys.stdout.write('##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">\n')
-				sys.stdout.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-				for chrom in chroms:
-					sys.stdout.write(f'##contig=<ID={chrom[0]},length={chrom[1]}>\n')
+				# r = re.search("(\S+).bam",l)
+				# sample_name = args.sample_name if args.sample_name else r.group(1) 
+				# sys.stdout.write('##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">\n')
+				# sys.stdout.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+				# for chrom in chroms:
+					# sys.stdout.write(f'##contig=<ID={chrom[0]},length={chrom[1]}>\n')
+				pass
 			if "#CHROM" in l:
 				sys.stdout.write('##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths (high-quality bases)">\n')
 				if len(row)==8:

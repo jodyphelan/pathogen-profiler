@@ -9,6 +9,27 @@ import json
 import csv
 rand_generator = random.SystemRandom()
 
+def var_qc_test(var,min_depth,min_af,strand_support):
+    
+    fail = False
+    if var['depth']<min_depth:
+        fail = True
+    if var['freq']<min_af:
+        fail = True
+    if var["forward_reads"]!=None and var['forward_reads']<strand_support:
+        fail = True
+    if var["reverse_reads"]!=None and var['reverse_reads']<strand_support:
+        fail = True
+    return fail
+
+def filter_variant(var,filter_params):
+    qc = "pass"
+    if var_qc_test(var,filter_params["depth_hard"],filter_params["af_hard"],filter_params["strand_hard"]):
+        qc = "hard_fail"
+    elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
+        qc = "soft_fail"
+    return qc
+
 
 def stringify(l):
     return [str(x) for x in list(l)]
@@ -24,6 +45,8 @@ def return_fields(obj,args,i=0):
     largs = args.split(".")
     if i+1>len(largs):
         return obj
+    if largs[i] not in obj:
+        return None
     sub_obj = obj[largs[i]]
     if isinstance(sub_obj,dict):
         return return_fields(sub_obj,args,i+1)
@@ -72,6 +95,7 @@ def reformat_annotations(results,conf):
     lt2drugs = get_lt2drugs(conf["bed"])
     results["dr_variants"] = []
     results["other_variants"] = []
+    results["qc_fail_variants"] = []
     for var in results["variants"]:
         drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug" and x["confers"]=="resistance"])
         if len(drugs)>0:
@@ -87,10 +111,22 @@ def reformat_annotations(results,conf):
             tmp["drugs"] = dr_ann
             tmp["annotation"] = other_ann
             tmp["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
-            results["dr_variants"].append(tmp)
+            qc  = filter_variant(var,conf["variant_filters"])
+            if qc=="hard_fail":
+                continue
+            elif qc=="soft_fail":
+                results["qc_fail_variants"].append(tmp)
+            else:
+                results["dr_variants"].append(tmp)
         else:
             var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
-            results["other_variants"].append(var)
+            qc  = filter_variant(var,conf["variant_filters"])
+            if qc=="hard_fail":
+                continue
+            elif qc=="soft_fail":
+                results["qc_fail_variants"].append(var)
+            else:
+                results["other_variants"].append(var)
     del results["variants"]
     return results
 
@@ -176,15 +212,15 @@ def select_csq(dict_list):
         d = set_change(d)
     return dict_list
 
-def dict_list_add_genes(dict_list,conf):
+def dict_list_add_genes(dict_list,conf,key="gene_id"):
     rv2gene = {}
     for l in open(conf["bed"]):
         row = l.rstrip().split()
         rv2gene[row[3]] = row[4]
     for d in dict_list:
-        d["locus_tag"] = d["gene_id"]
-        d["gene"] = rv2gene[d["gene_id"]]
-        del d["gene_id"]
+        d["locus_tag"] = d[key]
+        d["gene"] = rv2gene[d[key]]
+        del d[key]
         if "gene_name" in d:
             del d["gene_name"]
     return dict_list
