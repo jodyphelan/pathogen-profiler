@@ -5,13 +5,15 @@ import re
 from collections import defaultdict
 import sys
 from datetime import datetime
-from .utils import load_gff, run_cmd, cmd_out, errlog, unlist, debug, infolog, successlog
+from .utils import load_gff, run_cmd, cmd_out, unlist
 from .fasta import Fasta
 import os
 import shutil
 from uuid import uuid4
 import pathogenprofiler as pp
 import math
+import logging
+
 
 supported_so_terms = [
     'coding_sequence_variant', 'chromosome', 'duplication', 'inversion', 'coding_sequence_variant', 
@@ -96,7 +98,7 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
     lines = []
     for gene in gene_dict:
         if gene not in gene_info:
-            errlog("%s not found in the 'gene_info' dictionary... Exiting!" % gene)
+            logging.error("%s not found in the 'gene_info' dictionary... Exiting!" % gene)
             quit()
         if gene_info[gene].locus_tag in db:
             genome_positions = extract_genome_positions(db,gene_info[gene].locus_tag)
@@ -391,7 +393,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
         if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
             raise Exception(f"Don't know how to handle this mutation: {row['Gene']} {row['Mutation']}")            
 
-    infolog("Converting %s mutations" % len(mutations))
+    # logging.info("Converting %s mutations" % len(mutations))
     if len(mutations)>0:
         mutation_conversion = get_ann(mutations,snpEffDB)
         for key in mutation_conversion:
@@ -674,7 +676,9 @@ def create_db(args,extra_files = None):
 
         version = {"name":args.prefix}
         if os.path.isdir('.git'):
-            for l in cmd_out("git log | head -4"):
+            
+            for i,l in enumerate(cmd_out("git log")):
+                if i>3: continue
                 row = l.strip().split()
                 if row == []: continue
                 version[row[0].replace(":","")] = " ".join(row[1:])
@@ -757,12 +761,12 @@ def load_db(variables_file,software_name,source_dir="."):
     for key,val in variables['files'].items():
         source = f"{source_dir}/{val}"
         target = f"{load_dir}/{val}"
-        infolog(f"Copying file: {source} ---> {target}")
+        # logging.info(f"Copying file: {source} ---> {target}")
         shutil.copyfile(source,target)
         if key=="ref":
             index_ref(target)
     
-    successlog("Sucessfully imported library")
+    logging.info("[green]Sucessfully imported library[/]",extra={"markup":True})
 
 def get_variable_file_name(software_name,library_name):
     library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
@@ -788,7 +792,7 @@ def get_db(software_name,db_name):
         return None
     variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
-        infolog(f"Using {key} file: {share_path}/{val}")
+        logging.info(f"Using {key} file: {share_path}/{val}")
         if ".json" in val:
             variables[key] = json.load(open(f"{share_path}/{val}"))
         else:
@@ -846,7 +850,7 @@ def create_species_db(args,extra_files = None):
 
         for key,val in variables['files'].items():
             target = f"{load_dir}/{val}"
-            infolog(f"Copying file: {val} ---> {target}")
+            # logging.info(f"Copying file: {val} ---> {target}")
             shutil.copyfile(val,target)
 
 def get_snpeff_dir():

@@ -1,4 +1,5 @@
-from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, log, load_bed, debug, warninglog
+from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, load_bed
+import logging
 from .fasta import Fasta
 from collections import defaultdict
 import re
@@ -7,6 +8,7 @@ import sys
 import os.path
 import json
 import pysam
+
 
 def get_stand_support(var,alt,caller):
     alt_index = list(var.alts).index(alt)
@@ -24,10 +26,10 @@ def get_stand_support(var,alt,caller):
     return forward_support, reverse_support
 
 def get_sv_ad(var):
-    return {
-        var.ref: var.samples[0]['DR']+var.samples[0]['RR'],
-        list(var.alts)[0]:var.samples[0]['DV']+var.samples[0]['RV']
-    }
+    return [
+        var.samples[0]['DR']+var.samples[0]['RR'],
+        var.samples[0]['DV']+var.samples[0]['RV']
+    ]
 class Vcf:
     def __init__(self,filename,prefix=None,threads=1):
         self.samples = []
@@ -114,12 +116,13 @@ class Vcf:
         return None
 
     def run_snpeff(self,db,ref_file,gff_file,rename_chroms = None, split_indels=True):
+        logging.info("Running snpEff")
         add_arguments_to_self(self,locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
         if self.set_snpeff_datadir() is None:
-            warninglog("WARNING: snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
+            logging.warning("snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
             self.snpeff_data_dir_opt = ''
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
@@ -140,6 +143,7 @@ class Vcf:
 
 
     def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
+        logging.info("Loading snpEff annotations")
         filter_out = []
         filter_types = {
                 "intergenic":["intergenic_region"],
@@ -178,14 +182,16 @@ class Vcf:
             ann_strs = var.info['ANN']
             
             ann_list = [x.split("|") for x in ann_strs]
-            # alleles = [ref] + alt_str.split(",")
             alt_str = list(var.alts)[0]
             if alt_str in ["<DEL>","<DUP>","<INV>"]:
-                af_dict = get_sv_ad(var)
+                ad = get_sv_ad(var)
+                varlen = var.stop - var.pos
+                sv = True
             else:
                 ad = [int(x) for x in var.samples[0]['AD']]
-                af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
-            # ann_list = [x.split("|") for x in ann_str.split(",")]
+                varlen = None
+                sv = False
+            af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
             for alt in alleles[1:]:
                 strand_support = get_stand_support(var,alt,self.caller)
                 tmp_var = {
@@ -197,6 +203,8 @@ class Vcf:
                     "freq":af_dict[alt],
                     "forward_reads": strand_support[0],
                     "reverse_reads": strand_support[1],
+                    "sv": sv,
+                    "sv_len":varlen,
                     "consequences":[]
                 }
 

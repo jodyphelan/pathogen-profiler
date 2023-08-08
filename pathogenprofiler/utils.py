@@ -7,10 +7,73 @@ import math
 import re
 import json
 import csv
-rand_generator = random.SystemRandom()
+import subprocess as sp
+from uuid import uuid4
+import logging 
+import pysam
+from typing import List, NewType
+from joblib import Parallel, delayed
+from tqdm import tqdm
+
+
+def sanitize_region(region: str) -> str:
+    """Replace : and - with _"""
+    return region.replace(":","_").replace("-","_")
+
+Region = NewType("Region",str)
+
+def genome_job(cmd: str,region: Region) -> sp.CompletedProcess:
+    """Run a command on a region of the genome"""
+    region_safe = sanitize_region(region)
+    out = sp.run(cmd.format(region=region,region_safe=region_safe),shell=True,stderr=sp.PIPE,stdout=sp.PIPE)
+    return out
+
+
+def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
+    """Split genome into n chunks"""
+    genome = pysam.FastaFile(fasta)
+    total_length = sum(genome.lengths)
+    chunk_length = int(total_length/nchunks)
+    chunks = []
+    chunk_start = 0
+    chunk_end = 0
+    for chrom in genome.references:
+        while chunk_end < genome.get_reference_length(chrom):
+            chunk_end += chunk_length
+            if chunk_end > genome.get_reference_length(chrom):
+                chunk_end = genome.get_reference_length(chrom)
+            chunks.append([chrom,chunk_start,chunk_end])
+            chunk_start = chunk_end
+    regions = [f"{r[0]}:{r[1]}-{r[2]}" for r in chunks]
+    return regions
+
+def load_bed_regions(bed_file: str) -> List[Region]:
+    """Load regions from a bed file"""
+    regions = []
+    with open(bed_file) as fh:
+        for line in fh:
+            if line.startswith("#"):
+                continue
+            chrom,start,end = line.strip().split("\t")[:3]
+            regions.append(f"{chrom}:{start}-{end}")
+    return regions
+
+def run_cmd_parallel_on_genome(cmd: str,genome: str,threads: int = 2,desc: str=None,bed_file: str=None) -> List[sp.CompletedProcess]:
+    """Run a command in parallel in chunks of the genome"""
+    logging.debug("Running command in parallel: %s" % cmd)
+    if bed_file:
+        regions = load_bed_regions(bed_file)
+    else:
+        regions = get_genome_chunks(genome,nchunks=threads)
+    
+    parallel = Parallel(n_jobs=threads, return_as="generator")
+    desc = desc if desc else "Running command in parallel..."
+    results = [r for r in tqdm(parallel(delayed(genome_job)(cmd,r) for r in regions),total=len(regions),desc=desc)]
+    return results
+
 
 def var_qc_test(var,min_depth,min_af,strand_support):
-    
+    """Test if a variant passes QC"""
     fail = False
     if var['depth']<min_depth:
         fail = True
@@ -22,12 +85,29 @@ def var_qc_test(var,min_depth,min_af,strand_support):
         fail = True
     return fail
 
+def sv_var_qc_test(var,min_depth,min_af,sv_len):
+    
+    fail = False
+    if var['depth']<min_depth:
+        fail = True
+    if var['freq']<min_af:
+        fail = True
+    if var["sv_len"]>sv_len:
+        fail = True
+    return fail
+
 def filter_variant(var,filter_params):
     qc = "pass"
-    if var_qc_test(var,filter_params["depth_hard"],filter_params["af_hard"],filter_params["strand_hard"]):
-        qc = "hard_fail"
-    elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
-        qc = "soft_fail"
+    if var['sv']==True:
+        if sv_var_qc_test(var,filter_params["sv_depth_hard"],filter_params["sv_af_hard"],filter_params["sv_len_hard"]):
+            qc = "hard_fail"
+        elif sv_var_qc_test(var,filter_params["sv_depth_soft"],filter_params["sv_af_soft"],filter_params["sv_len_soft"]):
+            qc = "soft_fail"
+    else:
+        if var_qc_test(var,filter_params["depth_hard"],filter_params["af_hard"],filter_params["strand_hard"]):
+            qc = "hard_fail"
+        elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
+            qc = "soft_fail"
     return qc
 
 
@@ -250,23 +330,6 @@ def iupac(n):
 def unlist(t):
     return [item for sublist in t for item in sublist]
     
-def infolog(x):
-    sys.stderr.write('\033[94m' + str(x) + '\033[0m' + '\n')
-
-def errlog(x,ext=False):
-    sys.stderr.write('\033[91m' + str(x) + '\033[0m' + '\n')
-    if ext==True:
-        quit(1)
-
-def successlog(x):
-    sys.stderr.write('\033[92m' + str(x) + '\033[0m' + '\n')
-
-def warninglog(x):
-    sys.stderr.write('\033[93m' + str(x) + '\033[0m' + '\n')    
-
-def debug(x):
-    sys.stderr.write('\033[93m' + str(x) + '\033[0m' + '\n')
-
 
 def get_seqs_from_bam(bamfile):
     seqs = []
@@ -291,7 +354,8 @@ def stdev(arr):
     return math.sqrt(sum([(x-mean)**2 for x in arr])/len(arr))
 
 
-def add_arguments_to_self(self,args):
+def add_arguments_to_self(self,args: dict) -> None:
+    # Function to add arguments to class instance
     for x in args:
         if x == "self":
             continue
@@ -301,7 +365,27 @@ def add_arguments_to_self(self,args):
             vars(self)[x] = args["kwargs"][x]
 
 
-def cmd_out(cmd,verbose=1):
+
+def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
+    if desc:
+        logging.info(desc)
+    logging.debug(f"Running command: {cmd}")
+    cmd = "set -o pipefail; " + cmd
+    output = open(log,"w") if log else sp.PIPE
+    result = sp.run(cmd,shell=True,check=True,stderr=output,stdout=output)
+    if result.returncode != 0:
+        raise Exception(f"Error running {cmd}")
+    return result
+
+def cmd_out(cmd: str) -> str:
+    filename = str(uuid4())
+    cmd = f"{cmd} > {filename}"
+    run_cmd(cmd)
+    for line in open(filename):
+        yield line.strip()
+    os.remove(filename)
+
+def _cmd_out(cmd,verbose=1):
     cmd = "set -u pipefail; " + cmd
     if verbose==2:
         sys.stderr.write("\nRunning command:\n%s\n" % cmd)
@@ -316,7 +400,7 @@ def cmd_out(cmd,verbose=1):
         for l in res.stdout:
             yield l.decode().rstrip()
     except:
-        errlog("Command Failed! Please Check!")
+        logging.error("Command Failed! Please Check!")
         raise Exception
     stderr.close()
 
@@ -335,14 +419,14 @@ def load_bed(filename,columns,key1,key2=None,intasint=False):
             continue
         if key2:
             if max(columns+[key1,key2])>len(row):
-                errlog("Can't access a column in BED file. The largest column specified is too big",True)
+                logging.error("Can't access a column in BED file. The largest column specified is too big",True)
             if key2==2 or key2==3:
                 results[row[key1-1]][int(row[key2-1])] = tuple([row[int(x)-1] for x in columns])
             else:
                 results[row[key1-1]][row[key2-1]] = tuple([row[int(x)-1] for x in columns])
         else:
             if max(columns+[key1])>len(row):
-                errlog("Can't access a column in BED file. The largest column specified is too big",True)
+                logging.error("Can't access a column in BED file. The largest column specified is too big",True)
             results[row[key1-1]]= tuple([row[int(x)-1] for x in columns])
     return results
 
@@ -354,7 +438,7 @@ def filecheck(filename):
     if filename=="/dev/null":
         return filename
     elif not os.path.isfile(filename):
-        errlog("Can't find %s\n" % filename)
+        logging.error("Can't find %s\n" % filename)
         exit(1)
     else:
         return filename
@@ -420,30 +504,30 @@ def which(program):
     return False
 
 
-def run_cmd(cmd,verbose=1,target=None,terminate_on_error=True):
-    """
-    Wrapper to run a command using subprocess with 3 levels of verbosity and automatic exiting if command failed
-    """
-    programs = set([x.strip().split()[0] for x in re.split("[|&;]",cmd) if x!=""])
-    missing = [p for p in programs if which(p)==False]
-    if len(missing)>0:
-        raise ValueError("Cant find programs: %s\n" % (", ".join(missing)))
-    if target and filecheck(target): return True
-    cmd = "set -u pipefail; " + cmd
-    if verbose>0:
-        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
+# def run_cmd(cmd,verbose=1,target=None,terminate_on_error=True):
+#     """
+#     Wrapper to run a command using subprocess with 3 levels of verbosity and automatic exiting if command failed
+#     """
+#     programs = set([x.strip().split()[0] for x in re.split("[|&;]",cmd) if x!=""])
+#     missing = [p for p in programs if which(p)==False]
+#     if len(missing)>0:
+#         raise ValueError("Cant find programs: %s\n" % (", ".join(missing)))
+#     if target and filecheck(target): return True
+#     cmd = "set -u pipefail; " + cmd
+#     if verbose>0:
+#         sys.stderr.write("\nRunning command:\n%s\n" % cmd)
 
-    p = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout,stderr = p.communicate()
+#     p = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#     stdout,stderr = p.communicate()
 
-    if terminate_on_error is True and p.returncode!=0:
-        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,stderr.decode()))
+#     if terminate_on_error is True and p.returncode!=0:
+#         raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,stderr.decode()))
 
-    if verbose>1:
-        sys.stdout.write(stdout)
-        sys.stderr.write(stderr)
+#     if verbose>1:
+#         sys.stdout.write(stdout)
+#         sys.stderr.write(stderr)
 
-    return (stdout.decode(),stderr.decode())
+#     return (stdout.decode(),stderr.decode())
 
 def index_bam(bamfile,threads=1,overwrite=False):
     """
@@ -480,13 +564,13 @@ def tabix(bcffile,threads=1,overwrite=False):
         elif os.path.getmtime(bcffile+".tbi")<os.path.getmtime(bcffile) or overwrite:
             run_cmd(cmd)
 
-def rm_files(x,verbose=True):
+def rm_files(x):
     """
     Remove a files in a list format
     """
     for f in x:
         if os.path.isfile(f):
-            if verbose: sys.stderr.write("Removing %s\n" % f)
+            logging.debug("Removing %s" % f)
             os.remove(f)
 
 

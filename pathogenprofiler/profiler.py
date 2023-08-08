@@ -1,15 +1,16 @@
-from .utils import infolog, run_cmd, debug
+from .utils import run_cmd
 from .bam import Bam
 from .barcode import barcode, db_compare
 from .vcf import Vcf,DellyVcf
 from .fasta import Fasta
 import statistics as stats
 import os
+import logging
 
 
 
 def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, min_depth = 10, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
-    infolog("Using %s\n\nPlease ensure that this BAM was made using the same reference as in the database.\nIf you are not sure what reference was used it is best to remap the reads." % bam_file)
+    logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
 
     ### Put user specified arguments to lower case ###
     platform = platform.lower()
@@ -22,41 +23,41 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
             caller = "freebayes"
 
     ### Create bam object and call variants ###
-    bam_obj = Bam(bam_file, prefix, platform=platform, threads=threads)
+    bam = Bam(bam_file, prefix, platform=platform, threads=threads)
     if call_wg:
-        wg_vcf_obj = bam_obj.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
+        wg_vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
         vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam_obj.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
+        vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
     if variant_annotations:
-        vcf_obj = vcf_obj.add_annotations(conf["ref"],bam_obj.bam_file)
+        vcf_obj = vcf_obj.add_annotations(conf["ref"],bam.bam_file)
     else:
         ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
     ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
-    # bam_obj.get_region_qc(conf["bed"],conf["ref"],min_dp=min_depth)
+    # bam.get_region_qc(conf["bed"],conf["ref"],min_dp=min_depth)
 
     results = {}
     
     ### Get % and num reads mapping ###
     if not no_flagstat:
         results['qc'] = {}
-        bam_obj.calculate_bamstats()
-        results['qc']['pct_reads_mapped'] = bam_obj.pct_reads_mapped
-        results['qc']['num_reads_mapped'] = bam_obj.mapped_reads
-        results['qc']['region_qc'] = bam_obj.get_region_qc(bed_file=conf['bed'],cutoff=min_depth)
+        bam.calculate_bamstats()
+        results['qc']['pct_reads_mapped'] = bam.pct_reads_mapped
+        results['qc']['num_reads_mapped'] = bam.mapped_reads
+        results['qc']['region_qc'] = bam.get_region_qc(bed_file=conf['bed'],cutoff=min_depth)
         results['qc']['region_median_depth'] = stats.median([x['median_depth'] for x in results['qc']['region_qc']])
-        results["qc"]["missing_positions"] = bam_obj.get_missing_genomic_positions(cutoff=min_depth)
+        results["qc"]["missing_positions"] = bam.get_missing_genomic_positions(cutoff=min_depth)
         if 'amplicon' not in conf or conf['amplicon']==False:
-            results['qc']['genome_median_depth'] = bam_obj.get_median_depth(ref_file=conf['ref'],software=coverage_tool)
+            results['qc']['genome_median_depth'] = bam.get_median_depth(ref_file=conf['ref'],software=coverage_tool)
         
     results["variants"]  = ann
 
     if "barcode" in conf:
         if platform in ("nanopore","pacbio"):
-            mutations = bam_obj.get_bed_gt(conf["barcode"],conf["ref"], caller="bcftools",platform=platform)
+            mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller="bcftools",platform=platform)
         else:
-            mutations = bam_obj.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=platform)
+            mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=platform)
 
             
         results["barcode"] = barcode(mutations,conf["barcode"])
@@ -67,7 +68,7 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         if delly_vcf_file:
             delly_vcf_obj = Vcf(delly_vcf_file)
         else:
-            delly_vcf_obj = bam_obj.run_delly(conf['bed'])
+            delly_vcf_obj = bam.run_delly(conf['bed'])
         if delly_vcf_obj is not None:
             results["delly"] = "success"
             # delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])

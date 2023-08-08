@@ -1,12 +1,13 @@
 from __future__ import division
 from .bam import Bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom, debug
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom
 from uuid import uuid4
 import statistics as stats
 import os
 from tqdm import tqdm 
 from .kmer import KmerDump
 import platform
+import logging
 
 
 class Fastq:
@@ -34,6 +35,7 @@ class Fastq:
 
     def trim(self, prefix, threads=1):
         """Perform trimming"""
+        logging.info("Trimming reads")
         add_arguments_to_self(self, locals())
         if self.paired:
             run_cmd("trimmomatic PE -threads %(threads)s -phred33 %(r1)s %(r2)s -baseout %(prefix)s LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
@@ -46,6 +48,7 @@ class Fastq:
 
     def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True, max_mem="768M"):
         """Mapping to a reference genome"""
+        logging.info("Mapping to reference genome")
         add_arguments_to_self(self, locals())
         self.aligner = aligner.lower()
         accepted_aligners = ["bwa","bwa-mem2","bowtie2","minimap2"]
@@ -118,6 +121,7 @@ class Fastq:
         return Bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=8,counter = "kmc"):
+        logging.info("Counting kmers")
         if counter=="kmc":
             if threads>32:
                 threads = 32

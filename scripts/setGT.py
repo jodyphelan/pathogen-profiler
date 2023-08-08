@@ -3,6 +3,7 @@ import sys
 from tqdm import tqdm
 import argparse
 import re
+
 def main(args):
     ad_cutoff = args.fraction
     for l in tqdm(sys.stdin):
@@ -35,11 +36,16 @@ def main(args):
             total_ad = sum(ad)
             if total_ad==0:continue
             adf = [ad[j]/total_ad for j in range(len(ad))]
+
             if max(adf)>=ad_cutoff:
                 new_gt = adf.index(max(adf))
                 if alleles[new_gt]=="*": new_gt = "."
                 fmt[0] = f"{new_gt}/{new_gt}"
                 something_changed = True
+                row[i] = ":".join(fmt)
+            else:
+                something_changed = True
+                fmt[0] = "./."
                 row[i] = ":".join(fmt)
         if something_changed:
             sys.stdout.write("\t".join(row)+"\n")

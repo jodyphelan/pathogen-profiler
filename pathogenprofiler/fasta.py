@@ -1,9 +1,10 @@
 from collections import OrderedDict
-from .utils import run_cmd, cmd_out, debug
-from uuid import uuid4
+from .utils import run_cmd, cmd_out
 from .kmer import KmerDump
 import os
 import platform 
+import logging
+
 
 class Fasta:
     """

@@ -1,15 +1,20 @@
 from .fastq import Fastq
-from .utils import errlog, infolog, run_cmd, cmd_out, debug
+from .utils import run_cmd, cmd_out
 from .bam import Bam
 from .db import get_db
 from .fasta import Fasta
 from .profiler import bam_profiler, fasta_profiler, vcf_profiler
 import json
+import logging
 
 def get_variant_filters(args):
     filters = {}
-    for f in ['depth_soft','depth_hard','af_soft','af_hard','strand_soft','strand_hard']:
-        filters[f] = getattr(args,f)
+    for f in [
+        'depth','af','strand','sv_depth','sv_af','sv_len'
+    ]:
+        vals = getattr(args,f).split(",")
+        filters[f+"_hard"] = float(vals[0]) if "." in vals[0] else int(vals[0])
+        filters[f+"_soft"] = float(vals[1]) if "." in vals[1] else int(vals[1])
     return filters
 
 def get_resistance_db_from_species_prediction(args,species_prediction):
@@ -17,17 +22,17 @@ def get_resistance_db_from_species_prediction(args,species_prediction):
         return get_db(args.software_name,args.resistance_db)
 
     if len(species_prediction['prediction'])>1:
-        infolog(f"Multiple species found.\n")
+        logging.info(f"Multiple species found.\n")
         return None
     if len(species_prediction['prediction'])==0:
-        infolog(f"Species classification failed.\n")
+        logging.info(f"Species classification failed.\n")
         return None
     if len(species_prediction['prediction'])==1:
-        infolog("No resistance database was specified. Attempting to use database based on species prediction...\n")
+        logging.info("No resistance database was specified. Attempting to use database based on species prediction...\n")
         db_name = species_prediction['prediction'][0]["species"].replace(" ","_")
         conf = get_db(args.software_name,db_name)
         if not conf:
-            infolog(f"No resistance db found for {db_name}.\n")
+            logging.info(f"No resistance db found for {db_name}.\n")
         return conf
     
 def test_vcf_for_lofreq(vcf_file):
@@ -63,7 +68,7 @@ def run_profiler(args):
 def speciate(args,bam_region=None):
     conf = get_db(args.software_name,args.species_db)
     if conf==None:
-        errlog(
+        logging.error(
             f"\nDatabase '{args.species_db}' not found. You may need to load this database first... Exiting!\n",
             ext=True
         )

@@ -1,5 +1,4 @@
 from collections import defaultdict
-from .utils import errlog, debug
 
 def get_lt2drugs(bed_file):
     lt2drugs = {}

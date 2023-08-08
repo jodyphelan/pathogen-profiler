@@ -1,22 +1,23 @@
-from .utils import infolog, stdev, log, debug, iupac
+from .utils import stdev, iupac
 import json
 import re
 from collections import defaultdict
 from .db import supported_so_terms
+import logging
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
     if re_obj:
         return int(re_obj.group(1))
     else:
-        log("Error can't find codon number in %s" % x,True)
+        logging.error("Error can't find codon number in %s" % x,True)
 
 def get_indel_nucleotide(x):
     re_obj = re.search("([0-9]+)",x)
     if re_obj:
         return int(re_obj.group(1))
     else:
-        log("Error can't find nucleotide number in %s" % x,True)
+        logging.error("Error can't find nucleotide number in %s" % x,True)
 
 
 

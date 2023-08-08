@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 import pysam
 from collections import defaultdict
-from pathogenprofiler import debug
 
 variants = defaultdict(list)
 input_vcf = pysam.VariantFile("-")
