@@ -46,7 +46,7 @@ class Bam:
             self.windows_cmd = "cat %(bed_file)s | awk '{print $1\":\"$2\"-\"$3\" \"$1\"_\"$2\"_\"$3}'" % vars(self)
         else:
             self.vcf_file = "%s.vcf.gz" % (self.prefix) if bed_file else "%s.vcf.gz" % (self.prefix)
-            self.windows_cmd = "bedtools makewindows -g %(ref_file)s.fai -n %(threads)s | awk '{print $1\":\"$2+1\"-\"$3\" \"$1\"_\"$2+1\"_\"$3}'" % vars(self)
+            self.windows_cmd = "get_genome_regions.py --fasta %(ref_file)s --num %(threads)s" % vars(self)
 
         self.samclip_cmd = "| samclip --ref %(ref_file)s" % vars(self) if samclip else ""
         # Run through different options. 

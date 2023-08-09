@@ -34,7 +34,7 @@ def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
     """Split genome into n chunks"""
     genome = pysam.FastaFile(fasta)
     total_length = sum(genome.lengths)
-    chunk_length = int(total_length/nchunks)
+    chunk_length = int(total_length/nchunks) + 10
     chunks = []
     chunk_start = 0
     chunk_end = 0
@@ -45,7 +45,7 @@ def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
                 chunk_end = genome.get_reference_length(chrom)
             chunks.append([chrom,chunk_start,chunk_end])
             chunk_start = chunk_end
-    regions = [f"{r[0]}:{r[1]}-{r[2]}" for r in chunks]
+    regions = [f"{r[0]}:{r[1]+1}-{r[2]}" for r in chunks]
     return regions
 
 def load_bed_regions(bed_file: str) -> List[Region]:
@@ -373,8 +373,9 @@ def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
     logging.debug(f"Running command: {cmd}")
     cmd = "/bin/bash -c set -o pipefail; " + cmd
     output = open(log,"w") if log else sp.PIPE
-    result = sp.run(cmd,shell=True,check=True,stderr=output,stdout=output)
+    result = sp.run(cmd,shell=True,stderr=output,stdout=output)
     if result.returncode != 0:
+        logging.error(result.stderr.decode("utf-8"))
         raise Exception(f"Error running {cmd}")
     return result
 
