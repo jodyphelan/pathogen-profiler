@@ -25,7 +25,8 @@ Region = NewType("Region",str)
 def genome_job(cmd: str,region: Region) -> sp.CompletedProcess:
     """Run a command on a region of the genome"""
     region_safe = sanitize_region(region)
-    out = sp.run(cmd.format(region=region,region_safe=region_safe),shell=True,stderr=sp.PIPE,stdout=sp.PIPE)
+    cmd = cmd.format(region=region,region_safe=region_safe)
+    out = run_cmd(cmd)
     return out
 
 
@@ -370,7 +371,7 @@ def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
     if desc:
         logging.info(desc)
     logging.debug(f"Running command: {cmd}")
-    cmd = "set -o pipefail; " + cmd
+    cmd = "/bin/bash -c set -o pipefail; " + cmd
     output = open(log,"w") if log else sp.PIPE
     result = sp.run(cmd,shell=True,check=True,stderr=output,stdout=output)
     if result.returncode != 0:
