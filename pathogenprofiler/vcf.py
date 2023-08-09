@@ -179,11 +179,10 @@ class Vcf:
             pos = var.pos
             ref = var.ref
             alleles = var.alleles
-            ann_strs = var.info['ANN']
-            
-            ann_list = [x.split("|") for x in ann_strs]
             alt_str = list(var.alts)[0]
-            if alt_str in ["<DEL>","<DUP>","<INV>"]:
+            if alt_str in ["<INS>","<DUP>","<INV>"]:
+                continue
+            if alt_str in ["<DEL>"]:
                 ad = get_sv_ad(var)
                 varlen = var.stop - var.pos
                 sv = True
@@ -191,7 +190,11 @@ class Vcf:
                 ad = [int(x) for x in var.samples[0]['AD']]
                 varlen = None
                 sv = False
+            if sum(ad)==0:
+                continue
             af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
+            ann_strs = var.info['ANN']
+            ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
                 strand_support = get_stand_support(var,alt,self.caller)
                 tmp_var = {
