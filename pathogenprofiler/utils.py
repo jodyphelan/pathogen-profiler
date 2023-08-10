@@ -370,13 +370,17 @@ def add_arguments_to_self(self,args: dict) -> None:
 def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
     if desc:
         logging.info(desc)
+    programs = set([x.strip().split()[0] for x in re.split("[|&;]",cmd) if x!=""])
+    missing = [p for p in programs if which(p)==False]
+    if len(missing)>0:
+        raise ValueError("Cant find programs: %s\n" % (", ".join(missing)))
     logging.debug(f"Running command: {cmd}")
     cmd = "/bin/bash -c set -o pipefail; " + cmd
     output = open(log,"w") if log else sp.PIPE
     result = sp.run(cmd,shell=True,stderr=output,stdout=output)
     if result.returncode != 0:
         logging.error(result.stderr.decode("utf-8"))
-        raise Exception(f"Error running {cmd}")
+        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,result.stderr.decode()))
     return result
 
 def cmd_out(cmd: str) -> str:
