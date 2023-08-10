@@ -33,7 +33,7 @@ class Bam:
             run_cmd("delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
             return Vcf("%(prefix)s.delly.bcf" % vars(self))
                 
-    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False,min_dp=10):
+    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False):
         add_arguments_to_self(self, locals())
         filecheck(ref_file)
         self.caller = caller.lower()
