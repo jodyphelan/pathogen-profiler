@@ -1,5 +1,4 @@
 from collections import defaultdict
-from .utils import errlog, debug
 
 def get_lt2drugs(bed_file):
     lt2drugs = {}
@@ -35,7 +34,7 @@ def get_drug_list(bed_file):
     tmp = get_drugs2lt(bed_file)
     return set(tmp.keys())
 
-def get_summary(json_results,conf,columns = None,drug_order = None,reporting_af=0.0):
+def get_summary(json_results,conf,columns = None,reporting_af=0.0):
     if not columns:
         columns=[]
     drugs = conf['drugs']

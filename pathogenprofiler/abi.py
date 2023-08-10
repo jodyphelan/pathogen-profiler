@@ -2,7 +2,8 @@ from Bio import SeqIO
 from .utils import *
 from .fasta import *
 from .vcf import *
-class abi:
+
+class Abi:
     def __init__(self,in_obj,prefix):
         if isinstance(in_obj[0],str):
             self.filenames = in_obj
@@ -30,8 +31,8 @@ class abi:
     def get_variants_vcf(self,refseq,gff=None):
         add_arguments_to_self(self,locals())
         self.write_seq()
-        fa = fasta(self.prefix+".fasta")
-        return bcf(fa.get_ref_variants(refseq,self.prefix,gff))
+        fa = Fasta(self.prefix+".fasta")
+        return Vcf(fa.get_ref_variants(refseq,self.prefix,gff))
     def get_mixed_positions(self):
         self.channels = {'DATA9':"G", 'DATA10':"A", 'DATA11':"T", 'DATA12':"C"}
         positions = []

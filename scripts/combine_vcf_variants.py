@@ -37,7 +37,7 @@ def get_codon_pos(chrom,pos,genes):
 
 
 def main(args):
-    ref = pp.fasta(args.ref).fa_dict
+    ref = pp.Fasta(args.ref).fa_dict
     cds = gff_load_cds(args.gff)
     final_list = []
     coding = defaultdict(list)

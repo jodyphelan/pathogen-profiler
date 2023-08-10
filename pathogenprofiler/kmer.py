@@ -1,13 +1,14 @@
 from tqdm import tqdm 
 import statistics as stats
-from .utils import debug, infolog,revcom
+from .utils import revcom
 from itertools import combinations, product
 import os
+import logging
 
 
 
 
-class kmer_dump:
+class KmerDump:
     def __init__(self,kmer_file,counter):
         self.kmer_file = kmer_file
         if counter=="kmc":
@@ -24,7 +25,7 @@ class kmer_dump:
             for k in self.mutate_kmer(row[0],d=max_mismatch):
                 kmers[k] = row[1]
         tmp_counts = {}
-        infolog(f"Looking for {len(kmers)} kmers")
+        logging.info(f"Looking for {len(kmers)} kmers")
         for l in tqdm(open(self.kmer_file)):
             row = l.strip().split()
             if row[0] not in kmers: continue

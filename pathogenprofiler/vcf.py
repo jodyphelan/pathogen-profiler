@@ -1,13 +1,36 @@
-from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, log, load_bed, debug, warninglog
-from .fasta import fasta
+from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, load_bed
+import logging
+from .fasta import Fasta
 from collections import defaultdict
 import re
 from uuid import uuid4
 import sys
 import os.path
 import json
+import pysam
 
-class vcf:
+
+def get_stand_support(var,alt,caller):
+    alt_index = list(var.alts).index(alt)
+    forward_support = None
+    reverse_support = None
+    if caller == "freebayes" or caller=="lofreq":
+        forward_support = var.info['SAF'][alt_index]
+        reverse_support = var.info['SAR'][alt_index]
+    elif caller=="bcftools":
+        forward_support = var.samples[0]['ADF'][alt_index+1]
+        reverse_support = var.samples[0]['ADR'][alt_index+1]
+    else:
+        forward_support = None
+        reverse_support = None
+    return forward_support, reverse_support
+
+def get_sv_ad(var):
+    return [
+        var.samples[0]['DR']+var.samples[0]['RR'],
+        var.samples[0]['DV']+var.samples[0]['RV']
+    ]
+class Vcf:
     def __init__(self,filename,prefix=None,threads=1):
         self.samples = []
         add_arguments_to_self(self,locals())
@@ -28,14 +51,30 @@ class vcf:
             index_bcf(filename,threads)
         else:
             tabix(filename,threads)
+        self.vcf_dir = "/".join(os.path.abspath(filename).split("/")[:-1])
         for l in cmd_out("bcftools query -l %(filename)s" % vars(self)):
             self.samples.append(l.rstrip())
-        self.vcf_dir = "/".join(os.path.abspath(filename).split("/")[:-1])
+        self.nsamples = len(self.samples)
+        header = "\n".join([l.strip() for l in cmd_out("bcftools view -h %(filename)s" % vars(self))])
+        if "bcftools_callCommand" in header:
+            self.caller = "bcftools"
+        elif "source=lofreq call" in header:
+            self.caller = "lofreq"
+        elif "GATKCommandLine=<ID=HaplotypeCaller" in header:
+            self.caller = "gatk"
+        elif 'source="Pilon' in header:
+            self.caller = 'pilon'
+        elif 'source=freeBayes' in header:
+            self.caller = 'freebayes'
+        else:
+            self.caller = 'Unknown'
+        
+
     def view_regions(self,bed_file):
         self.bed_file = bed_file
         self.newfile = "%(prefix)s.targets.vcf.gz" % vars(self)
         run_cmd("bcftools view -R %(bed_file)s %(filename)s -Oz -o %(newfile)s" % vars(self))
-        return vcf(self.newfile)
+        return Vcf(self.newfile)
 
 
     def set_snpeff_datadir(self):
@@ -77,30 +116,34 @@ class vcf:
         return None
 
     def run_snpeff(self,db,ref_file,gff_file,rename_chroms = None, split_indels=True):
+        logging.info("Running snpEff")
         add_arguments_to_self(self,locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
         if self.set_snpeff_datadir() is None:
-            warninglog("WARNING: snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
+            logging.warning("snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
             self.snpeff_data_dir_opt = ''
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
         if split_indels:
             self.tmp_file1 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
             self.tmp_file2 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
+            self.tmp_file3 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
 
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
             run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
-            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file1+".csi", self.tmp_file2+".csi"])
+            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
+            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file3, self.tmp_file1+".csi", self.tmp_file2+".csi", self.tmp_file3+".csi"])
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
-        return vcf(self.vcf_csq_file,self.prefix)
+        return Vcf(self.vcf_csq_file,self.prefix)
 
 
 
-    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None,min_af=0.1):
+    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
+        logging.info("Loading snpEff annotations")
         filter_out = []
         filter_types = {
                 "intergenic":["intergenic_region"],
@@ -131,24 +174,40 @@ class vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for l in cmd_out(f"bcftools query -u -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%ANN\\t[%AD]\\n' {self.filename}"):
-            chrom,pos,ref,alt_str,ann_str,ad_str = l.strip().split()
-            alleles = [ref] + alt_str.split(",")
-            if alt_str=="<DEL>":
-                af_dict = {"<DEL>":1.0}
+        for var in pysam.VariantFile(self.filename):
+            chrom = var.chrom
+            pos = var.pos
+            ref = var.ref
+            alleles = var.alleles
+            alt_str = list(var.alts)[0]
+            if alt_str in ["<INS>","<DUP>","<INV>"]:
+                continue
+            if alt_str in ["<DEL>"]:
+                ad = get_sv_ad(var)
+                varlen = var.stop - var.pos
+                sv = True
             else:
-                ad = [int(x) for x in ad_str.split(",")]
-                af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
-            ann_list = [x.split("|") for x in ann_str.split(",")]
+                ad = [int(x) for x in var.samples[0]['AD']]
+                varlen = None
+                sv = False
+            if sum(ad)==0:
+                continue
+            af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
+            ann_strs = var.info['ANN']
+            ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
-                if af_dict[alt]<min_af: continue
+                strand_support = get_stand_support(var,alt,self.caller)
                 tmp_var = {
                     "chrom": chrom,
                     "genome_pos": int(pos),
                     "ref": ref,
                     "alt":alt,
-                    "depth":sum(ad) if ad_str!="." else None,
+                    "depth":sum(ad),
                     "freq":af_dict[alt],
+                    "forward_reads": strand_support[0],
+                    "reverse_reads": strand_support[1],
+                    "sv": sv,
+                    "sv_len":varlen,
                     "consequences":[]
                 }
 
@@ -189,7 +248,7 @@ class vcf:
         self.new_file = self.prefix + ".ann.vcf.gz"
 
         run_cmd("gatk VariantAnnotator -R %(ref_file)s -I %(bam_file)s -V %(filename)s -O %(new_file)s -A MappingQualityRankSumTest -A ReadPosRankSumTest -A QualByDepth -A BaseQualityRankSumTest -A TandemRepeat -A StrandOddsRatio -OVI false" % vars(self))
-        return vcf(self.new_file,self.prefix)
+        return Vcf(self.new_file,self.prefix)
 
 
     def get_positions(self):
@@ -203,7 +262,7 @@ class vcf:
         add_arguments_to_self(self,locals())
         cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         results = defaultdict(lambda : defaultdict(dict))
-        ref_seq = fasta(ref_file).fa_dict
+        ref_seq = Fasta(ref_file).fa_dict
         for l in cmd_out(cmd):
             #Chromosome    4348079    0/0    51
             chrom,pos,ref,alt,gt,ad = l.rstrip().split()
@@ -237,9 +296,10 @@ class vcf:
             if x in lines:
                 found_annotations.append(x)
         return found_annotations
-class delly_bcf(vcf):
+
+class DellyVcf(Vcf):
     def __init__(self,filename):
-         vcf.__init__(self,filename)
+        Vcf.__init__(self,filename)
     def get_robust_calls(self,prefix,bed_file = None):
         self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
         self.outfile = f"{prefix}.delly.vcf.gz"
@@ -249,7 +309,7 @@ class delly_bcf(vcf):
             run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
         else:
             self.outfile = self.tmpfile
-        return delly_bcf(self.outfile)
+        return DellyVcf(self.outfile)
 
 def uniqify_dict_list(data):
     s = []

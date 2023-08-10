@@ -1,15 +1,16 @@
 from __future__ import division
-from .bam import bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom, debug
+from .bam import Bam
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom
 from uuid import uuid4
 import statistics as stats
 import os
 from tqdm import tqdm 
-from .kmer import kmer_dump
+from .kmer import KmerDump
 import platform
+import logging
 
 
-class fastq:
+class Fastq:
     """
     Class to hold fastq file and methods.
     Methods include trimming and mapping to a reference genome
@@ -34,18 +35,20 @@ class fastq:
 
     def trim(self, prefix, threads=1):
         """Perform trimming"""
+        logging.info("Trimming reads")
         add_arguments_to_self(self, locals())
         if self.paired:
             run_cmd("trimmomatic PE -threads %(threads)s -phred33 %(r1)s %(r2)s -baseout %(prefix)s LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
             run_cmd("cat %(prefix)s_1U %(prefix)s_2U > %(prefix)s_TU" % vars(self))
             run_cmd("rm %(prefix)s_1U %(prefix)s_2U" % vars(self))
-            return fastq("%(prefix)s_1P" % vars(self), "%(prefix)s_2P" % vars(self), "%(prefix)s_TU" % vars(self))
+            return Fastq("%(prefix)s_1P" % vars(self), "%(prefix)s_2P" % vars(self), "%(prefix)s_TU" % vars(self))
         else:
             run_cmd("trimmomatic SE -threads %(threads)s -phred33 %(r1)s %(prefix)s_TU LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
-            return fastq("%(prefix)s_TU" % vars(self))
+            return Fastq("%(prefix)s_TU" % vars(self))
 
     def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True, max_mem="768M"):
         """Mapping to a reference genome"""
+        logging.info("Mapping to reference genome")
         add_arguments_to_self(self, locals())
         self.aligner = aligner.lower()
         accepted_aligners = ["bwa","bwa-mem2","bowtie2","minimap2"]
@@ -115,9 +118,10 @@ class fastq:
                 else:
                     run_cmd("rm %(bam_pair_file)s" % vars(self))
 
-        return bam(self.bam_file,self.prefix,self.platform,threads=threads)
+        return Bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=8,counter = "kmc"):
+        logging.info("Counting kmers")
         if counter=="kmc":
             if threads>32:
                 threads = 32
@@ -131,7 +135,7 @@ class fastq:
             run_cmd(f"kmc_dump {tmp_prefix} {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
-            return kmer_dump(f"{prefix}.kmers.txt",counter)
+            return KmerDump(f"{prefix}.kmers.txt",counter)
         elif counter=="dsk":
             max_mem = max_mem * 1000
             tmp_prefix = f"{prefix}_kmers"
@@ -141,4 +145,4 @@ class fastq:
             run_cmd(f"dsk2ascii -file {tmp_prefix}.h5 -out {prefix}.kmers.txt")
             run_cmd(f"rm -r {tmp_prefix}*")
 
-            return kmer_dump(f"{prefix}.kmers.txt",counter)
+            return KmerDump(f"{prefix}.kmers.txt",counter)

@@ -1,22 +1,23 @@
-from .utils import infolog, stdev, log, debug, iupac
+from .utils import stdev, iupac
 import json
 import re
 from collections import defaultdict
 from .db import supported_so_terms
+import logging
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
     if re_obj:
         return int(re_obj.group(1))
     else:
-        log("Error can't find codon number in %s" % x,True)
+        logging.error("Error can't find codon number in %s" % x,True)
 
 def get_indel_nucleotide(x):
     re_obj = re.search("([0-9]+)",x)
     if re_obj:
         return int(re_obj.group(1))
     else:
-        log("Error can't find nucleotide number in %s" % x,True)
+        logging.error("Error can't find nucleotide number in %s" % x,True)
 
 
 
@@ -66,6 +67,8 @@ def barcode(mutations,barcode_bed,snps_file=None):
         # If stdev of fraction across all barcoding positions > 0.15
         # Only look at positions with >5 reads
         tmp_allelic_dp = [x[1]/(x[0]+x[1]) for x in barcode_support[l] if sum(x)>5]
+        # remove positions with no SNP (fraction=0)
+        tmp_allelic_dp = [x for x in tmp_allelic_dp if x>0]
         if len(tmp_allelic_dp)==0: continue
         if stdev(tmp_allelic_dp)>0.15: continue
 

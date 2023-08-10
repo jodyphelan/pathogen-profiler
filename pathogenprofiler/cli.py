@@ -1,27 +1,38 @@
-from .fastq import fastq
-from .utils import errlog, infolog, run_cmd, cmd_out, debug
-from .bam import bam
+from .fastq import Fastq
+from .utils import run_cmd, cmd_out
+from .bam import Bam
 from .db import get_db
-from .fasta import fasta
+from .fasta import Fasta
 from .profiler import bam_profiler, fasta_profiler, vcf_profiler
 import json
+import logging
+
+def get_variant_filters(args):
+    filters = {}
+    for f in [
+        'depth','af','strand','sv_depth','sv_af','sv_len'
+    ]:
+        vals = getattr(args,f).split(",")
+        filters[f+"_hard"] = float(vals[0]) if "." in vals[0] else int(vals[0])
+        filters[f+"_soft"] = float(vals[1]) if "." in vals[1] else int(vals[1])
+    return filters
 
 def get_resistance_db_from_species_prediction(args,species_prediction):
     if args.resistance_db:
         return get_db(args.software_name,args.resistance_db)
 
     if len(species_prediction['prediction'])>1:
-        infolog(f"Multiple species found.\n")
+        logging.info(f"Multiple species found.\n")
         return None
     if len(species_prediction['prediction'])==0:
-        infolog(f"Species classification failed.\n")
+        logging.info(f"Species classification failed.\n")
         return None
     if len(species_prediction['prediction'])==1:
-        infolog("No resistance database was specified. Attempting to use database based on species prediction...\n")
+        logging.info("No resistance database was specified. Attempting to use database based on species prediction...\n")
         db_name = species_prediction['prediction'][0]["species"].replace(" ","_")
         conf = get_db(args.software_name,db_name)
         if not conf:
-            infolog(f"No resistance db found for {db_name}.\n")
+            logging.info(f"No resistance db found for {db_name}.\n")
         return conf
     
 def test_vcf_for_lofreq(vcf_file):
@@ -38,10 +49,8 @@ def run_profiler(args):
             conf=args.conf, bam_file=args.bam_file, prefix=args.files_prefix, platform=args.platform,
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
-            coverage_fraction_threshold=args.coverage_fraction_threshold,
-            missing_cov_threshold=args.missing_cov_threshold, samclip=args.no_clip,
-            min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,call_wg=args.call_whole_genome,
-            variant_annotations=args.add_variant_annotations, min_af=args.af
+            samclip=args.no_clip,min_depth=args.min_depth,delly_vcf_file=args.delly_vcf,
+            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations
         )
         results["input_data_source"] = "fastq" if args.read1 else "bam"
     elif args.fasta:
@@ -50,7 +59,7 @@ def run_profiler(args):
     elif args.vcf:
         if test_vcf_for_lofreq(args.vcf):
             tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
-            run_cmd(f"bcftools view {args.vcf} | add_dummy_AD.py --ref {args.conf['ref']} --sample-name {args.prefix} --add-dp | bcftools view -Oz -o {tmp_vcf_file}")
+            run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py | bcftools view -Oz -o {tmp_vcf_file}")
             args.vcf = tmp_vcf_file
         results = vcf_profiler(conf=args.conf,prefix=args.files_prefix,sample_name=args.prefix,vcf_file=args.vcf,delly_vcf_file=args.delly_vcf)
         results["input_data_source"] = "vcf"
@@ -59,28 +68,25 @@ def run_profiler(args):
 def speciate(args,bam_region=None):
     conf = get_db(args.software_name,args.species_db)
     if conf==None:
-        errlog(
+        logging.error(
             f"\nDatabase '{args.species_db}' not found. You may need to load this database first... Exiting!\n",
             ext=True
         )
     
     if "read1" in vars(args) and args.read1:
-        fastq_class = fastq(args.read1,args.read2)
-        kmer_dump = fastq_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+        fastq = Fastq(args.read1,args.read2)
+        kmer_dump = fastq.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     elif "bam" in vars(args) and args.bam:
         if bam_region:
             region_arg = bam_region if bam_region else ""
             run_cmd(f"samtools view -b {args.bam} {region_arg} | samtools fastq > {args.files_prefix}.tmp.fq")
-            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+            kmer_dump = Fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
         else:
-            bam_class = bam(args.bam,args.files_prefix,"illumina")
-            # if bam_class.filetype=="cram":
-            run_cmd(f"samtools fastq {bam_class.bam_file} > {args.files_prefix}.tmp.fq")
-            kmer_dump = fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
-            # else:
-                # kmer_dump = bam_class.get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+            bam = Bam(args.bam,args.files_prefix,"illumina")
+            run_cmd(f"samtools fastq {bam.bam_file} > {args.files_prefix}.tmp.fq")
+            kmer_dump = Fastq(f"{args.files_prefix}.tmp.fq").get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     elif "fasta" in vars(args) and args.fasta:
-        kmer_dump = fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
+        kmer_dump = Fasta(args.fasta).get_kmer_counts(args.files_prefix,threads=args.threads,max_mem=args.ram,counter = args.kmer_counter)
     if "output_kmer_counts" not in vars(args):
         args.output_kmer_counts = None
     else:
@@ -93,17 +99,17 @@ def get_bam_file(args):
     if args.bam is None:
         if args.read1 and args.read2 and args.no_trim:
             # Paired + no trimming
-            fastq_obj = fastq(args.read1,args.read2)
+            fastq_obj = Fastq(args.read1,args.read2)
         elif args.read1 and args.read2 and not args.no_trim:
             # Paired + trimming
-            untrimmed_fastq_obj = fastq(args.read1,args.read2)
+            untrimmed_fastq_obj = Fastq(args.read1,args.read2)
             fastq_obj = untrimmed_fastq_obj.trim(args.files_prefix,threads=args.threads)
         elif args.read1 and not args.read2 and args.no_trim:
             # Unpaired + no trimming
-            fastq_obj = fastq(args.read1,args.read2)
+            fastq_obj = Fastq(args.read1,args.read2)
         elif args.read1 and not args.read2 and not args.no_trim:
             # Unpaired + trimming
-            untrimmed_fastq_obj = fastq(args.read1)
+            untrimmed_fastq_obj = Fastq(args.read1)
             fastq_obj = untrimmed_fastq_obj.trim(args.files_prefix,threads=args.threads)
         else:
             exit("\nPlease provide a bam file or a fastq file(s)...Exiting!\n")
