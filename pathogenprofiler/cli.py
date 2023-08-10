@@ -13,8 +13,12 @@ def get_variant_filters(args):
         'depth','af','strand','sv_depth','sv_af','sv_len'
     ]:
         vals = getattr(args,f).split(",")
-        filters[f+"_hard"] = float(vals[0]) if "." in vals[0] else int(vals[0])
-        filters[f+"_soft"] = float(vals[1]) if "." in vals[1] else int(vals[1])
+        if vals[0]=="-":
+            filters[f+"_hard"] = None
+            filters[f+"_soft"] = None    
+        else:
+            filters[f+"_hard"] = float(vals[0]) if "." in vals[0] else int(vals[0])
+            filters[f+"_soft"] = float(vals[1]) if "." in vals[1] else int(vals[1])
     return filters
 
 def get_resistance_db_from_species_prediction(args,species_prediction):

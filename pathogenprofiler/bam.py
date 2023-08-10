@@ -37,7 +37,7 @@ class Bam:
         add_arguments_to_self(self, locals())
         filecheck(ref_file)
         self.caller = caller.lower()
-        self.af_hard = filters['af_hard']
+        self.af_hard = filters['af_hard'] if 'af_hard' in filters else 0
         # Set up final vcf file name
         # Make the windows for parallel calling based on chunking the whole
         # genome or by providing a bed file
