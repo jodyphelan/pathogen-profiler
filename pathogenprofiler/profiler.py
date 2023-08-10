@@ -9,7 +9,7 @@ import logging
 
 
 
-def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, min_depth = 10, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
+def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
     logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
 
     ### Put user specified arguments to lower case ###
@@ -25,17 +25,16 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     ### Create bam object and call variants ###
     bam = Bam(bam_file, prefix, platform=platform, threads=threads)
     if call_wg:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
+        wg_vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], threads=threads, calling_params=calling_params, samclip = samclip)
         vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=threads, calling_params=calling_params, samclip = samclip, min_dp=min_depth)
+        vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=threads, calling_params=calling_params, samclip = samclip)
     if variant_annotations:
         vcf_obj = vcf_obj.add_annotations(conf["ref"],bam.bam_file)
     else:
         ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
     ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
-    # bam.get_region_qc(conf["bed"],conf["ref"],min_dp=min_depth)
 
     results = {}
     
@@ -45,9 +44,9 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
         bam.calculate_bamstats()
         results['qc']['pct_reads_mapped'] = bam.pct_reads_mapped
         results['qc']['num_reads_mapped'] = bam.mapped_reads
-        results['qc']['region_qc'] = bam.get_region_qc(bed_file=conf['bed'],cutoff=min_depth)
+        results['qc']['region_qc'] = bam.get_region_qc(bed_file=conf['bed'],cutoff=conf['variant_filters']['depth_soft'])
         results['qc']['region_median_depth'] = stats.median([x['median_depth'] for x in results['qc']['region_qc']])
-        results["qc"]["missing_positions"] = bam.get_missing_genomic_positions(cutoff=min_depth)
+        results["qc"]["missing_positions"] = bam.get_missing_genomic_positions(cutoff=conf['variant_filters']['depth_soft'])
         if 'amplicon' not in conf or conf['amplicon']==False:
             results['qc']['genome_median_depth'] = bam.get_median_depth(ref_file=conf['ref'],software=coverage_tool)
         
