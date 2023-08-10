@@ -76,24 +76,24 @@ def run_cmd_parallel_on_genome(cmd: str,genome: str,threads: int = 2,desc: str=N
 def var_qc_test(var,min_depth,min_af,strand_support):
     """Test if a variant passes QC"""
     fail = False
-    if var['depth']<min_depth:
+    if min_depth!=None and var['depth']<min_depth:
         fail = True
-    if var['freq']<min_af:
+    if min_af!=None and var['freq']<min_af:
         fail = True
-    if var["forward_reads"]!=None and var['forward_reads']<strand_support:
+    if strand_support!=None and var['forward_reads']<strand_support:
         fail = True
-    if var["reverse_reads"]!=None and var['reverse_reads']<strand_support:
+    if strand_support!=None and var['reverse_reads']<strand_support:
         fail = True
     return fail
 
 def sv_var_qc_test(var,min_depth,min_af,sv_len):
     
     fail = False
-    if var['depth']<min_depth:
+    if min_depth!=None and var['depth']<min_depth:
         fail = True
-    if var['freq']<min_af:
+    if min_af!=None and var['freq']<min_af:
         fail = True
-    if var["sv_len"]>sv_len:
+    if sv_len!=None and var["sv_len"]>sv_len:
         fail = True
     return fail
 
