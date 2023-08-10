@@ -80,9 +80,9 @@ def var_qc_test(var,min_depth,min_af,strand_support):
         fail = True
     if min_af!=None and var['freq']<min_af:
         fail = True
-    if strand_support!=None and var['forward_reads']<strand_support:
+    if strand_support!=None and var['forward_reads']!=None and var['forward_reads']<strand_support:
         fail = True
-    if strand_support!=None and var['reverse_reads']<strand_support:
+    if strand_support!=None and var['reverse_reads']!=None and var['reverse_reads']<strand_support:
         fail = True
     return fail
 
