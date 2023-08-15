@@ -294,13 +294,13 @@ def select_csq(dict_list):
     return dict_list
 
 def dict_list_add_genes(dict_list,conf,key="gene_id"):
-    rv2gene = {}
+    lt2gene = {}
     for l in open(conf["bed"]):
         row = l.rstrip().split()
-        rv2gene[row[3]] = row[4]
+        lt2gene[row[3]] = row[4]
     for d in dict_list:
         d["locus_tag"] = d[key]
-        d["gene"] = rv2gene[d[key]]
+        d["gene"] = lt2gene[d[key]]
         del d[key]
         if "gene_name" in d:
             del d["gene_name"]
