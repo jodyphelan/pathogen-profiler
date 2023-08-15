@@ -221,6 +221,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
     mutations  =  {}
     converted_mutations = {}
     for row in csv.DictReader(open(csv_file)):
+        logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
         r = re.search("n.([0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"])
         if r:
@@ -386,6 +387,12 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
                 alt = revcom(r.group(3))
                 mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
+        r = re.search("g.([0-9]+)([ACGT])>([ACGT])",row["Mutation"])
+        if r:
+            genome_start = int(r.group(1))
+            ref = r.group(2)
+            alt = r.group(3)
+            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
                 if row['Mutation'] in supported_so_terms:
