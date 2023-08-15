@@ -12,6 +12,8 @@ def get_variant_filters(args):
     for f in [
         'depth','af','strand','sv_depth','sv_af','sv_len'
     ]:
+        if not hasattr(args,f):
+            continue
         vals = getattr(args,f).split(",")
         if vals[0]=="-":
             filters[f+"_hard"] = None
