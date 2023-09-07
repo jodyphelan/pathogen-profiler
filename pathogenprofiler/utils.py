@@ -15,6 +15,15 @@ from typing import List, NewType
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
+tmp_prefix = str(uuid4())
+
+def get_tmp_file(prefix=None):
+    """Get a temporary file"""
+    if prefix:
+        return "%s.%s" % (prefix,uuid4())
+    else:
+        return "%s" % uuid4()
+
 
 def sanitize_region(region: str) -> str:
     """Replace : and - with _"""

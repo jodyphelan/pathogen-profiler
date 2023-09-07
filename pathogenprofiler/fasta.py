@@ -4,6 +4,7 @@ from .kmer import KmerDump
 import os
 import platform 
 import logging
+from .sourmash import SourmashSig
 
 
 class Fasta:
@@ -85,3 +86,8 @@ class Fasta:
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
+    
+    def sourmash_sketch(self,prefix,scaled=1000):
+        logging.info("Sketching fasta")
+        run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {self.fa_file}")
+        return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
