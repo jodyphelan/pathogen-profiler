@@ -40,7 +40,7 @@ class SourmashSig:
         results = [x for x in results if x["ani"]>=ani_threshold]
         return results[:10]
 
-    def gather(self, ref_db, db_annotation, f_match_threshold=0.9,ani_threshold=0.95):
+    def gather(self, ref_db, db_annotation, f_match_threshold=0.8,ani_threshold=0.95):
         logging.info("Gathering sourmash sig")
         
         outfile = "%s" % self.tmp_prefix+".sourmash.csv"
@@ -53,6 +53,7 @@ class SourmashSig:
         results = []
         filtered_rows = []
         for row in csv.DictReader(open(outfile)):
+            print(row)
             if float(row['f_match'])<f_match_threshold:
                 continue
             if float(row['match_containment_ani'])<ani_threshold:
