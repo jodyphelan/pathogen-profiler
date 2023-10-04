@@ -79,8 +79,7 @@ def kmer_speciate(args,bam_region=None):
     conf = get_db(args.software_name,args.species_db)
     if conf==None:
         logging.error(
-            f"\nDatabase '{args.species_db}' not found. You may need to load this database first... Exiting!\n",
-            ext=True
+            f"\nDatabase '{args.species_db}' not found. You may need to load this database first... Exiting!\n"
         )
     
     if "read1" in vars(args) and args.read1:
