@@ -53,7 +53,6 @@ class SourmashSig:
         results = []
         filtered_rows = []
         for row in csv.DictReader(open(outfile)):
-            print(row)
             if float(row['f_match'])<f_match_threshold:
                 continue
             if float(row['match_containment_ani'])<ani_threshold:
