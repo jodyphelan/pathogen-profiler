@@ -20,7 +20,7 @@ class SourmashSig:
         
         return SourmashSig(outfile,tmp_prefix=self.tmp_prefix)
     
-    def search(self, ref_db, db_annotation, ani_threshold=0.95):
+    def search(self, ref_db, db_annotation, ani_threshold=95):
         logging.info("Searching sourmash sig")
         
         outfile = "%s" % self.tmp_prefix+".sourmash.csv"
@@ -40,3 +40,30 @@ class SourmashSig:
         results = [x for x in results if x["ani"]>=ani_threshold]
         return results[:10]
 
+    def gather(self, ref_db, db_annotation, f_match_threshold=0.9,ani_threshold=0.95):
+        logging.info("Gathering sourmash sig")
+        
+        outfile = "%s" % self.tmp_prefix+".sourmash.csv"
+        run_cmd(f"sourmash gather {self.filename} {ref_db} -o {outfile}")
+
+        species = {}
+        for row in csv.DictReader(open(db_annotation)):
+            species[row["accession"]] = row["species"]
+
+        results = []
+        filtered_rows = []
+        for row in csv.DictReader(open(outfile)):
+            if float(row['f_match'])<f_match_threshold:
+                continue
+            if float(row['match_containment_ani'])<ani_threshold:
+                continue
+            filtered_rows.append(row)
+
+        for row in filtered_rows:
+            results.append({
+                "accession": row["name"],
+                "species":species[row["name"]],
+                "ani":round(float(row["match_containment_ani"])*100,2),
+                "abundance":row["average_abund"]
+            })
+        return results[:10]
