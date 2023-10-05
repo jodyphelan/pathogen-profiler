@@ -175,9 +175,10 @@ class Bam:
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")]
-            if gt == "0/0":
-                d[ref] = ad[0]
-            elif gt == "./.":
+            # if gt == "0/0":
+            #     d[ref] = ad[0]
+            # elif gt == "./.":
+            if gt == "./.":
                 d[ref] = 0
             else:
                 genotypes = list([ref]+alts)
