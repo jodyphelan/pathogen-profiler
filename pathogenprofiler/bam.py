@@ -22,6 +22,7 @@ class Bam:
         
 
     def run_delly(self,bed_file):
+        logging.info("Running delly")
         self.bed_file = bed_file
         if self.platform=="illumina":
             run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
