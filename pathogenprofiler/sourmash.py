@@ -60,7 +60,7 @@ class SourmashSig:
             if f_match_threshold and float(row['f_match'])<f_match_threshold:
                 logging.debug("skipping because of f_match")
                 continue
-            if float(row['match_containment_ani'])<ani_threshold:
+            if ani_threshold and float(row['match_containment_ani'])<ani_threshold:
                 logging.debug("skipping because of ani")
                 continue
             filtered_rows.append(row)
