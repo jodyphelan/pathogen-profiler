@@ -16,6 +16,7 @@ class Bam:
     """
     def __init__(self,bam_file,prefix,platform,threads=1):
         add_arguments_to_self(self, locals())
+        logging.debug("Creating Bam object with %s" % (bam_file))
         filecheck(self.bam_file)
         index_bam(bam_file,threads=threads)
         self.filetype = "cram" if bam_file[-5:]==".cram" else "bam"

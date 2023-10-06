@@ -54,9 +54,9 @@ def test_vcf_for_lofreq(vcf_file):
 
 def run_profiler(args):
     if args.read1 or args.bam:
-        args.bam_file = get_bam_file(args)
+        args.bam = get_bam_file(args)
         results = bam_profiler(
-            conf=args.conf, bam_file=args.bam_file, prefix=args.files_prefix, platform=args.platform,
+            conf=args.conf, bam_file=args.bam, prefix=args.files_prefix, platform=args.platform,
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
             samclip=args.no_clip,delly_vcf_file=args.delly_vcf,
