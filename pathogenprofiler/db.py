@@ -215,12 +215,12 @@ def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
                 drugs = "None"
             O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
-def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
+def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     genes = load_gff(gff,aslist=True)
     refseq = fa2dict(ref)
     mutations  =  {}
     converted_mutations = {}
-    for row in csv.DictReader(open(csv_file)):
+    for row in hgvs_variants:
         logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
         r = re.search("n.([0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"])
@@ -245,7 +245,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
         
 
-        r = re.search("c.([0-9]+)del",row["Mutation"])
+        r = re.search("c.([0-9]+)del$",row["Mutation"])
         if r:
             # "ethA" "c.341del"
             del_start = int(r.group(1))
@@ -262,10 +262,8 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             alt = ref[0]
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
-        # r = re.search("c.-1_1insT")
-
-        r = re.search("c.([\-0-9]+)_([0-9]+)del",row["Mutation"])
-        if r:
+        r = re.search("c.([\-0-9]+)_([0-9]+)del[ACGT]?",row["Mutation"])
+        if r and r.endpos==len(row["Mutation"]):
             del_start = int(r.group(1))
             del_end = int(r.group(2))
             if gene.strand == "+":
@@ -298,7 +296,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
         
-        r = re.search("c.(-[0-9]+)_(-[0-9]+)del",row["Mutation"])
+        r = re.search("c.(-[0-9]+)_(-[0-9]+)del[ACGT]?",row["Mutation"])
         if r:
             del_start = int(r.group(1))
             del_end = int(r.group(2))
@@ -334,7 +332,56 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             alt = ref[0]
             mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
 
+        r = re.search(r"c\.([0-9]+)_\*?([0-9]+)del([ACTG]+)ins([ACTG]+)", row["Mutation"])
+        # gid c.615_628delACGACGTGGAAAGCinsGCGACGTGGAAAG
+        if r:
+            del_start_c = int(r.group(1))
+            del_end_c = int(r.group(2))
+            ref = r.group(3)
+            alt = r.group(4)
 
+            if gene.strand == "+":
+                genome_start = gene.start + del_start_c - 2
+                genome_end = gene.start + del_start_c - 1 
+                ref = refseq[gene.chrom][genome_start-1:genome_end-1]
+            else:
+                genome_start = gene.start - del_end_c + 1 
+                genome_end = gene.start - del_start_c + 2
+                ref = refseq[gene.chrom][genome_start-1:genome_end-1]
+                alt = pp.revcom(alt)
+            
+            mutations[(row["Gene"],row["Mutation"])] = {
+                "chrom": gene.chrom,
+                "pos": genome_start,
+                "ref": ref,
+                "alt": alt,
+                "gene": gene.name,
+                "type": "nucleotide"
+            }
+            logging.info(mutations[(row["Gene"],row["Mutation"])])
+
+        r = re.search(r"c\.([0-9]+)_\*([0-9]+)del([ACTG]+)", row["Mutation"])
+        if r:
+            del_start_c = int(r.group(1))
+            del_end_c = int(r.group(2))
+            ref = r.group(3)
+
+            if gene.strand == "+":
+                genome_start = gene.start + del_start_c - 1
+                genome_end = gene.start + del_start_c - 1 + len(ref) 
+            else:
+                genome_start = gene.start - del_end_c
+                genome_end = gene.start - del_start_c + len(ref)
+            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
+            mutations[(row["Gene"],row["Mutation"])] = {
+                "chrom": gene.chrom,
+                "pos": genome_start,
+                "ref": ref,
+                "alt": "",
+                "gene": gene.name,
+                "type": "nucleotide"
+            }
+            
         r = re.search("c.([\-0-9]+)_([0-9]+)ins([ACGT]+)", row["Mutation"])
         if r:
             ins_start = int(r.group(1))
@@ -361,7 +408,7 @@ def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
             del_end = int(r.group(2))
             ins_seq = r.group(3)
             if gene.strand == "+":
-               # "rrs" "c.-29_-28insATAC"
+               # Need example
                 genome_start = gene.start + del_start 
                 genome_end = gene.start + del_end 
             else:
@@ -625,7 +672,8 @@ def create_db(args,extra_files = None):
     locus_tag_to_drug_dict = defaultdict(set)
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
-            mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 drug = row["Drug"].lower()
@@ -649,7 +697,8 @@ def create_db(args,extra_files = None):
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
                 db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
         if args.other_annotations:
-            mutation_lookup = get_snpeff_formated_mutation_list(args.other_annotations,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            hgvs_variants = [r for r in csv.DictReader(open(args.other_annotations))]
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.other_annotations)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])]
