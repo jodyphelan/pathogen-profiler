@@ -8,6 +8,7 @@ from tqdm import tqdm
 from .kmer import KmerDump
 import platform
 import logging
+from .sourmash import SourmashSig
 
 
 class Fastq:
@@ -146,3 +147,10 @@ class Fastq:
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
+    
+    def sourmash_sketch(self,prefix,scaled=100):
+        logging.info("Sketching reads")
+        read1 = self.r1
+        read2 = self.r2 if self.r2 else ""
+        run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {read1} {read2}")
+        return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)

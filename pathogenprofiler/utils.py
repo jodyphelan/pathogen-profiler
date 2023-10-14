@@ -15,6 +15,15 @@ from typing import List, NewType
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
+tmp_prefix = str(uuid4())
+
+def get_tmp_file(prefix=None):
+    """Get a temporary file"""
+    if prefix:
+        return "%s.%s" % (prefix,uuid4())
+    else:
+        return "%s" % uuid4()
+
 
 def sanitize_region(region: str) -> str:
     """Replace : and - with _"""
@@ -294,13 +303,13 @@ def select_csq(dict_list):
     return dict_list
 
 def dict_list_add_genes(dict_list,conf,key="gene_id"):
-    rv2gene = {}
+    lt2gene = {}
     for l in open(conf["bed"]):
         row = l.rstrip().split()
-        rv2gene[row[3]] = row[4]
+        lt2gene[row[3]] = row[4]
     for d in dict_list:
         d["locus_tag"] = d[key]
-        d["gene"] = rv2gene[d[key]]
+        d["gene"] = lt2gene[d[key]]
         del d[key]
         if "gene_name" in d:
             del d["gene_name"]
@@ -580,7 +589,7 @@ def rm_files(x):
             os.remove(f)
 
 
-class gene_class:
+class Gene:
     def __init__(self,name,locus_tag,strand,chrom,start,end,length):
         self.name = name
         self.locus_tag = locus_tag
@@ -593,7 +602,7 @@ class gene_class:
         self.length = length
         self.exons = []
 
-class exon_class:
+class Exon:
     def __init__(self, chrom, start, end, strand, phase):
         self.chrom = chrom
         self.start = start
@@ -654,13 +663,13 @@ def load_gff(gff,aslist=False):
             start = p1
             end =  p2
             
-            genes[locus_tag] = gene_class(gene_name,locus_tag,strand,chrom,start,end,gene_length)
+            genes[locus_tag] = Gene(gene_name,locus_tag,strand,chrom,start,end,gene_length)
             id2locus_tag[feature_id] = locus_tag
         if fields[2] in ["CDS"]:
             if fields[7]=="":
                 continue
             phase = int(fields[7])
-            genes[id2locus_tag[root_id]].exons.append(exon_class(chrom,p1,p2,strand,phase))
+            genes[id2locus_tag[root_id]].exons.append(Exon(chrom,p1,p2,strand,phase))
     if aslist:
         return list(genes.values())
     else:

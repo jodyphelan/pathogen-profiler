@@ -13,6 +13,8 @@ from uuid import uuid4
 import pathogenprofiler as pp
 import math
 import logging
+from .hgvs import verify_mutation_list
+from pysam import FastaFile
 
 
 supported_so_terms = [
@@ -148,40 +150,6 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
         for line in sorted(lines,key=lambda x: (x[0],int(x[1]))):
             O.write("%s\n" %"\t".join(line))
 
-# def load_gene_info(filename):
-#     gene_info = {}
-#     for l in open(filename):
-#         row = l.rstrip().split()
-#         strand = "-" if row[0][-1]=="c" else "+"
-#         gene_info[row[0]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
-#         gene_info[row[1]] = {"locus_tag":row[0],"gene":row[1],"start":int(row[2]),"end":int(row[3]),"gene_start":int(row[4]),"gene_end":int(row[5]),"strand":strand}
-#     return gene_info
-
-def get_ann(variants,snpEffDB):
-    uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
-    with open(uuid,"w") as O:
-        O.write('##fileformat=VCFv4.2\n')
-        O.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-        O.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttest\n')
-        for var in variants.values():
-            O.write("%(chrom)s\t%(pos)s\t.\t%(ref)s\t%(alt)s\t255\t.\t.\tGT\t1\n" % var) 
-    results = {}
-    keys = list(variants.keys())
-    vals = list(variants.values())
-    i = 0
-    for l in cmd_out(f"snpEff ann {snpEffDB} {uuid}"):
-        if l[0]=="#": continue
-        row = l.strip().split()
-        for ann in row[7].split(","):
-            a = ann.split("|")
-            if len(a)!=16:continue
-
-            if vals[i]["gene"] in [a[3],a[4]]:
-                results[keys[i]] = a[9] if vals[i]["type"]=="nucleotide" else a[10]
-        i+=1
-    os.remove(uuid)
-    return results
-
 def assign_gene_to_amplicon(genes,chrom,start,end):
     l = []
     for g in genes.values():
@@ -215,189 +183,17 @@ def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
                 drugs = "None"
             O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
-def get_snpeff_formated_mutation_list(csv_file,ref,gff,snpEffDB):
+def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     genes = load_gff(gff,aslist=True)
-    refseq = fa2dict(ref)
-    mutations  =  {}
+    refseq = FastaFile(ref)
     converted_mutations = {}
-    for row in csv.DictReader(open(csv_file)):
-        gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
-        r = re.search("n.([0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
-            
-        r = re.search("n.([0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = f"n.{r.group(1)}{r.group(2).upper()}>{r.group(3).upper()}"
-        r = re.search("p\..+",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
-        r = re.search("c.-[0-9]+[ACGT]>[ACGT]",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
+    so_term_rows = [r for r in hgvs_variants if r['Mutation'] in supported_so_terms]
+    hgvs_variants = [r for r in hgvs_variants if r['Mutation'] not in supported_so_terms]
 
-        r = re.search("c.[0-9]+dup[ACGT]+",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
-        r = re.search("c.[0-9]+_[0-9]+dup[ACGT]+",row["Mutation"])
-        if r:
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
-        
+    converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
+    for row in so_term_rows:
+        converted_mutations[(row["Gene"],row['Mutation'])] = row['Mutation']
 
-        r = re.search("c.([0-9]+)del",row["Mutation"])
-        if r:
-            # "ethA" "c.341del"
-            del_start = int(r.group(1))
-            del_end = int(r.group(1))
-            if gene.strand == "+":
-                # rpoB "c.1282_1290del"
-                genome_start = gene.start + del_start - 2
-                genome_end = gene.start + del_end 
-            else:
-                # "ethA" "c.1057_1059del"
-                genome_start = gene.start - del_end
-                genome_end = gene.start - del_start + 2
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-        # r = re.search("c.-1_1insT")
-
-        r = re.search("c.([\-0-9]+)_([0-9]+)del",row["Mutation"])
-        if r:
-            del_start = int(r.group(1))
-            del_end = int(r.group(2))
-            if gene.strand == "+":
-                # rpoB "c.1282_1290del"
-                genome_start = gene.start + del_start - 2
-                genome_end = gene.start + del_end 
-            else:
-                # "ethA" "c.1057_1059del"
-                genome_start = gene.start - del_end
-                genome_end = gene.start - del_start + 2
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-        r = re.search("c.-([0-9]+)del",row["Mutation"])
-        if r:
-            del_start = int(r.group(1))
-            del_end = int(r.group(1))
-            if gene.strand == "+":
-               # "embA" "c.-29_-28del"
-                genome_start = gene.start - del_start - 1
-                genome_end = gene.start - del_end + 1
-            else:
-                # "alr" "c.-283_-280delCAAT"
-                genome_start = gene.start + del_end - 1
-                genome_end = gene.start + del_start + 1
-
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-        
-        r = re.search("c.(-[0-9]+)_(-[0-9]+)del",row["Mutation"])
-        if r:
-            del_start = int(r.group(1))
-            del_end = int(r.group(2))
-            if gene.strand == "+":
-               # "embA" "c.-29_-28del"
-                genome_start = gene.start + del_start - 1
-                genome_end = gene.start + del_end + 1
-            else:
-                # "alr" "c.-283_-280delCAAT"
-                genome_start = gene.start - del_end - 1
-                genome_end = gene.start - del_start + 1
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-        
-        r = re.search("c.(-[0-9]+)_([0-9]+)del",row["Mutation"])
-        if r:
-            del_start = int(r.group(1))
-            del_end = int(r.group(2))
-            if gene.strand == "+":
-               # "ethA" "c.-1058_968del"
-                genome_start = gene.start + del_start -1
-                genome_end = gene.start + del_end 
-                # quit("Need to define!")
-
-            else:
-               # "ethA" "c.-1058_968del"
-                genome_start = gene.start - del_end 
-                genome_end = gene.start - del_start + 1
-
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref[0]
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-
-        r = re.search("c.([\-0-9]+)_([0-9]+)ins([ACGT]+)", row["Mutation"])
-        if r:
-            ins_start = int(r.group(1))
-            ins_end = int(r.group(2))
-            ins_seq = r.group(3)
-            if gene.strand == "+":
-                # "rpoB" "c.1296_1297insTTC"
-                genome_start = gene.start + ins_start - 1 
-                genome_end = gene.start + ins_end - 1
-            else:
-                # "pncA" "c.521_522insT"
-                ins_seq = pp.revcom(ins_seq)
-                genome_start = gene.start - ins_start 
-                genome_end = gene.start - ins_end + 2
-
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref + ins_seq
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-        
-
-        r = re.search("c.(-[0-9]+)_(-[0-9]+)ins([ACGT]+)",row["Mutation"])
-        if r:
-            del_start = int(r.group(1))
-            del_end = int(r.group(2))
-            ins_seq = r.group(3)
-            if gene.strand == "+":
-               # "rrs" "c.-29_-28insATAC"
-                genome_start = gene.start + del_start 
-                genome_end = gene.start + del_end 
-            else:
-                # "alr" "c.-283_-280delCAAT"
-                ins_seq = pp.revcom(ins_seq)
-                genome_start = gene.start - del_end 
-                genome_end = gene.start - del_start 
-            ref = refseq[gene.chrom][genome_start-1:genome_end-1]
-            alt = ref + ins_seq
-            mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-        r = re.search("c.([0-9]+)([ACGT])>([ACGT])",row["Mutation"])
-        if r:
-            # "pncA" "c.7G>C"
-            if gene.strand == "+":
-                genome_start = gene.start + int(r.group(1)) - 1
-                ref = refseq[gene.chrom][genome_start-1]
-                alt = r.group(3)
-                mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-            else:
-                genome_start = gene.start - int(r.group(1)) + 1
-                ref = refseq[gene.chrom][genome_start-1]
-                alt = revcom(r.group(3))
-                mutations[(row["Gene"],row["Mutation"])] = {"chrom":gene.chrom,"pos":genome_start, "ref":ref, "alt":alt,"gene":row["Gene"],"type":"nucleotide"}
-
-
-        if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
-                if row['Mutation'] in supported_so_terms:
-                    converted_mutations[(row["Gene"],row['Mutation'])] = row['Mutation']
-        if (row["Gene"],row["Mutation"]) not in converted_mutations and (row["Gene"],row["Mutation"]) not in mutations:
-            raise Exception(f"Don't know how to handle this mutation: {row['Gene']} {row['Mutation']}")            
-
-    # logging.info("Converting %s mutations" % len(mutations))
-    if len(mutations)>0:
-        mutation_conversion = get_ann(mutations,snpEffDB)
-        for key in mutation_conversion:
-            converted_mutations[key] = mutation_conversion[key]
     return converted_mutations
     
 def get_exon_to_aa_coords(exons):
@@ -450,7 +246,7 @@ def get_genome_position(gene_object,change):
         else:
             p = g.start - pos
             return [p]
-    r = re.search("n.([0-9]+)[ACGT]+>[ACGT]+",change)
+    r = re.search("n.(-?[0-9]+)[ACGT]+>[ACGT]+",change)
     if r:
         pos = int(r.group(1))
         if g.strand=="+":
@@ -618,7 +414,8 @@ def create_db(args,extra_files = None):
     locus_tag_to_drug_dict = defaultdict(set)
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
-            mutation_lookup = get_snpeff_formated_mutation_list(args.csv,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 drug = row["Drug"].lower()
@@ -642,7 +439,8 @@ def create_db(args,extra_files = None):
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
                 db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
         if args.other_annotations:
-            mutation_lookup = get_snpeff_formated_mutation_list(args.other_annotations,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            hgvs_variants = [r for r in csv.DictReader(open(args.other_annotations))]
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.other_annotations)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])]

@@ -16,12 +16,14 @@ class Bam:
     """
     def __init__(self,bam_file,prefix,platform,threads=1):
         add_arguments_to_self(self, locals())
+        logging.debug("Creating Bam object with %s" % (bam_file))
         filecheck(self.bam_file)
         index_bam(bam_file,threads=threads)
         self.filetype = "cram" if bam_file[-5:]==".cram" else "bam"
         
 
     def run_delly(self,bed_file):
+        logging.info("Running delly")
         self.bed_file = bed_file
         if self.platform=="illumina":
             run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
@@ -52,16 +54,16 @@ class Bam:
         # Run through different options. 
         if self.platform == "nanopore" and self.caller=="bcftools":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD,ADF,ADR -r {region} %(bam_file)s | bcftools call -mv | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -e 'IMF < 0.7' -S 0 -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
+            self.calling_cmd = "bcftools mpileup -f %(ref_file)s %(calling_params)s -a DP,AD,ADF,ADR -r {region} %(bam_file)s | bcftools call -mv | annotate_maaf.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s | bcftools filter -e 'IMF < 0.7' -S 0 -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
         elif self.platform == "nanopore" and self.caller=="freebayes":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "freebayes -f %(ref_file)s -F %(af_hard)s -r {region} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
+            self.calling_cmd = "freebayes -f %(ref_file)s -F %(af_hard)s -r {region} --haplotype-length -1 %(calling_params)s %(bam_file)s | annotate_maaf.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
         elif self.platform=="nanopore" and self.caller == "pilon":
             self.calling_params = calling_params if calling_params else ""
             self.calling_cmd = """pilon --genome %(ref_file)s --targets {region} %(calling_params)s --nanopore %(bam_file)s --variant --output %(prefix)s.{region_safe} && bcftools view -i 'AF>0' -c 1 %(prefix)s.{region_safe}.vcf |add_dummy_AD.py | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz""" % vars(self)
         elif self.platform == "pacbio" and self.caller=="freebayes":
             self.calling_params = calling_params if calling_params else ""
-            self.calling_cmd = "freebayes -f %(ref_file)s -r {region} --haplotype-length -1 %(calling_params)s %(bam_file)s | setGT.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
+            self.calling_cmd = "freebayes -f %(ref_file)s -r {region} --haplotype-length -1 %(calling_params)s %(bam_file)s | annotate_maaf.py | bcftools +fill-tags | bcftools view -c 1 | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz" % vars(self)
         elif self.platform=="pacbio" and self.caller == "pilon":
             self.calling_params = calling_params if calling_params else ""
             self.calling_cmd = """pilon --genome %(ref_file)s --targets {region} %(calling_params)s --pacbio %(bam_file)s --variant --output %(prefix)s.{region_safe} && bcftools view -i 'AF>0' -c 1 %(prefix)s.{region_safe}.vcf |add_dummy_AD.py | bcftools norm -f %(ref_file)s -Oz -o %(prefix)s.{region_safe}.vcf.gz""" % vars(self)
@@ -175,9 +177,10 @@ class Bam:
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")]
-            if gt == "0/0":
-                d[ref] = ad[0]
-            elif gt == "./.":
+            # if gt == "0/0":
+            #     d[ref] = ad[0]
+            # elif gt == "./.":
+            if gt == "./.":
                 d[ref] = 0
             else:
                 genotypes = list([ref]+alts)

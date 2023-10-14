@@ -175,14 +175,15 @@ class Vcf:
 
         variants = []
         for var in pysam.VariantFile(self.filename):
+            logging.debug(var)
             chrom = var.chrom
             pos = var.pos
             ref = var.ref
             alleles = var.alleles
             alt_str = list(var.alts)[0]
-            if alt_str in ["<INS>","<DUP>","<INV>"]:
-                continue
-            if alt_str in ["<DEL>"]:
+            if "SVTYPE" in var.info:
+                if var.info['SVTYPE']!="DEL":
+                    continue
                 ad = get_sv_ad(var)
                 varlen = var.stop - var.pos
                 sv = True
