@@ -485,7 +485,7 @@ def create_db(args,extra_files = None):
             version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
             version["Author"] = args.db_author if args.db_author else "NA"
 
-        json.dump(version,open(version_file,"w"))
+        variables['version'] = version
         json.dump(db,open(json_file,"w"))
         
         
@@ -524,7 +524,6 @@ def create_db(args,extra_files = None):
             "ref": genome_file,
             "gff": gff_file,
             "bed": bed_file,
-            "version": version_file,
             "json_db": json_file,
             "variables": variables_file
         }
@@ -621,19 +620,16 @@ def create_species_db(args,extra_files = None):
         version["Date"] = str(datetime.now())
         version["Author"] = args.db_author if args.db_author else "NA"
 
-    kmer_file = args.prefix+".kmers.txt"
-    version_file = args.prefix+".version.json"
-    shutil.copyfile(args.kmers,kmer_file)
-    json.dump(version,open(version_file,"w"))
     for file in extra_files.values():
-            target = f"{args.prefix}.{file}"
-            shutil.copyfile(file,target)
+        target = f"{args.prefix}.{file}"
+        shutil.copyfile(file,target)
+
     variables_file = args.prefix+".variables.json"
-    variables = {}
-    variables["files"] = {
-        "kmers": kmer_file,
-        "version": version_file,
-        "variables": variables_file
+    variables = {
+        "version": version,
+        "files":{
+            "variables": variables_file
+        }
     }
 
     if extra_files:
@@ -648,7 +644,7 @@ def create_species_db(args,extra_files = None):
 
         for key,val in variables['files'].items():
             target = f"{load_dir}/{val}"
-            # logging.info(f"Copying file: {val} ---> {target}")
+            logging.debug(f"Copying file: {val} ---> {target}")
             shutil.copyfile(val,target)
 
 def get_snpeff_dir():
