@@ -34,7 +34,7 @@ def get_drug_list(bed_file):
     tmp = get_drugs2lt(bed_file)
     return set(tmp.keys())
 
-def get_summary(json_results,conf,columns = None,reporting_af=0.0):
+def get_summary(json_results,conf,columns = None):
     if not columns:
         columns=[]
     drugs = conf['drugs']
@@ -49,8 +49,6 @@ def get_summary(json_results,conf,columns = None,reporting_af=0.0):
     for x in pool:
         for d in x["drugs"]:
             drug = d["drug"]
-            if "freq" in x and x['freq']<reporting_af:
-                continue
             if drug not in results: results[drug] = []
             if "freq" in x:
                 results[d["drug"]].append("%s %s (%.2f)" % (x["gene"],x["change"],float(x["freq"])))
