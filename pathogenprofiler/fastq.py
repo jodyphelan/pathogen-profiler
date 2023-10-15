@@ -148,7 +148,7 @@ class Fastq:
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
     
-    def sourmash_sketch(self,prefix,scaled=100):
+    def sourmash_sketch(self,prefix,scaled=1000):
         logging.info("Sketching reads")
         read1 = self.r1
         read2 = self.r2 if self.r2 else ""
