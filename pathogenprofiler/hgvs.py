@@ -203,13 +203,70 @@ def get_ann(variants,snpEffDB):
         for ann in row[7].split(","):
             a = ann.split("|")
             if len(a)!=16:continue
-
-            if vals[i]["gene"] in [a[3],a[4]]:
-                results[keys[i]] = a[9] if vals[i]["type"]=="nucleotide" else a[10]
+            if "target_gene" in vals[i]:
+                condition = vals[i]["target_gene"] in [a[3],a[4]]
+            else:
+                condition = vals[i]["gene"] in [a[3],a[4]]
+            if condition:
+                results[keys[i]] = (a[4],a[9]) if vals[i]["type"]=="nucleotide" else (a[4],a[10])
         i+=1
     os.remove(uuid)
     return results
 
+codon2amino_acid = {
+  "TTT": "Phe",  "TTC": "Phe",  "TTA": "Leu",  "TTG": "Leu",  "CTT": "Leu",
+  "CTC": "Leu",  "CTA": "Leu",  "CTG": "Leu",  "ATT": "Ile",  "ATC": "Ile",
+  "ATA": "Ile",  "ATG": "Met",  "GTT": "Val",  "GTC": "Val",  "GTA": "Val",
+  "GTG": "Val",  "TCT": "Ser",  "TCC": "Ser",  "TCA": "Ser",  "TCG": "Ser",
+  "CCT": "Pro",  "CCC": "Pro",  "CCA": "Pro",  "CCG": "Pro",  "ACT": "Thr",
+  "ACC": "Thr",  "ACA": "Thr",  "ACG": "Thr",  "GCT": "Ala",  "GCC": "Ala",
+  "GCA": "Ala",  "GCG": "Ala",  "TAT": "Tyr",  "TAC": "Tyr",  "TAA": "Stop",
+  "TAG": "Stop",  "TGT": "Cys",  "TGC": "Cys",  "TGA": "Stop",  "TGG": "Trp",
+  "CGT": "Arg",  "CGC": "Arg",  "CGA": "Arg",  "CGG": "Arg",  "AGT": "Ser",
+  "AGC": "Ser",  "AGA": "Arg",  "AGG": "Arg",  "GGT": "Gly",  "GGC": "Gly",
+  "GGA": "Gly",  "GGG": "Gly"
+}
+
+
+def get_possible_alternate_codons(ref_codon: str, alternate_amino_acid: str) -> List[str]:
+    """
+    Get a list of possible alternate codons for a given reference codon and alternate amino acid.
+    
+    Parameters:
+    ref_codon (str): The reference codon.
+    alternate_amino_acid (str): The alternate amino acid.
+    
+    Returns:
+    List[str]: A list of possible alternate codons.
+    """
+    possible_codons = []
+    for codon in codon2amino_acid:
+        if codon2amino_acid[codon]==alternate_amino_acid:
+            possible_codons.append(codon)
+    return possible_codons
+
+def get_reference_codon(codon_number: int, gene: Gene, refseq: FastaFile) -> str:
+    """
+    Get the reference codon for a given codon number in a gene.
+    
+    Parameters:
+    codon_number (int): The codon number in the gene.
+    gene (Gene): The gene in which the codon occurs.
+    
+    Returns:
+    str: The reference codon.
+    """
+    if gene.strand=="+":
+        genome_start = gene.start + (codon_number * 3) - 3
+        genome_end = gene.start + (codon_number * 3) - 1
+        return refseq.fetch(gene.chrom,genome_start-1,genome_end)
+    if gene.strand=="-":
+        genome_start = gene.start - (codon_number * 3) + 1
+        genome_end = gene.start - (codon_number * 3) + 3
+        logging.debug((genome_start,genome_end))
+        return revcom(refseq.fetch(gene.chrom,genome_start-1,genome_end))
+
+    logging.debug((genome_start,genome_end))
 
 def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: FastaFile, snpEffDB: str) -> dict:
     """
@@ -229,34 +286,36 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
     for row in hgvs_mutations:
         logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
-
+        key = (row["Gene"],row["Mutation"])
         # Protein variants - not validated yet
         if r := re.search("p\..+",row["Mutation"]):
-            converted_mutations[(row["Gene"],row["Mutation"])] = row["Mutation"]
+            converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Coding indels
         elif "del" in row["Mutation"] or "ins" in row["Mutation"]:
-            logging.debug("asjdapisdjasiopdjasoidjaosijdoai**************")
-            mutations_genome[(row["Gene"],row["Mutation"])] = parse_coding_indel(row["Mutation"],gene,refseq)
+            mutations_genome[key] = parse_coding_indel(row["Mutation"],gene,refseq)
 
         # Duplication
         elif "dup" in row["Mutation"]:
-            mutations_genome[(row["Gene"],row["Mutation"])] = parse_duplication(row["Mutation"],gene,refseq)
+            mutations_genome[key] = parse_duplication(row["Mutation"],gene,refseq)
 
         # Coding SNPs
         elif re.search("c.(-?[0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
-            mutations_genome[(row["Gene"],row["Mutation"])] = parse_snv(row["Mutation"],gene,refseq)
+            mutations_genome[key] = parse_snv(row["Mutation"],gene,refseq)
 
         # Genomic SNPs
         elif re.search("g.([0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
-            mutations_genome[(row["Gene"],row["Mutation"])] = parse_genomic_snv(row["Mutation"],gene,refseq)
+            mutations_genome[key] = parse_genomic_snv(row["Mutation"],gene,refseq)
 
         # Non-coding SNPs
         elif re.search("n.(-?[0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"]):
-            mutations_genome[(row["Gene"],row["Mutation"])] = parse_snv(row["Mutation"],gene,refseq)
+            mutations_genome[key] = parse_snv(row["Mutation"],gene,refseq)
 
         elif row['Mutation'] in supported_so_terms:
-            converted_mutations[(row["Gene"],row['Mutation'])] = row['Mutation']
+            converted_mutations[key] = (row['Gene'],row['Mutation'])
+
+        if "target_gene" in row and key in mutations_genome:
+            mutations_genome[key]["target_gene"] = row['target_gene']
 
     logging.debug(mutations_genome)
     if len(mutations_genome)>0:
