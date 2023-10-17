@@ -192,7 +192,7 @@ def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
 
     converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
     for row in so_term_rows:
-        converted_mutations[(row["Gene"],row['Mutation'])] = row['Mutation']
+        converted_mutations[(row["Gene"],row['Mutation'])] = (row['Gene'],row['Mutation'])
 
     return converted_mutations
     
@@ -419,7 +419,9 @@ def create_db(args,extra_files = None):
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 drug = row["Drug"].lower()
-                mut = mutation_lookup[(row["Gene"],row["Mutation"])]
+                print(row)
+                print(mutation_lookup[(row["Gene"],row["Mutation"])])
+                mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
                 if args.include_original_mutation:
                     row["original_mutation"] = row["Mutation"]
                 if mut!=row["Mutation"]:
@@ -443,7 +445,7 @@ def create_db(args,extra_files = None):
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.other_annotations)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                mut = mutation_lookup[(row["Gene"],row["Mutation"])]
+                mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
                 if mut!=row["Mutation"]:
                     L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
                 if locus_tag not in db:
