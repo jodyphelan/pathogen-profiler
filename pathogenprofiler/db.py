@@ -386,6 +386,10 @@ def create_db(args,extra_files = None):
     json_file = "%s.dr.json" % args.prefix
     version_file = "%s.version.json" % args.prefix
 
+    if os.path.isfile("snpEffectPredictor.bin"):
+            snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
+            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
+            
     if not extra_files:
         extra_files = {}
 
@@ -538,9 +542,7 @@ def create_db(args,extra_files = None):
                     
         json.dump(variables,open(variables_file,"w"))
         
-        if os.path.isfile("snpEffectPredictor.bin"):
-            snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
-            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
+        
         
         if args.load:
             load_db(variables_file,args.software_name)
