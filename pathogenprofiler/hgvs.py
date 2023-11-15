@@ -1,6 +1,7 @@
 import re
 import logging
-from .utils import cmd_out, Gene, revcom
+from .utils import cmd_out, revcom
+from .gff import Gene
 from typing import Tuple, List
 from pysam import FastaFile
 from uuid import uuid4
@@ -125,7 +126,7 @@ def parse_coding_indel(mutation: str, gene: Gene, ref_object: FastaFile) -> dict
             vcf_pos = start
             ref = ref_object.fetch(gene.chrom,vcf_pos-1,end-1)
         alt = ref[0] + extract_insertion(mutation,gene)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 def parse_snv(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     """
@@ -144,9 +145,9 @@ def parse_snv(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     alt = mutation[-1]
     if gene.strand=="-":
         alt = revcom(alt)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
-def parse_genomic_snv(mutation: str,gene: Gene,ref_object: FastaFile) -> dict:
+def parse_genomic_snv(mutation: str,gene: Gene) -> dict:
     """
     Parse a SNV mutation in HGVS format and return a dictionary of VCF components.
     
@@ -162,7 +163,7 @@ def parse_genomic_snv(mutation: str,gene: Gene,ref_object: FastaFile) -> dict:
     vcf_pos = int(r.group(1))
     ref = r.group(2)
     alt = r.group(3)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
 def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
@@ -182,7 +183,7 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
 
     ref = ref_object.fetch(gene.chrom,vcf_pos-1,vcf_pos)
     alt = ref + extract_duplication(mutation,gene)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
 def get_ann(variants,snpEffDB):
@@ -285,7 +286,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
     mutations_genome = {}
     for row in hgvs_mutations:
         logging.debug(row)
-        gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
+        gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])
         # Protein variants - not validated yet
         if r := re.search("p\..+",row["Mutation"]):
@@ -305,7 +306,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
         # Genomic SNPs
         elif re.search("g.([0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
-            mutations_genome[key] = parse_genomic_snv(row["Mutation"],gene,refseq)
+            converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Non-coding SNPs
         elif re.search("n.(-?[0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"]):

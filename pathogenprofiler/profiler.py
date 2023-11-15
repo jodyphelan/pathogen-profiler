@@ -39,8 +39,9 @@ def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagsta
     results = {}
     
     ### Get % and num reads mapping ###
+
+    results['qc'] = {}
     if not no_flagstat:
-        results['qc'] = {}
         bam.calculate_bamstats()
         results['qc']['pct_reads_mapped'] = bam.pct_reads_mapped
         results['qc']['num_reads_mapped'] = bam.mapped_reads

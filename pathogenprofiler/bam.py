@@ -122,6 +122,8 @@ class Bam:
             for f in glob(f"{tmp}*"):
                 os.remove(f)
             return int(float(row[3]))
+        elif software=="samtools":
+            pass
 
     def calculate_median_coverage(self,ref_file,software="bedtools"):
         logging.info("Calculating median depth")

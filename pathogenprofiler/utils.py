@@ -180,6 +180,37 @@ def get_lt2drugs(bed_file):
         lt2drugs[row[3]] = None if row[5]=="None" else row[5].split(",") 
     return lt2drugs
 
+
+def process_variants(results: dict,conf: dict,annotations: List[str]):
+    variant_containers = {d:[] for d in annotations}
+    variant_containers['other'] = []
+    variant_containers['qc_fail'] = []
+    for var in results['variants']:
+        annotation_containers = {d:[a for a in var['annotation'] if a['type']==d] for d in annotations}
+        qc  = filter_variant(var,conf["variant_filters"])
+        if qc=="hard_fail":
+            continue
+        elif qc=="soft_fail":
+            variant_containers['qc_fail'].append(var)
+        else:
+            assigned = False
+            for a in annotations:
+                if annotation_containers[a]:
+                    assigned = True
+                    variant_containers[a].append(var)
+            if not assigned:
+                variant_containers['other'].append(var)
+            
+    for a in annotations:
+        results[a+"_variants"] = variant_containers[a]
+    results['other_variants'] = variant_containers['other']
+    results['qc_fail_variants'] = variant_containers['qc_fail']
+    del results['variants']
+
+    return results
+
+
+
 def reformat_annotations(results,conf):
     #Chromosome      4998    Rv0005  -242
     lt2drugs = get_lt2drugs(conf["bed"])
@@ -589,88 +620,3 @@ def rm_files(x):
             os.remove(f)
 
 
-class Gene:
-    def __init__(self,name,locus_tag,strand,chrom,start,end,length):
-        self.name = name
-        self.locus_tag = locus_tag
-        self.strand = strand
-        self.chrom = chrom
-        self.feature_start = start
-        self.feature_end = end
-        self.start = self.feature_start if strand=="+" else self.feature_end
-        self.end = self.feature_end if strand=="+" else self.feature_start
-        self.length = length
-        self.exons = []
-
-class Exon:
-    def __init__(self, chrom, start, end, strand, phase):
-        self.chrom = chrom
-        self.start = start
-        self.end = end
-        self.strand = strand
-        self.phase = phase
-    def __repr__(self):
-        return "Exon: %s-%s (%s)" % (self.start, self.end, self.strand)
-
-
-
-def load_gff(gff,aslist=False):
-    GFF = open(gff)
-    genes = {}
-    relationships = {}
-    id2locus_tag = {}
-    while True:
-        l = GFF.readline().strip()
-        if not l: break
-        if l[0]=="#": continue
-        if l.strip()=='': continue
-        fields = l.rstrip().split("\t")
-        strand = fields[6]
-        chrom = fields[0]
-        p1 = int(fields[3])
-        p2 = int(fields[4])
-        feature_id = re.search("ID=([^;]*)",l)
-        feature_id = feature_id.group(1) if feature_id else None
-        parent_id = re.search("Parent=([^;]*)",l)
-        parent_id = parent_id.group(1) if parent_id else None
-        if parent_id and parent_id!=feature_id:
-            relationships[feature_id] = parent_id
-        root_id = feature_id
-        while True:
-            if root_id in relationships:
-                root_id = relationships[root_id]
-            else:
-                break
-        if fields[2] in ["gene","pseudogene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
-            gene_length = p2-p1+1
-            
-            locus_tag = None
-            search_strings = [
-                "ID=gene:([a-zA-Z0-9\.\-\_]+)",
-                "gene_id=([a-zA-Z0-9\.\-\_]+)",
-                "ID=([a-zA-Z0-9\.\-\_]+)",
-                "locus_tag=([a-zA-Z0-9\.\-\_]+)",
-            ]
-            for s in search_strings:
-                re_obj = re.search(s,l)
-                if re_obj:
-                    locus_tag = re_obj.group(1)
-                    break
-            if not locus_tag:
-                continue
-            re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
-            gene_name = re_obj.group(1) if re_obj else locus_tag
-            start = p1
-            end =  p2
-            
-            genes[locus_tag] = Gene(gene_name,locus_tag,strand,chrom,start,end,gene_length)
-            id2locus_tag[feature_id] = locus_tag
-        if fields[2] in ["CDS"]:
-            if fields[7]=="":
-                continue
-            phase = int(fields[7])
-            genes[id2locus_tag[root_id]].exons.append(Exon(chrom,p1,p2,strand,phase))
-    if aslist:
-        return list(genes.values())
-    else:
-        return genes

@@ -238,6 +238,16 @@ class Vcf:
                         "protein_change":ann[10],
                     }
                     tmp_var["consequences"].append(tmp)
+                genes_in_csq = set([x['gene_id'] for x in tmp_var['consequences']])
+                for gene in genes_in_csq:
+                    tmp_var['consequences'].append({
+                        "gene_name":gene,
+                        "gene_id":gene,
+                        "feature_id":None,
+                        "type":"genomic_change",
+                        "nucleotide_change":f'{chrom}:g.{pos}{ref}>{alt}',
+                        "protein_change":None,
+                    })
                 variants.append(tmp_var)
         variants = uniqify_dict_list(variants)            
         return variants
