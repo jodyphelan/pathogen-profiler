@@ -4,6 +4,7 @@ import sys
 import argparse
 import re
 import pathogenprofiler as pp
+from pysam import FastaFile
 
 def gff_load_cds(gff):
     cds = []
@@ -37,7 +38,7 @@ def get_codon_pos(chrom,pos,genes):
 
 
 def main(args):
-    ref = pp.Fasta(args.ref).fa_dict
+    ref = pp.FastaFile(args.ref)
     cds = gff_load_cds(args.gff)
     final_list = []
     coding = defaultdict(list)
@@ -60,7 +61,7 @@ def main(args):
         chrom = rows[0][0]
         pos = sorted([int(r[1]) for r in rows])
 
-        ref_nucs = {p:ref[chrom][p-1] for p in range(pos[0],pos[-1]+1)}
+        ref_nucs = ref.fetch(chrom,pos[0]-1,pos[-1])
         alt_nucs = ref_nucs.copy()
         for i,p in enumerate(pos):
             alt_nucs[p] = rows[i][4]
