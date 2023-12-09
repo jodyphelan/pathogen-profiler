@@ -62,7 +62,7 @@ def main(args):
         chrom = rows[0][0]
         pos = sorted([int(r[1]) for r in rows])
 
-        ref_nucs = list(ref.fetch(chrom,pos[0]-1,pos[-1]))
+        ref_nucs = {p:ref.fetch(chrom,pos[0]-1,pos[-1]) for p in range(pos[0],pos[-1]+1)}
         alt_nucs = ref_nucs.copy()
         for i,p in enumerate(pos):
             print(p)
