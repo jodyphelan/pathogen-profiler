@@ -15,6 +15,8 @@ class Gene:
         self.end = self.feature_end if strand=="+" else self.feature_start
         self.length = length
         self.transcripts = []
+    def __repr__(self) -> str:
+        return f"Gene: {vars(self)}"
 
 class Exon:
     def __init__(self, chrom, start, end, strand, phase):
@@ -53,7 +55,7 @@ def load_gff(gff,aslist=False):
         parent_id = re.search("Parent=([^;]*)",l)
         parent_id = parent_id.group(1) if parent_id else None
         
-        if fields[2] in ["gene","pseudogene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
+        if fields[2] in ["gene","pseudogene","rRNA_gene","ncRNA_gene","protein_coding_gene","tRNA_gene"]:
             gene_length = p2-p1+1
             
             gene_id = None
