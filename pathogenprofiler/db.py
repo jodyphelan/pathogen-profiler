@@ -237,6 +237,12 @@ def get_genome_position(gene_object,change):
     if r:
         codon = int(r.group(1))
         return aa2genome[codon]
+    
+    r = re.search("p.1\?",change)
+    if r:
+        codon = 1
+        return aa2genome[codon]
+    
     r = re.search("c.(-[0-9]+)[ACGT]+>[ACGT]+",change)
     if r:
         pos = int(r.group(1))
