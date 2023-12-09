@@ -218,14 +218,14 @@ def reformat_annotations(results,conf):
     results["other_variants"] = []
     results["qc_fail_variants"] = []
     for var in results["variants"]:
-        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug"])
+        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug_resistance"])
         if len(drugs)>0:
             tmp = var.copy()
             dr_ann = []
             other_ann = []
             while len(tmp["annotation"])>0:
                 x = tmp["annotation"].pop()
-                if x["type"]=="drug":
+                if x["type"]=="drug_resistance":
                     dr_ann.append(x)
                 else:
                     other_ann.append(x)
