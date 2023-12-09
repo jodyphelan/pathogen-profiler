@@ -210,6 +210,7 @@ def get_aa2genome_coords(exons):
 
 def get_genome_position(gene_object,change):
     g = gene_object
+    print(g)
     for term in supported_so_terms:
         if term in change:
             return None
@@ -218,7 +219,7 @@ def get_genome_position(gene_object,change):
         change = f"p.Xyz{codon}Xyz"
     
     if change[0]=="p":
-        aa2genome = get_aa2genome_coords(g.exons)
+        aa2genome = get_aa2genome_coords(g.transcripts[0].exons)
 
 
     r = re.search("p.[A-Za-z]+([0-9]+)",change)
