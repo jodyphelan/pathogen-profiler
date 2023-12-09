@@ -80,8 +80,8 @@ def extract_genome_positions(db,gene):
             pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
-def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref: str,outfile:str,padding: int = 200) -> None:
-
+def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfile:str,padding: int = 200) -> None:
+    ref = FastaFile(ref_file)
     lines = []
     for gene in gene_dict:
         if gene not in gene_info:
@@ -115,7 +115,7 @@ def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref: str,outfile:st
 
         if genome_start<1:
             genome_start = 1
-        ref = FastaFile(ref)
+        
         chrom_lengths = dict(zip(ref.references, ref.lengths))
         if genome_end > chrom_lengths[gene_info[gene].chrom]:
             genome_end = chrom_lengths[gene_info[gene].chrom]
@@ -424,19 +424,22 @@ def create_db(args,extra_files = None):
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                annotation = row["Annotation"].lower()
+                annotation_info = {x.split('=')[0]:x.split('=')[1] for x in row["Info"].lower().split(';')}
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
                 if args.include_original_mutation:
                     row["original_mutation"] = row["Mutation"]
                 if mut!=row["Mutation"]:
                     L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
-                locus_tag_to_ann_dict[locus_tag].add(annotation)
+                if "drug" in annotation_info:
+                    locus_tag_to_ann_dict[locus_tag].add(annotation_info["drug"])
+                else:    
+                    locus_tag_to_ann_dict[locus_tag].add(annotation_info["type"])
                 if locus_tag not in db:
                     db[locus_tag] = {}
                 if mut not in db[locus_tag]:
                     db[locus_tag][mut] = {"annotations":[]}
 
-                tmp_annotation = {"type":"annotation"}
+                tmp_annotation = {"type":annotation_info['type']}
                 annotation_columns = set(row.keys()) - set(["Gene","Mutation"])
                 for col in annotation_columns:
                     if row[col]=="":continue
@@ -474,9 +477,11 @@ def create_db(args,extra_files = None):
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 print(row)
-                for d in row["Annotation"].split(","):
-                    ann = d.lower()
-                    locus_tag_to_ann_dict[locus_tag].add(ann)
+                for x in row["Info"].split(";"):
+                    key,val = x.split("=")
+                    tmp_annotation[key.lower()] = val
+                    if key=="drug":
+                        locus_tag_to_ann_dict[locus_tag].add(val)
 
 
         version = {"name":args.prefix}

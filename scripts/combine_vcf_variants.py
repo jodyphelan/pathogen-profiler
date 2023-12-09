@@ -38,7 +38,7 @@ def get_codon_pos(chrom,pos,genes):
 
 
 def main(args):
-    ref = pp.FastaFile(args.ref)
+    ref = FastaFile(args.ref)
     cds = gff_load_cds(args.gff)
     final_list = []
     coding = defaultdict(list)
@@ -58,12 +58,14 @@ def main(args):
     
 
     for rows in coding.values():
+        print(rows)
         chrom = rows[0][0]
         pos = sorted([int(r[1]) for r in rows])
 
-        ref_nucs = ref.fetch(chrom,pos[0]-1,pos[-1])
+        ref_nucs = list(ref.fetch(chrom,pos[0]-1,pos[-1]))
         alt_nucs = ref_nucs.copy()
         for i,p in enumerate(pos):
+            print(p)
             alt_nucs[p] = rows[i][4]
         new_row = rows[0]
         new_row[3] = "".join(ref_nucs.values())
