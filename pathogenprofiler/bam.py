@@ -9,6 +9,7 @@ import os
 import platform 
 import statistics as stats
 import logging 
+from pysam import FastaFile
 
 class Bam:
     """
@@ -95,8 +96,8 @@ class Bam:
 
         return Vcf(self.vcf_file)
     
-    def get_median_depth(self,ref_file,software="bedtools"):
-        logging.info("Calculating median depth")
+    def get_median_depth(self,ref_file,software="samtools"):
+        logging.info("Calculating median depth using %s" % software)
         if software=="bedtools":
             lines = []
             for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
@@ -123,7 +124,16 @@ class Bam:
                 os.remove(f)
             return int(float(row[3]))
         elif software=="samtools":
-            pass
+            dp = []
+            for l in cmd_out(f"samtools depth {self.bam_file}"):
+                row = l.strip().split()
+                dp.append(int(row[2]))
+            ref = FastaFile(ref_file)
+            total_len = 0
+            for name in ref.references:
+                total_len+=ref.get_reference_length(name)
+            dp += list([0 for _ in range(total_len - len(dp))])
+            return stats.median(dp)
 
     def calculate_median_coverage(self,ref_file,software="bedtools"):
         logging.info("Calculating median depth")
