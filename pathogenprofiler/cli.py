@@ -60,7 +60,8 @@ def run_profiler(args):
             caller=args.caller, threads=args.threads, no_flagstat=args.no_flagstat,
             run_delly = args.run_delly, calling_params=args.calling_params,
             samclip=args.no_clip,delly_vcf_file=args.delly_vcf,
-            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations
+            call_wg=args.call_whole_genome,variant_annotations=args.add_variant_annotations,
+            coverage_tool=args.coverage_tool
         )
         results["input_data_source"] = "fastq" if args.read1 else "bam"
     elif args.fasta:

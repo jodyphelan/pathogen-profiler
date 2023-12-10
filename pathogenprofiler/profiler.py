@@ -9,7 +9,7 @@ import logging
 
 
 
-def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="bedtools"):
+def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="samtools"):
     logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
 
     ### Put user specified arguments to lower case ###
