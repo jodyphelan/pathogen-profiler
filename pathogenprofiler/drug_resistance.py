@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import List
 
 def get_lt2drugs(bed_file):
     lt2drugs = {}
@@ -58,7 +59,6 @@ def get_summary(json_results,conf,columns = None):
                 annotation[drug] = {key:[] for key in columns}
             for key in columns:
                 annotation[drug][key].append(d.get(key,""))
-
     for d in drugs:
         if d in results:
             results[d] = ", ".join(results[d]) if len(results[d])>0 else ""
@@ -75,3 +75,16 @@ def get_summary(json_results,conf,columns = None):
     new_json = json_results.copy()
     new_json["drug_table"] = drug_table
     return new_json
+
+def add_drugs_to_variants(variants: List[dict]) -> List[dict]:
+    for var in variants:
+        if 'annotation' not in var:
+            continue
+        drug_annotations = [a for a in var['annotation'] if a['type']=='drug_resistance']
+        if len(drug_annotations)>0:
+            var['drugs'] = drug_annotations
+            # for a in var['annotation']:
+            #     if a['type']=='drug_resistance':
+            #         d = a.copy()
+            #         var['drugs'].append(d)
+    return variants
