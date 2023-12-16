@@ -58,14 +58,12 @@ def main(args):
     
 
     for rows in coding.values():
-        print(rows)
         chrom = rows[0][0]
         pos = sorted([int(r[1]) for r in rows])
 
         ref_nucs = {p:ref.fetch(chrom,pos[0]-1,pos[-1]) for p in range(pos[0],pos[-1]+1)}
         alt_nucs = ref_nucs.copy()
         for i,p in enumerate(pos):
-            print(p)
             alt_nucs[p] = rows[i][4]
         new_row = rows[0]
         new_row[3] = "".join(ref_nucs.values())
