@@ -186,7 +186,7 @@ def process_variants(results: dict,conf: dict,annotations: List[str]):
     variant_containers['other'] = []
     variant_containers['qc_fail'] = []
     for var in results['variants']:
-        annotation_containers = {d:[a for a in var['annotation'] if a['type']==d] for d in annotations}
+        annotation_containers = {d:[a for a in var.get('annotation',[]) if a['type']==d] for d in annotations}
         qc  = filter_variant(var,conf["variant_filters"])
         if qc=="hard_fail":
             continue
