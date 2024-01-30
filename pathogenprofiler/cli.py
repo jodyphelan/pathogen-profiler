@@ -145,8 +145,8 @@ def get_vcf_from_bam(args: argparse.Namespace):
         vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
 
     ### Run delly if specified ###
+    final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
     if not args.no_delly:
-        final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
         delly_vcf_obj = bam.run_delly(conf['bed'])
         if delly_vcf_obj is not None:
             run_cmd("bcftools index %s" % delly_vcf_obj.filename)
