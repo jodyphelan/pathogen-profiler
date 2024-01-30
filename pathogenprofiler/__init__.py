@@ -10,4 +10,4 @@ from .barcode import *
 from .cli import *
 from .rules import *
 from .models import *
-__version__ = "3.1.1"
+__version__ = "3.1.2"
