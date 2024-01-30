@@ -5,6 +5,10 @@ import argparse
 import re
 import pathogenprofiler as pp
 from pysam import FastaFile
+import logging
+
+# set default logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 def gff_load_cds(gff):
     cds = []
@@ -60,8 +64,7 @@ def main(args):
     for rows in coding.values():
         chrom = rows[0][0]
         pos = sorted([int(r[1]) for r in rows])
-
-        ref_nucs = {p:ref.fetch(chrom,pos[0]-1,pos[-1]) for p in range(pos[0],pos[-1]+1)}
+        ref_nucs = {p:ref.fetch(chrom,p-1,p) for p in range(pos[0],pos[-1]+1)}
         alt_nucs = ref_nucs.copy()
         for i,p in enumerate(pos):
             alt_nucs[p] = rows[i][4]
