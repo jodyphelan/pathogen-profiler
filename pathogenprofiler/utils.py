@@ -14,8 +14,22 @@ import pysam
 from typing import List, NewType
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from glob import glob
+from pydantic import BaseModel
 
 tmp_prefix = str(uuid4())
+
+class TempFilePrefix(object):
+    """Create a temporary file prefix"""
+    def __init__(self):
+        self.prefix = str(uuid4())
+    def __enter__(self):
+        return self.prefix
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Remove temporary files"""
+        logging.debug("Removing temporary files: %s" % self.prefix)
+        for f in glob(self.prefix+"*"):
+            os.remove(f)
 
 def get_tmp_file(prefix=None):
     """Get a temporary file"""
@@ -29,18 +43,53 @@ def sanitize_region(region: str) -> str:
     """Replace : and - with _"""
     return region.replace(":","_").replace("-","_")
 
-Region = NewType("Region",str)
+class Region:
+    """A class to represent a region"""
+    def __init__(self,region: str):
+        self.region = region
+        self.chrom = region.split(":")[0]
+        self.start = int(region.split(":")[1].split("-")[0])
+        self.end = int(region.split(":")[1].split("-")[1])
+        self.length = self.end - self.start
+        self.safe = sanitize_region(region)
+
+    def __str__(self):
+        return self.region
+
+    def __repr__(self):
+        return self.region
+    
+    def __len__(self):
+        return self.length
+
+
 
 def genome_job(cmd: str,region: Region) -> sp.CompletedProcess:
     """Run a command on a region of the genome"""
-    region_safe = sanitize_region(region)
+    region_safe = region.safe
     cmd = cmd.format(region=region,region_safe=region_safe)
     out = run_cmd(cmd)
     return out
 
 
 def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
-    """Split genome into n chunks"""
+    """
+    Split genome into n chunks
+    
+    Parameters
+    ----------
+    fasta : str
+        Path to fasta file
+    nchunks : int
+        Number of chunks to split the genome into
+    safe : bool
+        Replace : and - with _ in the region string
+    
+    Returns
+    -------
+    List[Region]
+        A list of regions
+    """
     genome = pysam.FastaFile(fasta)
     total_length = sum(genome.lengths)
     chunk_length = int(total_length/nchunks) + 10
@@ -54,7 +103,7 @@ def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
                 chunk_end = genome.get_reference_length(chrom)
             chunks.append([chrom,chunk_start,chunk_end])
             chunk_start = chunk_end
-    regions = [f"{r[0]}:{r[1]+1}-{r[2]}" for r in chunks]
+    regions = [Region("{r[0]}:{r[1]+1}-{r[2]}") for r in chunks]
     return regions
 
 def load_bed_regions(bed_file: str) -> List[Region]:
@@ -65,7 +114,7 @@ def load_bed_regions(bed_file: str) -> List[Region]:
             if line.startswith("#"):
                 continue
             chrom,start,end = line.strip().split("\t")[:3]
-            regions.append(f"{chrom}:{start}-{end}")
+            regions.append(Region(f"{chrom}:{start}-{end}"))
     return regions
 
 def run_cmd_parallel_on_genome(cmd: str,genome: str,threads: int = 2,desc: str=None,bed_file: str=None) -> List[sp.CompletedProcess]:
@@ -82,43 +131,6 @@ def run_cmd_parallel_on_genome(cmd: str,genome: str,threads: int = 2,desc: str=N
     return results
 
 
-def var_qc_test(var,min_depth,min_af,strand_support):
-    """Test if a variant passes QC"""
-    fail = False
-    if min_depth!=None and var['depth']<min_depth:
-        fail = True
-    if min_af!=None and var['freq']<min_af:
-        fail = True
-    if strand_support!=None and var['forward_reads']!=None and var['forward_reads']<strand_support:
-        fail = True
-    if strand_support!=None and var['reverse_reads']!=None and var['reverse_reads']<strand_support:
-        fail = True
-    return fail
-
-def sv_var_qc_test(var,min_depth,min_af,sv_len):
-    
-    fail = False
-    if min_depth!=None and var['depth']<min_depth:
-        fail = True
-    if min_af!=None and var['freq']<min_af:
-        fail = True
-    if sv_len!=None and var["sv_len"]>sv_len:
-        fail = True
-    return fail
-
-def filter_variant(var,filter_params):
-    qc = "pass"
-    if var['sv']==True:
-        if sv_var_qc_test(var,filter_params["sv_depth_hard"],filter_params["sv_af_hard"],filter_params["sv_len_hard"]):
-            qc = "hard_fail"
-        elif sv_var_qc_test(var,filter_params["sv_depth_soft"],filter_params["sv_af_soft"],filter_params["sv_len_soft"]):
-            qc = "soft_fail"
-    else:
-        if var_qc_test(var,filter_params["depth_hard"],filter_params["af_hard"],filter_params["strand_hard"]):
-            qc = "hard_fail"
-        elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
-            qc = "soft_fail"
-    return qc
 
 
 def stringify(l):
@@ -132,6 +144,7 @@ def parse_csv(filename):
         return {row[key]: row for row in reader}
 
 def return_fields(obj,args,i=0):
+    """Return a field from a nested dictionary"""
     largs = args.split(".")
     if i+1>len(largs):
         return obj
@@ -152,6 +165,10 @@ def variable2string(var,quote=False):
     elif isinstance(var,dict):
         return "%s%s%s" % (q,",".join(list(var)),q)
     elif isinstance(var,list):
+        if set(var)=={''}:
+            return ""
+        elif len(set(var))==1:
+            return "%s%s%s" % (q,str(var[0]),q)
         return "%s%s%s" % (q,",".join(var),q)
     else:
         return "%s%s%s" % (q,str(var),q)
@@ -172,6 +189,39 @@ def dict_list2text(l,columns = None, mappings = None,sep="\t"):
     out ="%s\n%s" % (header,str_rows)
     return out.strip()
 
+def dict_list2text(l,columns = None, mappings = None,sep="\t"):
+    if mappings:
+        headings = list(mappings)
+    elif columns:
+        headings = columns
+    else:
+        headings = list(l[0].keys())
+    rows = []
+    header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
+    for row in l:
+        r = sep.join([variable2string(return_fields(row,x)) for x in headings])
+        rows.append(r)
+    str_rows = "\n".join(rows)
+    out ="%s\n%s" % (header,str_rows)
+    return out.strip()
+
+def object_list2text(l: list,columns: list = None, mappings: dict = None,sep: str="\t"):
+    l = [l.dict() for l in l]
+    if mappings:
+        headings = list(mappings)
+    elif columns:
+        headings = columns
+    else:
+        headings = list(l[0].keys())
+
+    rows = []
+    header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
+    for row in l:
+        r = sep.join([variable2string(return_fields(row,x)) for x in headings])
+        rows.append(r)
+    str_rows = "\n".join(rows)
+    out ="%s\n%s" % (header,str_rows)
+    return out.strip()
 
 def get_lt2drugs(bed_file):
     lt2drugs = {}
@@ -180,6 +230,37 @@ def get_lt2drugs(bed_file):
         lt2drugs[row[3]] = None if row[5]=="None" else row[5].split(",") 
     return lt2drugs
 
+
+def process_variants(results: dict,conf: dict,annotations: List[str]):
+    variant_containers = {d:[] for d in annotations}
+    variant_containers['other'] = []
+    variant_containers['qc_fail'] = []
+    for var in results['variants']:
+        annotation_containers = {d:[a for a in var.get('annotation',[]) if a['type']==d] for d in annotations}
+        qc  = filter_variant(var,conf["variant_filters"])
+        if qc=="hard_fail":
+            continue
+        elif qc=="soft_fail":
+            variant_containers['qc_fail'].append(var)
+        else:
+            assigned = False
+            for a in annotations:
+                if annotation_containers[a]:
+                    assigned = True
+                    variant_containers[a].append(var)
+            if not assigned:
+                variant_containers['other'].append(var)
+            
+    for a in annotations:
+        results[a+"_variants"] = variant_containers[a]
+    results['other_variants'] = variant_containers['other']
+    results['qc_fail_variants'] = variant_containers['qc_fail']
+    del results['variants']
+
+    return results
+
+
+
 def reformat_annotations(results,conf):
     #Chromosome      4998    Rv0005  -242
     lt2drugs = get_lt2drugs(conf["bed"])
@@ -187,14 +268,14 @@ def reformat_annotations(results,conf):
     results["other_variants"] = []
     results["qc_fail_variants"] = []
     for var in results["variants"]:
-        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug" and x["confers"]=="resistance"])
+        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug_resistance"])
         if len(drugs)>0:
             tmp = var.copy()
             dr_ann = []
             other_ann = []
             while len(tmp["annotation"])>0:
                 x = tmp["annotation"].pop()
-                if x["type"]=="drug":
+                if x["type"]=="drug_resistance":
                     dr_ann.append(x)
                 else:
                     other_ann.append(x)
@@ -233,13 +314,36 @@ def get_genome_positions_from_db(db):
 
     return genome_positions
 
-def lt2genes(bed_file):
-    #Chromosome      759310  763325  Rv0667  rpoB    rifampicin
-    lt2gene = {}
+def bed2gene_lookup(bed_file: str) -> dict:
+    """
+    Create a lookup table for gene id to gene name
+    
+    Parameters
+    ----------
+    bed_file : str
+        Path to bed file
+
+    Returns
+    -------
+    dict
+        A dictionary with gene id as key and gene name as value
+
+    Examples
+    --------
+    >>> from tempfile import NamedTemporaryFile
+    >>> from pathogenprofiler.utils import bed2gene_lookup
+    >>> with NamedTemporaryFile() as tmp:
+    ...     tmp.write(b"Chromosome\t759310\t763325\tRv0667\trpoB\trifampicin")
+    ...     tmp.flush()
+    ...     bed2gene_lookup(tmp.name)
+    58
+    {'Rv0667': 'rpoB'}
+    """
+    id2name = {}
     for l in open(bed_file):
         row = l.strip().split()
-        lt2gene[row[3]] = row[4]
-    return lt2gene
+        id2name[row[3]] = row[4]
+    return id2name
 
 
 def reformat_missing_genome_pos(positions,conf):
@@ -589,88 +693,3 @@ def rm_files(x):
             os.remove(f)
 
 
-class Gene:
-    def __init__(self,name,locus_tag,strand,chrom,start,end,length):
-        self.name = name
-        self.locus_tag = locus_tag
-        self.strand = strand
-        self.chrom = chrom
-        self.feature_start = start
-        self.feature_end = end
-        self.start = self.feature_start if strand=="+" else self.feature_end
-        self.end = self.feature_end if strand=="+" else self.feature_start
-        self.length = length
-        self.exons = []
-
-class Exon:
-    def __init__(self, chrom, start, end, strand, phase):
-        self.chrom = chrom
-        self.start = start
-        self.end = end
-        self.strand = strand
-        self.phase = phase
-    def __repr__(self):
-        return "Exon: %s-%s (%s)" % (self.start, self.end, self.strand)
-
-
-
-def load_gff(gff,aslist=False):
-    GFF = open(gff)
-    genes = {}
-    relationships = {}
-    id2locus_tag = {}
-    while True:
-        l = GFF.readline().strip()
-        if not l: break
-        if l[0]=="#": continue
-        if l.strip()=='': continue
-        fields = l.rstrip().split("\t")
-        strand = fields[6]
-        chrom = fields[0]
-        p1 = int(fields[3])
-        p2 = int(fields[4])
-        feature_id = re.search("ID=([^;]*)",l)
-        feature_id = feature_id.group(1) if feature_id else None
-        parent_id = re.search("Parent=([^;]*)",l)
-        parent_id = parent_id.group(1) if parent_id else None
-        if parent_id and parent_id!=feature_id:
-            relationships[feature_id] = parent_id
-        root_id = feature_id
-        while True:
-            if root_id in relationships:
-                root_id = relationships[root_id]
-            else:
-                break
-        if fields[2] in ["gene","pseudogene","rRNA_gene","ncRNA_gene","protein_coding_gene"]:
-            gene_length = p2-p1+1
-            
-            locus_tag = None
-            search_strings = [
-                "ID=gene:([a-zA-Z0-9\.\-\_]+)",
-                "gene_id=([a-zA-Z0-9\.\-\_]+)",
-                "ID=([a-zA-Z0-9\.\-\_]+)",
-                "locus_tag=([a-zA-Z0-9\.\-\_]+)",
-            ]
-            for s in search_strings:
-                re_obj = re.search(s,l)
-                if re_obj:
-                    locus_tag = re_obj.group(1)
-                    break
-            if not locus_tag:
-                continue
-            re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
-            gene_name = re_obj.group(1) if re_obj else locus_tag
-            start = p1
-            end =  p2
-            
-            genes[locus_tag] = Gene(gene_name,locus_tag,strand,chrom,start,end,gene_length)
-            id2locus_tag[feature_id] = locus_tag
-        if fields[2] in ["CDS"]:
-            if fields[7]=="":
-                continue
-            phase = int(fields[7])
-            genes[id2locus_tag[root_id]].exons.append(Exon(chrom,p1,p2,strand,phase))
-    if aslist:
-        return list(genes.values())
-    else:
-        return genes

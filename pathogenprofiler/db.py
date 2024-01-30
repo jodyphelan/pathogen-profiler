@@ -5,16 +5,17 @@ import re
 from collections import defaultdict
 import sys
 from datetime import datetime
-from .utils import load_gff, run_cmd, cmd_out, unlist
+from .utils import cmd_out
+from .gff import load_gff, Gene
 from .fasta import Fasta
 import os
 import shutil
-from uuid import uuid4
 import pathogenprofiler as pp
 import math
 import logging
 from .hgvs import verify_mutation_list
 from pysam import FastaFile
+from typing import List
 
 
 supported_so_terms = [
@@ -34,7 +35,7 @@ supported_so_terms = [
     '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal'
 ]
 
-def generate_kmer_database(kmer_file,outfile):
+def generate_kmer_database(kmer_file: str,outfile: str) -> None:
     from itertools import combinations, product
 
     def generate(s, d=1):
@@ -61,23 +62,7 @@ def generate_kmer_database(kmer_file,outfile):
 
 
 
-def fa2dict(filename):
-    fa_dict = {}
-    seq_name = ""
-    for l in open(filename):
-        line = l.rstrip()
-        if line=="":continue
-        if line[0] == ">":
-            seq_name = line[1:].split()[0]
-            fa_dict[seq_name] = []
-        else:
-            fa_dict[seq_name].append(line)
-    result = {}
-    for seq in fa_dict:
-        result[seq] = "".join(fa_dict[seq])
-    return result
-
-def revcom(s):
+def revcom(s: str) -> str:
     """Return reverse complement of a sequence"""
     def complement(s):
                     basecomplement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
@@ -90,20 +75,19 @@ def revcom(s):
 def extract_genome_positions(db,gene):
     pos = []
     for mut in db[gene]:
-        if any([a["type"]=="drug" for a in db[gene][mut]["annotations"]]):
-            if mut[:2] not in ["p.","c.","n."]: continue
-            pos.extend(db[gene][mut]["genome_positions"])
+        if mut[:2] not in ["p.","c.","n."]: continue
+        pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
-def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
-
+def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfile:str,padding: int = 200) -> None:
+    ref = FastaFile(ref_file)
     lines = []
     for gene in gene_dict:
         if gene not in gene_info:
             logging.error("%s not found in the 'gene_info' dictionary... Exiting!" % gene)
             quit()
-        if gene_info[gene].locus_tag in db:
-            genome_positions = extract_genome_positions(db,gene_info[gene].locus_tag)
+        if gene_info[gene].gene_id in db:
+            genome_positions = extract_genome_positions(db,gene_info[gene].gene_id)
             if gene_info[gene].strand=="+":
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
                     genome_start = min(genome_positions) - padding
@@ -111,14 +95,14 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
                     genome_start = gene_info[gene].start - padding
                 
                 if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
-                    genome_end = max(genome_positions) + padding
+                    genome_end = max(genome_positions) #+ padding
                 else:
-                    genome_end = gene_info[gene].end + padding
+                    genome_end = gene_info[gene].end #+ padding
             else:
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
-                    genome_start = min(genome_positions) - padding
+                    genome_start = min(genome_positions) #- padding
                 else:
-                    genome_start = gene_info[gene].end - padding
+                    genome_start = gene_info[gene].end #- padding
                 
                 if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
                     genome_end = max(genome_positions) + padding
@@ -130,8 +114,10 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
 
         if genome_start<1:
             genome_start = 1
-        if genome_end>len(ref_fasta[gene_info[gene].chrom]):
-            genome_end = len(ref_fasta[gene_info[gene].chrom])
+        
+        chrom_lengths = dict(zip(ref.references, ref.lengths))
+        if genome_end > chrom_lengths[gene_info[gene].chrom]:
+            genome_end = chrom_lengths[gene_info[gene].chrom]
 
         drugs = [d for d in gene_dict[gene] if d!=""]
         if len(drugs)==0:
@@ -142,7 +128,7 @@ def write_bed(db,gene_dict,gene_info,ref_fasta,outfile,padding=200):
             gene_info[gene].chrom,
             str(genome_start),
             str(genome_end),
-            gene_info[gene].locus_tag,
+            gene_info[gene].gene_id,
             gene_info[gene].name,
             drugs
         ])
@@ -156,7 +142,7 @@ def assign_gene_to_amplicon(genes,chrom,start,end):
         if g.chrom!=chrom: continue
         overlap = set(range(g.feature_start,g.feature_end)).intersection(set(range(int(start),int(end))))
         if overlap:
-            l.append((g.locus_tag,g.name,len(overlap)))
+            l.append((g.gene_id,g.name,len(overlap)))
     return tuple(sorted(l,key=lambda x:x[2],reverse=True)[0][:2])
 
 
@@ -184,6 +170,7 @@ def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
             O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
 def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
+    logging.debug("Converting HGVS to snpEff format")
     genes = load_gff(gff,aslist=True)
     refseq = FastaFile(ref)
     converted_mutations = {}
@@ -230,13 +217,19 @@ def get_genome_position(gene_object,change):
         change = f"p.Xyz{codon}Xyz"
     
     if change[0]=="p":
-        aa2genome = get_aa2genome_coords(g.exons)
+        aa2genome = get_aa2genome_coords(g.transcripts[0].exons)
 
 
     r = re.search("p.[A-Za-z]+([0-9]+)",change)
     if r:
         codon = int(r.group(1))
         return aa2genome[codon]
+    
+    r = re.search("p.1\?",change)
+    if r:
+        codon = 1
+        return aa2genome[codon]
+    
     r = re.search("c.(-[0-9]+)[ACGT]+>[ACGT]+",change)
     if r:
         pos = int(r.group(1))
@@ -351,16 +344,25 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
     
+    r = re.search("g.([0-9]+)([ACGT])>([ACGT])",change)
+    if r:
+        pos = int(r.group(1))
+        # todo - check if this is correct add in chromosome
+        return [pos]
 
     quit(f"Don't know how to handle {str(vars(g))} {change}")
 
-def match_ref_chrom_names(source,target):
-    source_fa = fa2dict(source)
-    source_fa_size = {s:len(source_fa[s]) for s in source_fa}
-    target_fa = fa2dict(target)
-    target_fa_size = {s:len(target_fa[s]) for s in target_fa}
+def get_chrom_sizes(ref: FastaFile) -> dict:
+    return dict(zip(ref.references, ref.lengths))
+
+def match_ref_chrom_names(source: str,target: str) -> dict:
+    logging.debug("Matching chromosome names")
+    source_fa = FastaFile(source)
+    source_fa_size = get_chrom_sizes(source_fa)
+    target_fa = FastaFile(target)
+    target_fa_size = get_chrom_sizes(target_fa)
     conversion = {}
-    for s in target_fa:
+    for s in target_fa.references:
         tlen = target_fa_size[s]
         tmp = [x[0] for x in source_fa_size.items() if x[1]==tlen]
         if len(tmp)==1:
@@ -384,7 +386,6 @@ def create_db(args,extra_files = None):
     gff_file = "%s.gff" % args.prefix
     bed_file = "%s.bed" % args.prefix
     json_file = "%s.dr.json" % args.prefix
-    version_file = "%s.version.json" % args.prefix
 
     if os.path.isfile("snpEffectPredictor.bin"):
             snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
@@ -399,7 +400,6 @@ def create_db(args,extra_files = None):
     else:
         chrom_conversion = match_ref_chrom_names("genome.fasta","genome.fasta")
         shutil.copyfile("genome.fasta",genome_file)    
-    
     with open(gff_file,"w") as O:
         for l in open("genome.gff"):
             if l.strip()=="": continue
@@ -412,70 +412,45 @@ def create_db(args,extra_files = None):
                     O.write("\t".join(row)+"\n")        
 
     genes = load_gff(gff_file)
-    gene_name2gene_id = {g.name:g.locus_tag for g in genes.values()}
-    gene_name2gene_id.update({g.locus_tag:g.locus_tag for g in genes.values()})
+    gene_name2gene_id = {g.name:g.gene_id for g in genes.values()}
+    gene_name2gene_id.update({g.gene_id:g.gene_id for g in genes.values()})
     db = {}
-    locus_tag_to_drug_dict = defaultdict(set)
+    locus_tag_to_ann_dict = defaultdict(set)
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
             hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                drug = row["Drug"].lower()
-                print(row)
-                print(mutation_lookup[(row["Gene"],row["Mutation"])])
+                annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
-                if args.include_original_mutation:
-                    row["original_mutation"] = row["Mutation"]
                 if mut!=row["Mutation"]:
                     L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
-                locus_tag_to_drug_dict[locus_tag].add(drug)
+                if "drug" in annotation_info:
+                    locus_tag_to_ann_dict[locus_tag].add(annotation_info["drug"])
+                else:    
+                    locus_tag_to_ann_dict[locus_tag].add(annotation_info["type"])
                 if locus_tag not in db:
                     db[locus_tag] = {}
                 if mut not in db[locus_tag]:
                     db[locus_tag][mut] = {"annotations":[]}
 
-                tmp_annotation = {"type":"drug","drug":row["Drug"]}
-                annotation_columns = set(row.keys()) - set(["Gene","Mutation","Drug"])
-                for col in annotation_columns:
-                    if row[col]=="":continue
-                    tmp_annotation[col.lower()] = row[col]
+                tmp_annotation = annotation_info
+
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
                 db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
-        if args.other_annotations:
-            hgvs_variants = [r for r in csv.DictReader(open(args.other_annotations))]
-            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
-            for row in csv.DictReader(open(args.other_annotations)):
-                locus_tag = gene_name2gene_id[row["Gene"]]
-                mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
-                if mut!=row["Mutation"]:
-                    L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
-                if locus_tag not in db:
-                    db[locus_tag] = {}
-                if mut not in db[locus_tag]:
-                    db[locus_tag][mut] = {"annotations":[]}
-                tmp_annotation = {"type":row["Type"]}
-                if args.include_original_mutation:
-                    tmp_annotation["original_mutation"] = row["Mutation"]
+        
 
-
-                for x in row["Info"].split(";"):
-                    key,val = x.split("=")
-                    tmp_annotation[key.lower()] = val
-                    if key=="drug":
-                        locus_tag_to_drug_dict[locus_tag].add(val)
-                db[locus_tag][mut]["annotations"].append(tmp_annotation)
-                db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
-                db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
 
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                for d in row["Drug"].split(","):
-                    drug = d.lower()
-                    locus_tag_to_drug_dict[locus_tag].add(drug)
+                for key,val in row.items():
+                    if key=="Gene": continue
+                    tmp_annotation[key.lower()] = val
+                    if key=="drug":
+                        locus_tag_to_ann_dict[locus_tag].add(val)
 
 
         version = {"name":args.prefix}
@@ -518,8 +493,7 @@ def create_db(args,extra_files = None):
             write_amplicon_bed(genome_file,genes,db,args.amplicon_primers,bed_file)
             variables['amplicon'] = True
         else:
-            ref_fasta_dict = fa2dict(genome_file)
-            write_bed(db,locus_tag_to_drug_dict,genes,ref_fasta_dict,bed_file)
+            write_bed(db,locus_tag_to_ann_dict,genes,genome_file,bed_file)
             variables['amplicon'] = False
         
                 
@@ -548,7 +522,7 @@ def create_db(args,extra_files = None):
             load_db(variables_file,args.software_name)
 
 def index_ref(target):
-    pp.run_cmd(f"bwa index {target}")
+    # pp.run_cmd(f"bwa index {target}")
     pp.run_cmd(f"samtools faidx {target}")
     tmp = target.replace(".fasta","")
     pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
@@ -596,6 +570,8 @@ def get_db(software_name,db_name):
         logging.info(f"Using {key} file: {share_path}/{val}")
         if ".json" in val:
             variables[key] = json.load(open(f"{share_path}/{val}"))
+        elif key=='rules':
+            variables[key] = [l.strip() for l in open(f'{share_path}/{val}')]
         else:
             variables[key] = f"{share_path}/{val}"
     
@@ -606,7 +582,7 @@ def list_db(software_name):
     share_path = f"{sys.base_prefix}/share/{software_name}"
     if not os.path.isdir(share_path):
         return []
-    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".version.json")]
+    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".variables.json")]
 
 
 

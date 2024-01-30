@@ -1,10 +1,12 @@
 import re
 import logging
-from .utils import cmd_out, Gene, revcom
+from .utils import cmd_out, revcom
+from .gff import Gene
 from typing import Tuple, List
 from pysam import FastaFile
 from uuid import uuid4
 import os
+from tqdm import tqdm
 
 
 supported_so_terms = [
@@ -24,7 +26,7 @@ supported_so_terms = [
     '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal'
 ]
 
-def get_genome_coords(pos: int,gene: Gene) -> int:
+def get_genome_coords(pos: int,gene: Gene, ref: FastaFile) -> int:
     """
     Convert a position in a gene to a position in the genome.
     
@@ -43,6 +45,8 @@ def get_genome_coords(pos: int,gene: Gene) -> int:
         genome_pos = gene.start - pos + 1
         if pos<0:
             genome_pos-=1
+    if genome_pos<0:
+        genome_pos = ref.get_reference_length(gene.chrom) + genome_pos
     return genome_pos
 
 def extract_insertion(hgvs: str, gene: Gene) -> str:
@@ -112,8 +116,8 @@ def parse_coding_indel(mutation: str, gene: Gene, ref_object: FastaFile) -> dict
     else:
         start = numbers[0]
         end = start
-    start = get_genome_coords(start,gene)
-    end = get_genome_coords(end,gene)
+    start = get_genome_coords(start,gene,ref_object)
+    end = get_genome_coords(end,gene,ref_object)
     if start>end:
         start,end = end,start
     if "del" in mutation:
@@ -125,7 +129,7 @@ def parse_coding_indel(mutation: str, gene: Gene, ref_object: FastaFile) -> dict
             vcf_pos = start
             ref = ref_object.fetch(gene.chrom,vcf_pos-1,end-1)
         alt = ref[0] + extract_insertion(mutation,gene)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 def parse_snv(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     """
@@ -139,14 +143,14 @@ def parse_snv(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     dict: A dictionary of VCF components.
     """ 
     numbers = extract_numbers(mutation)
-    vcf_pos = get_genome_coords(numbers[0],gene)
+    vcf_pos = get_genome_coords(numbers[0],gene,ref_object)
     ref = ref_object.fetch(gene.chrom,vcf_pos-1,vcf_pos)
     alt = mutation[-1]
     if gene.strand=="-":
         alt = revcom(alt)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
-def parse_genomic_snv(mutation: str,gene: Gene,ref_object: FastaFile) -> dict:
+def parse_genomic_snv(mutation: str,gene: Gene) -> dict:
     """
     Parse a SNV mutation in HGVS format and return a dictionary of VCF components.
     
@@ -162,7 +166,7 @@ def parse_genomic_snv(mutation: str,gene: Gene,ref_object: FastaFile) -> dict:
     vcf_pos = int(r.group(1))
     ref = r.group(2)
     alt = r.group(3)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
 def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
@@ -177,12 +181,12 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     dict: A dictionary of VCF components.
     """ 
     numbers = extract_numbers(mutation)
-    genome_positions = [get_genome_coords(p,gene) for p in numbers]
+    genome_positions = [get_genome_coords(p,gene,ref_object) for p in numbers]
     vcf_pos = min(genome_positions) - 1
 
     ref = ref_object.fetch(gene.chrom,vcf_pos-1,vcf_pos)
     alt = ref + extract_duplication(mutation,gene)
-    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.locus_tag,"type":"nucleotide"}
+    return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
 def get_ann(variants,snpEffDB):
@@ -283,9 +287,9 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
     converted_mutations = {}
     mutations_genome = {}
-    for row in hgvs_mutations:
+    for row in tqdm(hgvs_mutations):
         logging.debug(row)
-        gene = [g for g in genes if g.name==row["Gene"] or g.locus_tag==row["Gene"]][0]
+        gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])
         # Protein variants - not validated yet
         if r := re.search("p\..+",row["Mutation"]):
@@ -305,7 +309,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
         # Genomic SNPs
         elif re.search("g.([0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
-            mutations_genome[key] = parse_genomic_snv(row["Mutation"],gene,refseq)
+            converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Non-coding SNPs
         elif re.search("n.(-?[0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"]):

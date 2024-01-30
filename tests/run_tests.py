@@ -101,6 +101,11 @@ hgvs_mutations  = [
         "Gene": "gid",
         "Mutation": "c.248_250dupGGC",
         "target": "c.248_250dupGGC"
+    },
+    {
+        "Gene": "dnaA",
+        "Mutation": "c.-110_-109insTG",
+        "target": "c.-110_-109insTG"
     }
 
 ]
