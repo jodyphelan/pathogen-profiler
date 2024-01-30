@@ -1,4 +1,4 @@
-from .utils import run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, load_bed
+from .utils import TempFilePrefix, run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, load_bed
 import logging
 from .fasta import Fasta
 from collections import defaultdict
@@ -8,16 +8,32 @@ import sys
 import os.path
 import json
 import pysam
+from .models import Variant,Consequence, VcfQC
+from typing import Optional, List, Tuple
 
+# def get_stand_support(var,alt,caller):
+#     alt_index = list(var.alts).index(alt)
+#     forward_support = None
+#     reverse_support = None
+#     if caller == "freebayes" or caller=="lofreq":
+#         forward_support = var.info['SAF'][alt_index]
+#         reverse_support = var.info['SAR'][alt_index]
+#     elif caller=="bcftools":
+#         forward_support = var.samples[0]['ADF'][alt_index+1]
+#         reverse_support = var.samples[0]['ADR'][alt_index+1]
+#     else:
+#         forward_support = None
+#         reverse_support = None
+#     return forward_support, reverse_support
 
-def get_stand_support(var,alt,caller):
+def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
     alt_index = list(var.alts).index(alt)
     forward_support = None
     reverse_support = None
-    if caller == "freebayes" or caller=="lofreq":
+    if 'SAF' in var.info:
         forward_support = var.info['SAF'][alt_index]
         reverse_support = var.info['SAR'][alt_index]
-    elif caller=="bcftools":
+    elif 'ADF' in var.samples[0]:
         forward_support = var.samples[0]['ADF'][alt_index+1]
         reverse_support = var.samples[0]['ADR'][alt_index+1]
     else:
@@ -127,22 +143,29 @@ class Vcf:
         else:
             self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
         if split_indels:
-            self.tmp_file1 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
-            self.tmp_file2 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
-            self.tmp_file3 = f"{self.vcf_dir}/{uuid4()}.vcf.gz"
+            with TempFilePrefix() as tmp:
+                self.tmp_file1 = f"{tmp}.1.vcf.gz"
+                self.tmp_file2 = f"{tmp}.2.vcf.gz"
+                self.tmp_file3 = f"{tmp}.3.vcf.gz"
 
-            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
-            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-            run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
-            run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
-            rm_files([self.tmp_file1, self.tmp_file2, self.tmp_file3, self.tmp_file1+".csi", self.tmp_file2+".csi", self.tmp_file3+".csi"])
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
+                run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return Vcf(self.vcf_csq_file,self.prefix)
 
 
 
-    def load_ann(self,max_promoter_length=1000, bed_file=None,exclude_variant_types = None,keep_variant_types=None):
+    def load_ann(
+        self,
+        filter_params: dict,
+        max_promoter_length: int = 1000, 
+        bed_file: Optional[str] = None,
+        exclude_variant_types: Optional[List[str]] = None,
+        keep_variant_types: Optional[List[str]] = None
+    ) -> List[Variant]:
         logging.info("Loading snpEff annotations")
         filter_out = []
         filter_types = {
@@ -174,7 +197,8 @@ class Vcf:
                 genes_to_keep.add(row[4])
 
         variants = []
-        for var in pysam.VariantFile(self.filename):
+        vcf = pysam.VariantFile(self.filename)
+        for var in vcf:
             logging.debug(var)
             chrom = var.chrom
             pos = var.pos
@@ -197,20 +221,25 @@ class Vcf:
             ann_strs = var.info['ANN']
             ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
-                strand_support = get_stand_support(var,alt,self.caller)
-                tmp_var = {
-                    "chrom": chrom,
-                    "genome_pos": int(pos),
-                    "ref": ref,
-                    "alt":alt,
-                    "depth":sum(ad),
-                    "freq":af_dict[alt],
-                    "forward_reads": strand_support[0],
-                    "reverse_reads": strand_support[1],
-                    "sv": sv,
-                    "sv_len":varlen,
-                    "consequences":[]
-                }
+                strand_support = get_stand_support(var,alt)
+
+                tmp_var = Variant(
+                    chrom = chrom,
+                    pos = int(pos),
+                    ref = ref,
+                    alt = alt,
+                    depth = sum(ad),
+                    freq = af_dict[alt],
+                    forward_reads = strand_support[0],
+                    reverse_reads = strand_support[1],
+                    sv = sv,
+                    sv_len = varlen,
+                )
+
+                tmp_var.filter = filter_variant(tmp_var,filter_params)
+                if tmp_var.filter=="hard_fail":
+                    continue
+                
 
                 for ann in ann_list:
                     ann[3] = ann[3].replace("gene:","")
@@ -229,27 +258,35 @@ class Vcf:
                         if int(r.group(1))>max_promoter_length:
                             continue
 
-                    tmp = {
-                        "gene_name":ann[3],
-                        "gene_id":ann[4],
-                        "feature_id":ann[6],
-                        "type":ann[1],
-                        "nucleotide_change":ann[9],
-                        "protein_change":ann[10],
-                    }
-                    tmp_var["consequences"].append(tmp)
-                genes_in_csq = set([x['gene_id'] for x in tmp_var['consequences']])
-                for gene in genes_in_csq:
-                    tmp_var['consequences'].append({
-                        "gene_name":gene,
-                        "gene_id":gene,
-                        "feature_id":None,
-                        "type":"genomic_change",
-                        "nucleotide_change":f'{chrom}:g.{pos}{ref}>{alt}',
-                        "protein_change":None,
-                    })
+                    tmp_var.consequences.append(
+                        Consequence(
+                            gene_name = ann[3],
+                            gene_id = ann[4],
+                            feature_id = ann[6],
+                            type = ann[1],
+                            nucleotide_change = ann[9],
+                            protein_change = ann[10]
+                        )
+                    )
+
+                # genes_in_csq = set([x.gene_id for x in tmp_var.consequences])
+                # for gene in genes_in_csq:
+                #     tmp_var.consequences.append(
+                #         Consequence(
+                #             gene_name = None,
+                #             gene_id = gene,
+                #             feature_id = None,
+                #             type = "genomic_change",
+                #             nucleotide_change = f'{chrom}:g.{pos}{ref}>{alt}',
+                #             protein_change = None
+                #         )
+                #     )
+                
+                
+                if len(tmp_var.consequences)==0:
+                    continue
                 variants.append(tmp_var)
-        variants = uniqify_dict_list(variants)            
+        # variants = uniqify_dict_list(variants)            
         return variants
 
 
@@ -307,6 +344,13 @@ class Vcf:
             if x in lines:
                 found_annotations.append(x)
         return found_annotations
+    
+    def get_vcf_qc(self):
+        for l in cmd_out(f'bcftools stats {self.filename}'):
+            row = l.strip().split("\t")
+            if row[0]=='SN' and 'number of records' in l:
+                num_variants = int(l.split("\t")[3].strip())
+        return VcfQC(total_variants=num_variants)
 
 class DellyVcf(Vcf):
     def __init__(self,filename):
@@ -330,3 +374,78 @@ def uniqify_dict_list(data):
             s.append(t)
     
     return [json.loads(d) for d in s]
+
+
+def var_qc_test(var: Variant,min_depth: int,min_af: float,strand_support: int) -> bool:
+    """Test if a variant passes QC"""
+    fail = False
+    if min_depth!=None and var.depth<min_depth:
+        fail = True
+    if min_af!=None and var.freq<min_af:
+        fail = True
+    if strand_support!=None and var.forward_reads!=None and var.forward_reads<strand_support:
+        fail = True
+    if strand_support!=None and var.reverse_reads!=None and var.reverse_reads<strand_support:
+        fail = True
+    return fail
+
+def sv_var_qc_test(var: Variant,min_depth: int,min_af: float, sv_len: int) -> bool:
+    
+    fail = False
+    if min_depth!=None and var.depth<min_depth:
+        fail = True
+    if min_af!=None and var.freq<min_af:
+        fail = True
+    if sv_len!=None and var.sv_len>sv_len:
+        fail = True
+    return fail
+
+def filter_variant(var,filter_params):
+    """
+    Filter a variant based on the filter parameters
+    
+    Parameters
+    ----------
+    var : Variant
+        The variant to filter
+    filter_params : dict
+        The filter parameters
+    
+    Returns
+    -------
+    str
+        The QC status of the variant
+    
+    Examples
+    --------
+    >>> from pathogenprofiler import Variant, generate_example_variant
+    >>> filter_params = {
+    ...     "depth_hard":5,
+    ...     "depth_soft":10,
+    ...     "af_hard":0,
+    ...     "af_soft":0.1,
+    ...     "strand_hard":0,
+    ...     "strand_soft":3
+    ... }
+    >>> var = generate_example_variant(forward_reads=1,reverse_reads=1)
+    >>> filter_variant(var,filter_params)
+    'hard_fail'
+    >>> var = generate_example_variant(forward_reads=3,reverse_reads=3)
+    >>> filter_variant(var,filter_params)
+    'soft_fail'
+    >>> var = generate_example_variant(forward_reads=10,reverse_reads=10)
+    >>> filter_variant(var,filter_params)
+    'pass'
+    """
+    qc = "pass"
+    if var.sv==True:
+        if sv_var_qc_test(var,filter_params["sv_depth_hard"],filter_params["sv_af_hard"],filter_params["sv_len_hard"]):
+            qc = "hard_fail"
+        elif sv_var_qc_test(var,filter_params["sv_depth_soft"],filter_params["sv_af_soft"],filter_params["sv_len_soft"]):
+            qc = "soft_fail"
+    else:
+        if var_qc_test(var,filter_params["depth_hard"],filter_params["af_hard"],filter_params["strand_hard"]):
+            qc = "hard_fail"
+        elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
+            qc = "soft_fail"
+    return qc

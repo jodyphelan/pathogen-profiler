@@ -1,111 +1,74 @@
-from .utils import run_cmd
+from .utils import run_cmd, bed2gene_lookup
 from .bam import Bam
-from .barcode import barcode, db_compare
+from .barcode import barcode
+from .mutation_db import db_compare
+from .models import BarcodeResult, DrVariant, Variant, Gene, DrGene
 from .vcf import Vcf,DellyVcf
 from .fasta import Fasta
 import statistics as stats
 import os
 import logging
+from .models import Variant
+from typing import List, Union
+import argparse
+from .rules import apply_rules
 
+def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
+    conf = args.conf
+    bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
+    barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)        
+    barcode_assignment = barcode(barcode_mutations,conf["barcode"])
+    return barcode_assignment
 
+def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
+    conf = args.conf
+    vcf = Vcf(args.vcf)
+    barcode_mutations = vcf.get_bed_gt(conf["barcode"],conf["ref"])        
+    barcode_assignment = barcode(barcode_mutations,conf["barcode"])
+    return barcode_assignment
 
-def bam_profiler(conf, bam_file, prefix, platform, caller, threads=1, no_flagstat=False, run_delly=True, calling_params=None, delly_vcf_file=None, samclip=False, variant_annotations = False, call_wg=False,coverage_tool="samtools"):
+def bam_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
     logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
-
-    ### Put user specified arguments to lower case ###
-    platform = platform.lower()
-    caller = caller.lower()
-
-    ### Set caller to freebayes if platform is nanopre and wrong caller has been used ###
-    if platform in ("nanopore","pacbio"):
-        run_delly = False
-        if caller=="gatk":
-            caller = "freebayes"
-
+    conf = args.conf
     ### Create bam object and call variants ###
-    bam = Bam(bam_file, prefix, platform=platform, threads=threads)
-    if call_wg:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], threads=threads, calling_params=calling_params, samclip = samclip)
+    bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
+    if args.call_whole_genome:
+        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
         vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=threads, calling_params=calling_params, samclip = samclip)
-    if variant_annotations:
-        vcf_obj = vcf_obj.add_annotations(conf["ref"],bam.bam_file)
-    else:
-        ann_vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
-
-
-    results = {}
-    
-    ### Get % and num reads mapping ###
-
-    results['qc'] = {}
-    if not no_flagstat:
-        bam.calculate_bamstats()
-        results['qc']['pct_reads_mapped'] = bam.pct_reads_mapped
-        results['qc']['num_reads_mapped'] = bam.mapped_reads
-        results['qc']['region_qc'] = bam.get_region_qc(bed_file=conf['bed'],cutoff=conf['variant_filters']['depth_soft'])
-        results['qc']['region_median_depth'] = stats.median([x['median_depth'] for x in results['qc']['region_qc']])
-        results["qc"]["missing_positions"] = bam.get_missing_genomic_positions(cutoff=conf['variant_filters']['depth_soft'])
-        if 'amplicon' not in conf or conf['amplicon']==False:
-            results['qc']['genome_median_depth'] = bam.get_median_depth(ref_file=conf['ref'],software=coverage_tool)
-        
-    results["variants"]  = ann
-
-    if "barcode" in conf:
-        if platform in ("nanopore","pacbio"):
-            mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller="bcftools",platform=platform)
-        else:
-            mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=platform)
-
-            
-        results["barcode"] = barcode(mutations,conf["barcode"])
-    
+        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
 
     ### Run delly if specified ###
-    if run_delly:
-        if delly_vcf_file:
-            delly_vcf_obj = Vcf(delly_vcf_file)
-        else:
-            delly_vcf_obj = bam.run_delly(conf['bed'])
+    if not args.no_delly:
+        final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
+        delly_vcf_obj = bam.run_delly(conf['bed'])
         if delly_vcf_obj is not None:
-            results["delly"] = "success"
-            # delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
-            ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
-            results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"] ))
+            run_cmd("bcftools index %s" % delly_vcf_obj.filename)
+            run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
         else:
-            results["delly"] = "fail"
+            run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+    else:
+        run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+    
+            
 
-    ### Compare variants to database ###
-    results = db_compare(db=conf["json_db"], mutations=results)
-    return results
 
+    ### Annotate variants ###
+    annoted_variants = vcf_variant_profiler(conf, args.files_prefix, final_target_vcf_file)
+    return annoted_variants
+    
+    
 
-def fasta_profiler(conf, prefix, filename):
-    fasta = Fasta(filename)
-    wg_vcf_file = fasta.get_ref_variants(conf["ref"], prefix)
-    wg_vcf_obj = Vcf(wg_vcf_file)
-    vcf_file = prefix+".targets.vcf.gz"
-    run_cmd("bcftools view -c 1 %s -Oz -o %s -T %s" % (wg_vcf_file,vcf_file,conf['bed']))
-    vcf_obj = Vcf(vcf_file)
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
+# def fasta_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
+#     conf = args.conf
+#     fasta = Fasta(args.fasta)
+#     wg_vcf_file = fasta.get_ref_variants(conf["ref"], args.prefix)
+#     quit()
+#     annotated_vaiants = vcf_variant_profiler(conf, args.files_prefix, wg_vcf_file)
 
-    results = {
-        "variants":ann,
-        "qc":{
-            "gene_coverage":fasta.get_aln_coverage(conf['bed']),
-            "num_reads_mapped":"NA"}
-    }
+#     return annotated_vaiants    
 
-    if "barcode" in conf:
-        mutations = wg_vcf_obj.get_bed_gt(conf["barcode"], conf["ref"])
-        results["barcode"] = barcode(mutations,conf["barcode"])
-    results = db_compare(db=conf["json_db"], mutations=results)
-    return results
-
-def vcf_is_indexed(vcf_file):
+def vcf_is_indexed(vcf_file: str) -> bool:
     if os.path.exists(vcf_file+".tbi"):
         return True
     elif os.path.exists(vcf_file+".csi"):
@@ -113,26 +76,50 @@ def vcf_is_indexed(vcf_file):
     else:
         return False
 
-def vcf_profiler(conf, prefix, sample_name, vcf_file,delly_vcf_file):
-    vcf_targets_file = "%s.targets.vcf.gz" % prefix
+def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
+    conf = args.conf
+    vcf_targets_file = "%s.targets.vcf.gz" % args.files_prefix
+    if not vcf_is_indexed(args.vcf):
+        run_cmd("bcftools index %s" % args.vcf)
+    # run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],args.vcf,vcf_targets_file))
+    annotated_variants = vcf_variant_profiler(conf, args.files_prefix, args.vcf)
+    return annotated_variants
+    
+ 
+    
+
+
+
+def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str) -> List[Union[Variant,Gene]]:
+    vcf_targets_file = "%s.targets_for_profile.vcf.gz" % prefix
     if not vcf_is_indexed(vcf_file):
         run_cmd("bcftools index %s" % vcf_file)
     run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = Vcf(vcf_targets_file)
     vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
-    ann = vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
-    results = {"variants":[],"missing_pos":[],"qc":{"pct_reads_mapped":"NA","num_reads_mapped":"NA"}}
-    results["variants"]  = ann
+    variants = vcf_obj.load_ann(conf['variant_filters'],bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
-    if delly_vcf_file:
-        delly_vcf_obj = DellyVcf(delly_vcf_file)
-        # delly_vcf_obj = delly_vcf_obj.get_robust_calls(prefix,conf["bed"])
-        ann_vcf_obj = delly_vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),split_indels=False)
-        results["variants"].extend(ann_vcf_obj.load_ann(bed_file=conf["bed"],keep_variant_types=["ablation"]))
- 
-    if "barcode" in conf:
-        mutations = Vcf(vcf_file).get_bed_gt(conf["barcode"], conf["ref"])
-        results["barcode"] = barcode(mutations,conf["barcode"])
-    results = db_compare(db=conf["json_db"], mutations=results)
+    # compare against database of variants
+    annotated_variants = db_compare(db=conf["json_db"], variants=variants)
+    
+    
 
-    return results
+    # set the default consequence
+    for obj in annotated_variants:
+        # check if it is a variant or a gene class
+        if isinstance(obj, Variant):
+            obj.set_default_csq()
+
+    # Add gene names based on the bed file
+    gene_id2name = bed2gene_lookup(conf["bed"])
+    for obj in annotated_variants:
+        obj.set_gene_name(gene_id2name)
+    
+    # if 'rules' in conf:
+    #     rules_applied = apply_rules(conf['rules'], annotated_variants)
+
+    # # Convert variant objects to DrVariant if they cause resistance
+    # for var in annotated_variants:
+    #     var.convert_to_dr_element()
+
+    return annotated_variants
