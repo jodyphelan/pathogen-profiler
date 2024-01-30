@@ -1,6 +1,12 @@
 #! /usr/bin/env python3
 import pysam
 from collections import defaultdict
+import argparse
+
+parser = argparse.ArgumentParser(description='Fix lofreq vcf',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--sample',help='Sample name',required=True)
+args = parser.parse_args()
+
 
 variants = defaultdict(list)
 input_vcf = pysam.VariantFile("-")
@@ -28,7 +34,7 @@ if len(new_header.samples)==0:
 		new_header.add_meta('INFO',items=tag.items())
 	for tag in format_tags:
 		new_header.add_meta('FORMAT',items=tag.items())
-	new_header.add_sample('sample')
+	new_header.add_sample(args.sample)
 output_vcf = pysam.VariantFile("-", 'w', header=new_header)
 for vars in variants.values():
 	if "SAF" in vars[0].info:

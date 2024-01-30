@@ -8,4 +8,6 @@ from .db import *
 from .drug_resistance import *
 from .barcode import *
 from .cli import *
+from .rules import *
+from .models import *
 __version__ = "3.1.1"

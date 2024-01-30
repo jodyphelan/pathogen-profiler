@@ -95,14 +95,14 @@ def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfi
                     genome_start = gene_info[gene].start - padding
                 
                 if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
-                    genome_end = max(genome_positions) + padding
+                    genome_end = max(genome_positions) #+ padding
                 else:
-                    genome_end = gene_info[gene].end + padding
+                    genome_end = gene_info[gene].end #+ padding
             else:
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
-                    genome_start = min(genome_positions) - padding
+                    genome_start = min(genome_positions) #- padding
                 else:
-                    genome_start = gene_info[gene].end - padding
+                    genome_start = gene_info[gene].end #- padding
                 
                 if len(genome_positions)>0 and (gene_info[gene].feature_end < max(genome_positions)):
                     genome_end = max(genome_positions) + padding
@@ -422,7 +422,7 @@ def create_db(args,extra_files = None):
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                annotation_info = {x.split('=')[0]:x.split('=')[1] for x in row["Info"].split(';')}
+                annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
                 if mut!=row["Mutation"]:
                     L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
@@ -436,44 +436,18 @@ def create_db(args,extra_files = None):
                     db[locus_tag][mut] = {"annotations":[]}
 
                 tmp_annotation = annotation_info
-                # annotation_columns = set(row.keys()) - set(["Gene","Mutation"])
-                # for col in annotation_columns:
-                #     if row[col]=="":continue
-                #     tmp_annotation[col.lower()] = row[col]
+
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
                 db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
                 db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
-        # if args.other_annotations:
-        #     hgvs_variants = [r for r in csv.DictReader(open(args.other_annotations))]
-        #     mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
-        #     for row in csv.DictReader(open(args.other_annotations)):
-        #         locus_tag = gene_name2gene_id[row["Gene"]]
-        #         mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
-        #         if mut!=row["Mutation"]:
-        #             L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
-        #         if locus_tag not in db:
-        #             db[locus_tag] = {}
-        #         if mut not in db[locus_tag]:
-        #             db[locus_tag][mut] = {"annotations":[]}
-        #         tmp_annotation = {"type":row["Type"]}
-        #         if args.include_original_mutation:
-        #             tmp_annotation["original_mutation"] = row["Mutation"]
+        
 
-
-        #         for x in row["Info"].split(";"):
-        #             key,val = x.split("=")
-        #             tmp_annotation[key.lower()] = val
-        #             if key=="drug":
-        #                 locus_tag_to_ann_dict[locus_tag].add(val)
-        #         db[locus_tag][mut]["annotations"].append(tmp_annotation)
-        #         db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut)
-        #         db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
 
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                for x in row["Info"].split(";"):
-                    key,val = x.split("=")
+                for key,val in row.items():
+                    if key=="Gene": continue
                     tmp_annotation[key.lower()] = val
                     if key=="drug":
                         locus_tag_to_ann_dict[locus_tag].add(val)
@@ -596,6 +570,8 @@ def get_db(software_name,db_name):
         logging.info(f"Using {key} file: {share_path}/{val}")
         if ".json" in val:
             variables[key] = json.load(open(f"{share_path}/{val}"))
+        elif key=='rules':
+            variables[key] = [l.strip() for l in open(f'{share_path}/{val}')]
         else:
             variables[key] = f"{share_path}/{val}"
     
@@ -606,7 +582,7 @@ def list_db(software_name):
     share_path = f"{sys.base_prefix}/share/{software_name}"
     if not os.path.isdir(share_path):
         return []
-    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".version.json")]
+    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".variables.json")]
 
 
 

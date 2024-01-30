@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import List
+from typing import List, Union
+from .models import DrVariant, DrGene
 
 def get_lt2drugs(bed_file):
     lt2drugs = {}
@@ -34,6 +35,26 @@ def get_drugs2gene(bed_file):
 def get_drug_list(bed_file):
     tmp = get_drugs2lt(bed_file)
     return set(tmp.keys())
+
+def get_dr_summary(
+    elements: List[Union[DrVariant,DrGene]],
+    conf: dict
+) -> List[dict]:
+    drug_elements = {d:[] for d in conf['drugs']}
+    for d in elements:
+        for drug in d.get_drugs():
+            drug_elements[drug].append(d)
+
+    drug_table = []
+    for d in conf['drugs']:
+        drug_elements[d] = sorted(drug_elements[d])
+        drug_table.append({
+            "Drug":d.capitalize(),
+            "Genotypic Resistance":"R" if len(drug_elements[d])>0 else "",
+            "Mechanisms":", ".join([x.get_str() for x in drug_elements[d]]) if len(drug_elements[d])>0 else ""
+        })
+    return drug_table
+            
 
 def get_summary(json_results,conf,columns = None):
     if not columns:
