@@ -185,12 +185,10 @@ def apply_rules(rules: List[str], genetic_objects: List[dict]) -> List[str]:
     >>> data[1].annotation[0]['type']=='inactivated_drug_resistance'
     True
     """
-    print(genetic_objects)
     rules_applied = []
     for rule in rules:
         logging.debug("Applying rule: %s" % rule)
         parsed_query = parse_flexible_dsl(rule)
-        print(parsed_query)
         if parsed_query:
             action_executed = execute_inactivates_resistance_flexible(
                 genetic_objects,
@@ -198,7 +196,7 @@ def apply_rules(rules: List[str], genetic_objects: List[dict]) -> List[str]:
                 parsed_query['target_query']
             )
             if not action_executed:
-                logging.warning("Rule not applied: %s" % rule)
+                pass
             else:
                 rules_applied.append(rule)
 
