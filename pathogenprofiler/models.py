@@ -281,7 +281,7 @@ class Variant(BaseModel):
                 csq = annotated_csq[0]
 
         vars(self).update(vars(csq))
-        protein_csqs = ["missense_variant","stop_gained"]
+        protein_csqs = ["missense_variant","stop_gained","start_lost"]
         self.change = self.protein_change if self.type in protein_csqs else self.nucleotide_change    
     
     def set_gene_name(self, gene_names: dict) -> None:
