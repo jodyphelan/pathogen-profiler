@@ -67,7 +67,7 @@ class MutationDB:
         """Apply loss of function annotation to a variant"""
         for csq in var.consequences:
             for annotation in csq.annotation:
-                if annotation['type']=='loss_of_function':
+                if annotation['type']=='loss_of_function_variant':
                     csq.type = annotation['so_term']        
             
 
@@ -102,7 +102,7 @@ class MutationDB:
             for var in variants:
                 for csq in var.consequences:
                     if csq.gene_id==gene:
-                        if csq.type in ('loss_of_function','stop_gained','frameshift_variant','feature_ablation','transcript_ablation'):
+                        if csq.type in ('loss_of_function_variant','stop_gained','frameshift_variant','feature_ablation','transcript_ablation'):
                             intact = False
             if intact:
                 genes_to_return.append(gene)
