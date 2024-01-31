@@ -785,8 +785,8 @@ class SpeciesPrediction(BaseModel):
 
     """
     prediction_method: str
-    species: List[Species] = Field(default_factory=list)
-    species_db: dict = None
+    species: List[Species] = []
+    species_db: dict = {}
 
     def get_species_str(self):
         """
