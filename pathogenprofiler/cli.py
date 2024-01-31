@@ -300,7 +300,7 @@ def get_sourmash_hit(args):
 
 
 
-def set_species(args: argparse.Namespace) -> None:
+def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     """
     Get a SpeciesPrediction object based on the input arguments
     
@@ -338,7 +338,7 @@ def set_species(args: argparse.Namespace) -> None:
         
 
 
-def get_sourmash_species_prediction(args: argparse.Namespace) -> None:
+def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     """
     Get a SpeciesPrediction object based on prediction using sourmash
 
