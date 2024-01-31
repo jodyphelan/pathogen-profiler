@@ -422,7 +422,9 @@ def create_db(args,extra_files = None):
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
+                # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
+                # data looks like this: type=drug_resistance;drug=macrolides;literature=10.1038/s41467-021-25484-9
+                annotation_info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
                 if mut!=row["Mutation"]:
                     L.write(f"Converted {row['Gene']} {row['Mutation']} to {mut}\n")
@@ -446,11 +448,8 @@ def create_db(args,extra_files = None):
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                for key,val in row.items():
-                    if key=="Gene": continue
-                    tmp_annotation[key.lower()] = val
-                    if key=="drug":
-                        locus_tag_to_ann_dict[locus_tag].add(val)
+                info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
+                locus_tag_to_ann_dict[locus_tag].add(info['drug'])
 
 
         version = {"name":args.prefix}
