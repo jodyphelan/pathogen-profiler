@@ -88,7 +88,7 @@ class Vcf:
 
     def view_regions(self,bed_file):
         self.bed_file = bed_file
-        self.newfile = "%(prefix)s.targets.vcf.gz" % vars(self)
+        self.newfile = "%(prefix)s.region_subset.vcf.gz" % vars(self)
         run_cmd("bcftools view -R %(bed_file)s %(filename)s -Oz -o %(newfile)s" % vars(self))
         return Vcf(self.newfile)
 
