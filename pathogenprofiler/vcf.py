@@ -8,8 +8,8 @@ import sys
 import os.path
 import json
 import pysam
-from .models import Variant,Consequence, VcfQC
-from typing import Optional, List, Tuple
+from .models import Variant,Consequence, VcfQC, GenomePosition
+from typing import Optional, List, Tuple, Dict
 
 # def get_stand_support(var,alt,caller):
 #     alt_index = list(var.alts).index(alt)
@@ -299,22 +299,24 @@ class Vcf:
         return Vcf(self.new_file,self.prefix)
 
 
-    def get_positions(self):
+    def get_positions(self) -> List[GenomePosition]:
         results = []
         for l in cmd_out("bcftools query -f '%%CHROM\\t%%POS\\n' %s" % self.filename):
             row = l.split()
-            results.append((row[0],int(row[1])))
+            results.append(GenomePosition(chrom=row[0],posposition=int(row[1])))
         return results
 
-    def get_bed_gt(self,bed_file,ref_file):
-        add_arguments_to_self(self,locals())
-        cmd = "bcftools convert --gvcf2vcf -f %(ref_file)s %(filename)s  | bcftools view -T %(bed_file)s  | bcftools query -u -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
-        results = defaultdict(lambda : defaultdict(dict))
+    def get_bed_gt(self,bed_file: str,ref_file: str) -> Dict[GenomePosition,Dict[str,int]]:
+        self.bed_file = bed_file
+        self.ref_file = ref_file
+        cmd = f"bcftools view -T {bed_file}  {self.filename}" + r" | bcftools query -u -f '%CHROM\t%POS\t%REF\t%ALT[\t%GT\t%AD]\n'"
+        results = defaultdict(dict)
         ref_seq = Fasta(ref_file).fa_dict
         for l in cmd_out(cmd):
+            print(l)
             #Chromosome    4348079    0/0    51
             chrom,pos,ref,alt,gt,ad = l.rstrip().split()
-            pos =int(pos)
+            p = GenomePosition(chrom=chrom,pos=int(pos))
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")] if ad!="." else [0,100]
@@ -325,12 +327,12 @@ class Vcf:
             else:
                 for i,a in enumerate([ref]+alts):
                     d[a] = ad[i]
-            results[chrom][pos] = d
-        bed = load_bed(bed_file,[1,3,5],1,3)
-        for chrom in bed:
-            for pos in bed[chrom]:
-                if int(pos) not in results[chrom]:
-                    results[chrom][int(pos)] = {ref_seq[chrom][pos-1]:50}
+            results[p] = d
+        bed = load_bed(bed_file)
+        for r in bed:
+            p = GenomePosition(chrom=r.chrom,pos=r.end)
+            if p not in results:
+                results[p] = {ref_seq[p.chrom][p.pos-1]:50}
         return results
 
     def get_gatk_annotations(self):

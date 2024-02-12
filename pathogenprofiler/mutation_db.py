@@ -1,6 +1,6 @@
 from typing import List, Union, Set
 import json
-from .models import Variant, Gene, GenomicPosition
+from .models import Variant, Gene, GenomePositionDepth
 from copy import deepcopy
 from collections import defaultdict
 import re
@@ -109,12 +109,6 @@ class MutationDB:
         
         gene_objects = []
         for gene in genes_to_return:
-            # gene_objects.append({
-            #     "class":"gene", 
-            #     "gene_id":gene,
-            #     "annotation":self.db[(gene,'functionally_normal')]['annotations'],
-            #     "type":"functionally_normal"
-            # })
             gene_objects.append(Gene(
                 gene_id=gene,
                 annotation=self.db[(gene,'functionally_normal')]['annotations'],
@@ -146,7 +140,7 @@ class MutationDB:
                     if len(positions.intersection(affected_positions))>0:
                         return self.db[(csq.gene_id,var)]
                     
-    def annotate_missing_positions(self, positions: List[GenomicPosition]) -> None:
+    def annotate_missing_positions(self, positions: List[GenomePositionDepth]) -> None:
         """
         Annotate missing positions with data from the database
         
@@ -162,8 +156,8 @@ class MutationDB:
         """
         annotated_positions = []
         for pos in positions:
-            if (pos.chromosome,pos.position) in self.genome_pos2annotation:
-                pos.annotation = self.genome_pos2annotation[(pos.chromosome,pos.position)]
+            if (pos.chrom,pos.pos) in self.genome_pos2annotation:
+                pos.annotation = self.genome_pos2annotation[(pos.chrom,pos.pos)]
         return annotated_positions
 
 def extract_affected_positions(change: str) -> Set[int]:

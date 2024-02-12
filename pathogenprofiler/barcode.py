@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 import logging
 from typing import List
-from .models import BarcodeResult
+from .models import GenomePosition, BarcodeResult
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -33,12 +33,12 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
     snps_report = []
     for marker in bed:
         tmp = [0,0]
-        chrom,pos = marker[0],int(marker[2])
-        if chrom in mutations and pos in mutations[chrom]:
+        p = GenomePosition(chrom=marker[0],pos=int(marker[2]))
+        if p in mutations:
             for n in iupac(marker[4]):
-                if n in mutations[chrom][pos]:
-                    tmp[1]+= mutations[chrom][pos][n]
-            tmp[0] = sum(list(mutations[chrom][pos].values())) - tmp[1]
+                if n in mutations[p]:
+                    tmp[1]+= mutations[p][n]
+            tmp[0] = sum(list(mutations[p].values())) - tmp[1]
 
         if  tmp==[0,0]: continue
         barcode_support[marker[3]].append(tmp)

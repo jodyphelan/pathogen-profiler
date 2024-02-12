@@ -1,6 +1,5 @@
 import sys
 import os.path
-import subprocess
 from collections import defaultdict
 import random
 import math
@@ -11,11 +10,11 @@ import subprocess as sp
 from uuid import uuid4
 import logging 
 import pysam
-from typing import List, NewType
+from typing import List, Dict
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from glob import glob
-from pydantic import BaseModel
+from .models import GenomeRange
 
 tmp_prefix = str(uuid4())
 
@@ -103,7 +102,7 @@ def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
                 chunk_end = genome.get_reference_length(chrom)
             chunks.append([chrom,chunk_start,chunk_end])
             chunk_start = chunk_end
-    regions = [Region("{r[0]}:{r[1]+1}-{r[2]}") for r in chunks]
+    regions = [Region(f"{r[0]}:{r[1]+1}-{r[2]}") for r in chunks]
     return regions
 
 def load_bed_regions(bed_file: str) -> List[Region]:
@@ -504,32 +503,23 @@ def cmd_out(cmd: str) -> str:
         yield line.strip()
     os.remove(filename)
 
-def _cmd_out(cmd,verbose=1):
-    cmd = "set -u pipefail; " + cmd
-    if verbose==2:
-        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
-        stderr = open("/dev/stderr","w")
-    elif verbose==1:
-        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
-        stderr = open("/dev/null","w")
-    else:
-        stderr = open("/dev/null","w")
-    try:
-        res = subprocess.Popen(cmd,shell=True,stderr = stderr,stdout=subprocess.PIPE)
-        for l in res.stdout:
-            yield l.decode().rstrip()
-    except:
-        logging.error("Command Failed! Please Check!")
-        raise Exception
-    stderr.close()
+
 
 def log(msg,ext=False):
     sys.stderr.write("\n"+str(msg)+"\n")
     if ext:
         exit(1)
 
+def load_bed(filename: str) -> Dict[GenomeRange, List[str]]:
+    data = {}
+    for l in open(filename):
+        row = l.rstrip().split('\t')
+        r = GenomeRange(chrom=row[0],start=int(row[1]),end=int(row[2]))
+        data[r] = row
+    return data
+        
 
-def load_bed(filename,columns,key1,key2=None,intasint=False):
+def _load_bed(filename: str,columns,key1,key2=None,intasint=False):
     results = defaultdict(lambda: defaultdict(tuple))
     for l in open(filename):
         row = l.rstrip().split("\t")
