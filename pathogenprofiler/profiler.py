@@ -11,7 +11,6 @@ import logging
 from .models import Variant
 from typing import List, Union
 import argparse
-from .rules import apply_rules
 
 def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf
@@ -59,14 +58,6 @@ def bam_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
     
     
 
-# def fasta_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
-#     conf = args.conf
-#     fasta = Fasta(args.fasta)
-#     wg_vcf_file = fasta.get_ref_variants(conf["ref"], args.prefix)
-#     quit()
-#     annotated_vaiants = vcf_variant_profiler(conf, args.files_prefix, wg_vcf_file)
-
-#     return annotated_vaiants    
 
 def vcf_is_indexed(vcf_file: str) -> bool:
     if os.path.exists(vcf_file+".tbi"):

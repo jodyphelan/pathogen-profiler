@@ -87,7 +87,7 @@ class Bam:
         return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
 
                 
-    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False):
+    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False) -> Vcf:
         """Method to run variant calling"""
         add_arguments_to_self(self, locals())
         filecheck(ref_file)
