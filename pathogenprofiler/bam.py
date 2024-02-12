@@ -10,7 +10,7 @@ import platform
 import statistics as stats
 import logging 
 from pysam import FastaFile
-from .models import BamQC, TargetQC, GenomicPosition
+from .models import BamQC, TargetQC, GenomePositionDepth, GenomePosition
 from typing import List
 
 
@@ -32,7 +32,7 @@ class Bam:
                 for r in row:
                     if r.startswith("SM:"):
                         self.bam_sample_name = r.replace("SM:","")
-    def calculate_bed_depth(self,bed_file: str) -> List[GenomicPosition]:
+    def calculate_bed_depth(self,bed_file: str) -> List[GenomePositionDepth]:
         """
         Calculate depth of BAM file in regions specified by a BED file
         
@@ -43,21 +43,22 @@ class Bam:
         
         Returns
         -------
-        List of GenomicPosition objects
+        List of GenomePositionDepth objects
         """
         logging.info("Calculating depth in regions")
         self.bed_file = bed_file
         position_depth = defaultdict(list)
-        for target,locus in load_bed(self.bed_file,[1,2,3],4).items():
-            for pos in range(int(locus[1]),int(locus[2])):
-                position_depth[(locus[0],pos)] = 0
+        for r, _ in load_bed(self.bed_file).items():
+                for p in r.iter_positions():
+                    position_depth[p] = 0
 
 
         for l in cmd_out("samtools view -Mb -L %(bed_file)s %(bam_file)s | samtools depth - " % vars(self)):
             row = l.strip().split()
-            position_depth[(row[0],int(row[1]))] = int(row[2])
+            p = GenomePosition(chrom=row[0],pos=int(row[1]))
+            position_depth[p] = int(row[2])
 
-        self.position_depth = [GenomicPosition(chromosome=k[0],position=k[1],depth=v) for k,v in position_depth.items()]
+        self.position_depth = [GenomePositionDepth(chrom=p.chrom,pos=p.pos,depth=v) for p,v in position_depth.items()]
         return self.position_depth
 
     def run_delly(self,bed_file: str) -> Vcf:
@@ -217,7 +218,7 @@ class Bam:
             return int(float(row[3]))
 
 
-    def get_bed_gt(self,bed_file,ref_file,caller,platform):
+    def get_bed_gt(self,bed_file: str,ref_file: str,caller: str,platform: str):
         logging.info("Getting genotypes for positions in bed file")
         add_arguments_to_self(self, locals())
         results = defaultdict(lambda : defaultdict(dict))
@@ -237,7 +238,7 @@ class Bam:
         for l in cmd_out(cmd):
             # Chromosome    4348079    0/0    51
             chrom, pos, ref, alt, gt, ad = l.rstrip().split()
-            pos = int(pos)
+            p = GenomePosition(chrom=chrom,pos=int(pos))
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")]
@@ -254,7 +255,7 @@ class Bam:
                 else:
                     for i, a in enumerate(genotypes):
                         d[a] = ad[i]
-            results[chrom][pos] = d
+            results[p] = d
 
         ref_nt = {}
         for l in cmd_out("bedtools getfasta -fi %s -bed %s" % (ref_file,bed_file)):
@@ -263,15 +264,14 @@ class Bam:
                 tmp_chrom = tmp[0]
                 tmp_pos = int(tmp[1].split("-")[1])
             else:
-                ref_nt[(tmp_chrom,tmp_pos)] = l.strip().upper()
+                ref_nt[GenomePosition(chrom=tmp_chrom,pos=tmp_pos)] = l.strip().upper()
 
         for l in cmd_out(f"samtools view -b -L {bed_file} {self.prefix}.tmp.bam | bedtools coverage -a {bed_file} -b - -d -sorted"):
             row = l.strip().split()
-            chrom = row[0]
-            pos = int(row[2])
+            p = GenomePosition(chrom=row[0],pos=int(row[2]))
             cov = int(row[-1])
-            if chrom not in results or pos not in results[chrom]:
-                results[chrom][pos] = {ref_nt[(chrom,pos)]:cov}
+            if p not in results:
+                results[p] = {ref_nt[p]:cov}
 
         os.remove(f"{self.prefix}.tmp.bam")
         os.remove(f"{self.prefix}.tmp.bam.bai")
@@ -314,7 +314,7 @@ class Bam:
         self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
         os.remove(temp_file)
     
-    def get_missing_genomic_positions(self, bed_file:str, cutoff: int=10) -> List[GenomicPosition]:
+    def get_missing_genomic_positions(self, bed_file:str, cutoff: int=10) -> List[GenomePositionDepth]:
         """
         Get all positions overlapping bed file that have a depth below a cutoff
 
@@ -327,7 +327,7 @@ class Bam:
 
         Returns
         -------
-        List of GenomicPosition objects
+        List of GenomePositionDepth objects
         """
 
         logging.info("Getting missing genomic positions")
@@ -341,8 +341,9 @@ class Bam:
         if not hasattr(self,"position_depth"):
             self.calculate_bed_depth(bed_file)
         target_qc = []
-        for target,locus in load_bed(self.bed_file,[1,2,3],4).items():
-            target_depth = [p for p in self.position_depth if p.chromosome==locus[0] and p.position>=int(locus[1]) and p.position<=int(locus[2])]
+        for r, data in load_bed(self.bed_file).items():
+            target = data[4]
+            target_depth = [p for p in self.position_depth if p in r]
             region_len = len(target_depth)
             pos_pass_thresh = len([p for p in target_depth if p.depth>=cutoff])
             target_qc.append(TargetQC(

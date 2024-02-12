@@ -1,4 +1,4 @@
-from typing import Any, List, Union, Optional
+from typing import Any, List, Union, Optional, Generator
 from pydantic import BaseModel, Field
 from statistics import median
 
@@ -531,7 +531,15 @@ class DrGene(Gene):
         """
         return "%s (resistance_gene:%s)" % (self.gene_name,self.type)
 
-class GenomicPosition(BaseModel):
+
+class GenomePosition(BaseModel):
+    chrom: str
+    pos: int
+
+    def __hash__(self) -> int:
+        return (self.chrom, self.pos).__hash__()
+
+class GenomePositionDepth(BaseModel):
     """
     Class storing information about a missing position
     
@@ -548,21 +556,38 @@ class GenomicPosition(BaseModel):
 
     Examples
     --------
-    >>> from pathogenprofiler import GenomicPosition
-    >>> missing_pos = GenomicPosition(
+    >>> from pathogenprofiler import GenomePosition
+    >>> missing_pos = GenomePosition(
     ...    chromosome='Chromosome',
     ...    position=761155,
     ...    depth=1,
     ...    annotation=[{'type':'drug_resistance','drug':'rifampicin'}]
     ... )
     >>> missing_pos
-    GenomicPosition(chromosome='Chromosome', position=761155, depth=1, annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}])
+    GenomePosition(chromosome='Chromosome', position=761155, depth=1, annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}])
     """
-    chromosome: str
-    position: int
+    chrom: str
+    pos: int
     depth: int = None
     annotation: List[dict] = []
 
+class GenomeRange(BaseModel):
+    chrom: str
+    start: int
+    end: int
+
+    def iter_positions(self) -> Generator[GenomePosition,None,None]:
+        for p in range(self.start,self.end):
+            yield GenomePosition(chrom=self.chrom,pos=p)
+
+    def __contains__(self,pos: GenomePosition):
+        if pos.chrom==self.chrom and pos.pos >= self.start and pos.pos <= self.end:
+            return True
+        else:
+            return False
+        
+    def __hash__(self) -> int:
+        return (self.chrom, self.start, self.end).__hash__()
 
 class TargetQC(BaseModel):
     """
@@ -670,7 +695,7 @@ class BamQC(SequenceQC):
 
     Examples
     --------
-    >>> from pathogenprofiler import BamQC, TargetQC, GenomicPosition
+    >>> from pathogenprofiler import BamQC, TargetQC, GenomePosition
     >>> bam_qc = BamQC(
     ...    percent_reads_mapped=100,
     ...    num_reads_mapped=100,
@@ -693,7 +718,7 @@ class BamQC(SequenceQC):
     target_median_depth: float
     genome_median_depth: int
     target_qc: List[TargetQC]
-    missing_positions: List[GenomicPosition] = []
+    missing_positions: List[GenomePositionDepth] = []
 
 
 class VcfQC(SequenceQC):
