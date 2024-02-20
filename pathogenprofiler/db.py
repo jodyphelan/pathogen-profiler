@@ -448,8 +448,10 @@ def create_db(args,extra_files = None):
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
+                if row['Info']=="": continue
                 info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
-                locus_tag_to_ann_dict[locus_tag].add(info['drug'])
+                if "drug" in info:
+                    locus_tag_to_ann_dict[locus_tag].add(info['drug'])
 
 
         version = {"name":args.prefix}
