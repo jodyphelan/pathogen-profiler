@@ -313,7 +313,6 @@ class Vcf:
         results = defaultdict(dict)
         ref_seq = Fasta(ref_file).fa_dict
         for l in cmd_out(cmd):
-            print(l)
             #Chromosome    4348079    0/0    51
             chrom,pos,ref,alt,gt,ad = l.rstrip().split()
             p = GenomePosition(chrom=chrom,pos=int(pos))
