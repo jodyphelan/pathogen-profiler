@@ -448,6 +448,7 @@ def create_db(args,extra_files = None):
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
+                locus_tag_to_ann_dict[locus_tag].add("")
                 if row['Info']=="": continue
                 info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
                 if "drug" in info:
@@ -494,7 +495,13 @@ def create_db(args,extra_files = None):
             write_amplicon_bed(genome_file,genes,db,args.amplicon_primers,bed_file)
             variables['amplicon'] = True
         else:
-            write_bed(db,locus_tag_to_ann_dict,genes,genome_file,bed_file)
+            write_bed(
+                db=db,
+                gene_dict=locus_tag_to_ann_dict,
+                gene_info=genes,
+                ref_file=genome_file,
+                outfile=bed_file
+            )
             variables['amplicon'] = False
         
                 
