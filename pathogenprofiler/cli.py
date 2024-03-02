@@ -3,14 +3,13 @@ from .utils import run_cmd, cmd_out
 from .bam import Bam
 from .db import get_db
 from .fasta import Fasta, Paf
-from .profiler import bam_profiler, vcf_profiler, bam_barcoder, vcf_barcoder
+from .profiler import vcf_profiler, bam_barcoder, vcf_barcoder
 import logging
 from typing import List, Union
 import argparse
 from .models import Variant, DrVariant, Gene, DrGene, SpeciesPrediction, Species, BarcodeResult
 from .mutation_db import MutationDB
 from .vcf import Vcf
-from .rules import apply_rules
 
 def get_variant_filters(args):
     filters = {}
@@ -184,7 +183,7 @@ def run_profiler(args) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
     if args.read1 or args.bam:
         args.bam = get_bam_file(args)
         get_vcf_file(args)
-
+        args.supplementary_bam = args.bam
         
     elif args.fasta:
         get_vcf_file(args)

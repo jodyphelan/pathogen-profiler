@@ -3,11 +3,8 @@ from .bam import Bam
 from .barcode import barcode
 from .mutation_db import db_compare
 from .models import BarcodeResult, DrVariant, Variant, Gene, DrGene
-from .vcf import Vcf,DellyVcf
-from .fasta import Fasta
-import statistics as stats
+from .vcf import Vcf
 import os
-import logging
 from .models import Variant
 from typing import List, Union
 import argparse
@@ -26,35 +23,35 @@ def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     barcode_assignment = barcode(barcode_mutations,conf["barcode"])
     return barcode_assignment
 
-def bam_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
-    logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
-    conf = args.conf
-    ### Create bam object and call variants ###
-    bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
-    if args.call_whole_genome:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
-        vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
-    else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+# def bam_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
+#     logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
+#     conf = args.conf
+#     ### Create bam object and call variants ###
+#     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
+#     if args.call_whole_genome:
+#         wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+#         vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
+#     else:
+#         vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
 
-    ### Run delly if specified ###
-    if not args.no_delly:
-        final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
-        delly_vcf_obj = bam.run_delly(conf['bed'])
-        if delly_vcf_obj is not None:
-            run_cmd("bcftools index %s" % delly_vcf_obj.filename)
-            run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
-        else:
-            run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
-    else:
-        run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+#     ### Run delly if specified ###
+#     if not args.no_delly:
+#         final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
+#         delly_vcf_obj = bam.run_delly(conf['bed'])
+#         if delly_vcf_obj is not None:
+#             run_cmd("bcftools index %s" % delly_vcf_obj.filename)
+#             run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
+#         else:
+#             run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+#     else:
+#         run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
     
             
 
 
-    ### Annotate variants ###
-    annoted_variants = vcf_variant_profiler(conf, args.files_prefix, final_target_vcf_file)
-    return annoted_variants
+#     ### Annotate variants ###
+#     annoted_variants = vcf_variant_profiler(conf, args.files_prefix, final_target_vcf_file, bam_for_phasing=args.bam)
+#     return annoted_variants
     
     
 
@@ -73,7 +70,7 @@ def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
     if not vcf_is_indexed(args.vcf):
         run_cmd("bcftools index %s" % args.vcf)
     # run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],args.vcf,vcf_targets_file))
-    annotated_variants = vcf_variant_profiler(conf, args.files_prefix, args.vcf)
+    annotated_variants = vcf_variant_profiler(conf, args.files_prefix, args.vcf, bam_for_phasing=args.supplementary_bam)
     return annotated_variants
     
  
@@ -81,13 +78,13 @@ def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
 
 
 
-def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str) -> List[Union[Variant,Gene]]:
+def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str, bam_for_phasing: str = None) -> List[Union[Variant,Gene]]:
     vcf_targets_file = "%s.targets_for_profile.vcf.gz" % prefix
     if not vcf_is_indexed(vcf_file):
         run_cmd("bcftools index %s" % vcf_file)
     run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = Vcf(vcf_targets_file)
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None))
+    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms= conf.get("chromosome_conversion",None),bam_for_phasing=bam_for_phasing)
     variants = vcf_obj.load_ann(conf['variant_filters'],bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
     # compare against database of variants
