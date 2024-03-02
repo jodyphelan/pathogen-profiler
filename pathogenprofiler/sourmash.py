@@ -74,8 +74,11 @@ class SourmashSig:
                 "accession": row["name"],
                 "species":species[row["name"]],
                 "ani":round(float(row["match_containment_ani"])*100,2),
-                "abundance":row["average_abund"]
+                "abundance":float(row["average_abund"]),
             })
+            total_abundance = sum([r['abundance'] for r in results])
+            for r in results:
+                r['relative_abundance'] = r['abundance']/total_abundance
         return results[:10]
     
 

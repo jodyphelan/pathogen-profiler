@@ -131,7 +131,7 @@ class Vcf:
         
         return None
 
-    def run_snpeff(self,db,ref_file,gff_file,rename_chroms = None, split_indels=True):
+    def run_snpeff(self,db,ref_file,gff_file,rename_chroms = None, split_indels=True, bam_for_phasing=None):
         logging.info("Running snpEff")
         add_arguments_to_self(self,locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
@@ -147,8 +147,11 @@ class Vcf:
                 self.tmp_file1 = f"{tmp}.1.vcf.gz"
                 self.tmp_file2 = f"{tmp}.2.vcf.gz"
                 self.tmp_file3 = f"{tmp}.3.vcf.gz"
-
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
+                if bam_for_phasing:
+                    self.phasing_bam = f"--bam {bam_for_phasing}"
+                else:
+                    self.phasing_bam = ""
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
                 run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
                 run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
                 run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))

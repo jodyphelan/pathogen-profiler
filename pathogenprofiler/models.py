@@ -538,6 +538,11 @@ class GenomePosition(BaseModel):
 
     def __hash__(self) -> int:
         return (self.chrom, self.pos).__hash__()
+    
+    def __lt__(self, other) -> bool:
+        if self.chrom != other.chrom:
+            raise ValueError(f"Cannot compare positions on different chromosomes: {self.chrom} and {other.chrom}")
+        return self.pos < other.pos
 
 class GenomePositionDepth(BaseModel):
     """
