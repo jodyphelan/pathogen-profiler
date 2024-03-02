@@ -6,6 +6,7 @@ import argparse
 from pathogenprofiler.models import GenomePosition
 from pathogenprofiler.gff import load_gff, Exon
 from itertools import product
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--vcf',type=str,help='')
@@ -102,9 +103,13 @@ other_variants = []
 vcf = pysam.VariantFile(args.vcf) if args.vcf else pysam.VariantFile('-')
 for var in vcf:
     gene,cpos = get_codon_pos(var.chrom,var.pos,exons)
-    coding_variants[(gene,cpos)].append(var)
+    if gene==None:
+        other_variants.append(var)
+    else:
+        coding_variants[(gene,cpos)].append(var)
 
-for key,variants in coding_variants.items():
+for key,variants in tqdm(coding_variants.items()):
+    print(key,variants)
     if len(variants)==1:
         other_variants.append(variants[0])
         continue

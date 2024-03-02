@@ -1,6 +1,5 @@
 import re
 from uuid import uuid4
-from tqdm import tqdm
 from collections import defaultdict
 
 class Gene:
@@ -38,10 +37,8 @@ def load_gff(gff,aslist=False):
     genes = {}
     relationships = {}
     items = {}
-    t = tqdm()
     while True:
         l = GFF.readline().strip()
-        t.update()
         if not l: break
         if l[0]=="#": continue
         if l.strip()=='': continue
@@ -93,18 +90,18 @@ def load_gff(gff,aslist=False):
             relationships[_id] = parent_id
 
     transcript_exons = defaultdict(list)
-    for item in tqdm(items):
+    for item in items:
         if isinstance(items[item],Exon):
             transcript_exons[relationships[item]].append(items[item])
 
-    for item in tqdm(items):
+    for item in items:
         if isinstance(items[item],Transcript):
             exons = transcript_exons[item]
             items[item].exons = sorted(exons,key=lambda x: x.start)
             gene = items[relationships[item]]
             gene.transcripts.append(items[item])
 
-    for item in tqdm(items):
+    for item in items:
         if isinstance(items[item],Gene):
             genes[items[item].gene_id] = items[item]
 
