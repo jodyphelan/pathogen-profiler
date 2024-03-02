@@ -6,7 +6,6 @@ import argparse
 from pathogenprofiler.models import GenomePosition
 from pathogenprofiler.gff import load_gff, Exon
 from itertools import product
-from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--vcf',type=str,help='')
@@ -108,8 +107,7 @@ for var in vcf:
     else:
         coding_variants[(gene,cpos)].append(var)
 
-for key,variants in tqdm(coding_variants.items()):
-    print(key,variants)
+for key,variants in coding_variants.items():
     if len(variants)==1:
         other_variants.append(variants[0])
         continue
