@@ -462,6 +462,9 @@ class Gene(BaseModel):
         """
         return "%s (%s)" % (self.gene_name,self.type)
 
+    def __lt__(self, other) -> bool:
+        return True
+    
 class DrGene(Gene):
     """
     A gene that causes drug resistance
