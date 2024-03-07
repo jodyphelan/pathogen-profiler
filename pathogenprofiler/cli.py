@@ -191,7 +191,7 @@ def run_profiler(args) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
     elif args.vcf:
         if test_vcf_for_lofreq(args.vcf):
             tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
-            run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py | bcftools view -Oz -o {tmp_vcf_file}")
+            run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py --sample {args.prefix} | bcftools view -Oz -o {tmp_vcf_file}")
             args.vcf = tmp_vcf_file
     
     annotated_variants = vcf_profiler(args)
