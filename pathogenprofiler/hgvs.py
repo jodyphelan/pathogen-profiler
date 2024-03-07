@@ -287,7 +287,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
     converted_mutations = {}
     mutations_genome = {}
-    for row in tqdm(hgvs_mutations):
+    for row in tqdm(hgvs_mutations,desc="Parsing mutations"):
         logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])

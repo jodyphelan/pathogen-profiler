@@ -120,7 +120,7 @@ class MutationDB:
 
     def get_gene_variants(self,gene: str) -> List[str]:
         """Get all variants for a gene"""
-        return [v for v,g in self.db if g==gene]
+        return [v for g,v in self.db if g==gene]
     
     def check_for_so_wildcard(self,csq: dict):
         """Check if the variant is in the database with a wildcard SO term"""

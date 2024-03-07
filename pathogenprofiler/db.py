@@ -169,12 +169,18 @@ def write_amplicon_bed(ref_seq,genes,db,primer_file,outfile):
                 drugs = "None"
             O.write(f"{chrom}\t{start}\t{end}\t{locus_tag}\t{gene_name}\t{drugs}\t{amplicon_name}\n")
 
+def so_term_in_mutation(mutation: str) -> bool:
+    for term in supported_so_terms:
+        if term in mutation:
+            return True
+    return False
+
 def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     logging.debug("Converting HGVS to snpEff format")
     genes = load_gff(gff,aslist=True)
     refseq = FastaFile(ref)
     converted_mutations = {}
-    so_term_rows = [r for r in hgvs_variants if r['Mutation'] in supported_so_terms]
+    so_term_rows = [r for r in hgvs_variants if so_term_in_mutation(r['Mutation'])]
     hgvs_variants = [r for r in hgvs_variants if r['Mutation'] not in supported_so_terms]
 
     converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
