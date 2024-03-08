@@ -138,7 +138,8 @@ def get_vcf_from_bam(args: argparse.Namespace):
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if args.call_whole_genome:
         wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
-        vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
+        # TODO optional?
+        # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
         vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
 
