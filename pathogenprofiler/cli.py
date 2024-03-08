@@ -154,7 +154,8 @@ def get_vcf_from_bam(args: argparse.Namespace):
         else:
             run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
     else:
-        run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+        return vcf_obj.filename
+        #run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
     
     return final_target_vcf_file
 
