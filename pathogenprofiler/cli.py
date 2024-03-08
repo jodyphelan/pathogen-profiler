@@ -133,7 +133,6 @@ def process_args(args: argparse.Namespace) -> None:
         args.conf['variant_filters'] = get_variant_filters(args)
 
 def get_vcf_from_bam(args: argparse.Namespace):
-    logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
     conf = args.conf
     ### Create bam object and call variants ###
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
