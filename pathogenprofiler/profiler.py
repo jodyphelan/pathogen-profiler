@@ -23,37 +23,7 @@ def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     barcode_assignment = barcode(barcode_mutations,conf["barcode"])
     return barcode_assignment
 
-# def bam_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
-#     logging.warning("Please ensure that this BAM was made using the same reference as in the database. If you are not sure what reference was used it is best to remap the reads.")
-#     conf = args.conf
-#     ### Create bam object and call variants ###
-#     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
-#     if args.call_whole_genome:
-#         wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
-#         vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
-#     else:
-#         vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
 
-#     ### Run delly if specified ###
-#     if not args.no_delly:
-#         final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
-#         delly_vcf_obj = bam.run_delly(conf['bed'])
-#         if delly_vcf_obj is not None:
-#             run_cmd("bcftools index %s" % delly_vcf_obj.filename)
-#             run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
-#         else:
-#             run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
-#     else:
-#         run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
-    
-            
-
-
-#     ### Annotate variants ###
-#     annoted_variants = vcf_variant_profiler(conf, args.files_prefix, final_target_vcf_file, bam_for_phasing=args.bam)
-#     return annoted_variants
-    
-    
 
 
 def vcf_is_indexed(vcf_file: str) -> bool:
