@@ -645,6 +645,11 @@ class SequenceQC(BaseModel):
         else:
             return float('nan')
 
+class FastqQC(SequenceQC):
+    num_sequences: int
+    num_bases: int
+
+
 class FastaQC(SequenceQC):
     """
     Class storing information about the quality of a fasta file
