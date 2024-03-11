@@ -34,6 +34,10 @@ def get_variant_filters(args):
             exit()
     return filters
 
+def get_fastq_qc(args: argparse.Namespace):
+    fastq = Fastq(args.read1,args.read2)
+    return fastq.get_qc()
+
 def run_bam_qc(args: argparse.Namespace):
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     qc = bam.get_bam_qc(
