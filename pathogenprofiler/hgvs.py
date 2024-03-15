@@ -23,7 +23,8 @@ supported_so_terms = [
     'start_lost', 'stop_gained', 'synonymous_variant', 'start_retained', 'stop_retained_variant', 
     'transcript_variant', 'transcript_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
     '3_prime_UTR_variant', '3_prime_UTR_truncation + exon_loss', '5_prime_UTR_variant', 
-    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal'
+    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal',
+    'conservative_inframe_deletion', 'conservative_inframe_insertion'
 ]
 
 def get_genome_coords(pos: int,gene: Gene, ref: FastaFile) -> int:
@@ -291,6 +292,9 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
         logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])
+
+
+
         # Protein variants - not validated yet
         if r := re.search("p\..+",row["Mutation"]):
             converted_mutations[key] = (row['Gene'],row["Mutation"])

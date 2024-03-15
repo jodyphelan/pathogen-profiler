@@ -32,7 +32,8 @@ supported_so_terms = [
     'start_lost', 'stop_gained', 'synonymous_variant', 'start_retained', 'stop_retained_variant', 
     'transcript_variant', 'transcript_ablation', 'regulatory_region_variant', 'upstream_gene_variant', 
     '3_prime_UTR_variant', '3_prime_UTR_truncation + exon_loss', '5_prime_UTR_variant', 
-    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal'
+    '5_prime_UTR_truncation + exon_loss_variant', 'sequence_feature + exon_loss_variant', 'functionally_normal',
+    'conservative_inframe_deletion', 'conservative_inframe_insertion'
 ]
 
 def generate_kmer_database(kmer_file: str,outfile: str) -> None:
@@ -181,7 +182,7 @@ def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     refseq = FastaFile(ref)
     converted_mutations = {}
     so_term_rows = [r for r in hgvs_variants if so_term_in_mutation(r['Mutation'])]
-    hgvs_variants = [r for r in hgvs_variants if r['Mutation'] not in supported_so_terms]
+    hgvs_variants = [r for r in hgvs_variants if not so_term_in_mutation(r['Mutation'])]
 
     converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
     for row in so_term_rows:
