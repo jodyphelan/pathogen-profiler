@@ -5,6 +5,8 @@ import os
 import platform 
 import logging
 from .sourmash import SourmashSig
+from .models import TargetQC, FastaQC
+from typing import List
 
 
 class Fasta:
@@ -39,25 +41,12 @@ class Fasta:
             counter = counter+len(result[seq])
         self.sum_length = sum_length
         self.fa_dict = result
-    def get_ref_variants(self,refseq,prefix,file_prefix=None):
-        self.refseq = refseq
-        self.prefix = prefix
-        self.file_prefix = file_prefix
-        if self.file_prefix==None:
-            self.file_prefix=prefix
-        if "ref_aln" not in vars(self):
-            self.align_to_ref(refseq,self.file_prefix)
-        run_cmd("cat %(ref_aln)s | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(prefix)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
-        return "%s.vcf.gz" % self.file_prefix
+    
     def align_to_ref(self,refseq,file_prefix):
         self.ref_aln = f"{file_prefix}.paf"
         run_cmd(f"minimap2 {refseq} {self.fa_file} --cs | sort -k6,6 -k8,8n > {self.ref_aln}")
-    def get_aln_coverage(self,bed):
-        results = []
-        for l in cmd_out(f"cut -f6,8,9 {self.ref_aln} | bedtools coverage -a {bed} -b -"):
-            row = l.strip().split()
-            results.append({"gene_id":row[3],"gene_name":row[4],"cutoff":1,"fraction":1-float(row[9])})
-        return results
+        return self.ref_aln
+
     def get_amplicons(self,primer_file):
         bed = []
         for l in cmd_out(f"seqkit amplicon {self.fa_file} -p {primer_file} --bed"):
@@ -91,3 +80,63 @@ class Fasta:
         logging.info("Sketching fasta")
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {self.fa_file}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
+    
+    def get_n50(self):
+        lengths = sorted([len(self.fa_dict[x]) for x in self.fa_dict])
+        total = sum(lengths)
+        half = total/2
+        count = 0
+        for l in lengths:
+            count += l
+            if count>=half:
+                return l
+            
+    def get_fasta_qc(self) -> FastaQC:
+        return FastaQC(
+            num_sequences = len(self.fa_dict),
+            num_bases = sum([len(self.fa_dict[x]) for x in self.fa_dict]),
+            n50 = self.get_n50(),
+            target_qc=[]
+        )
+    
+
+class Paf:
+    def __init__(self,filename: str):
+        self.filename = filename
+
+    def get_target_qc(self,bed_file: str) -> List[TargetQC]:
+        results = []
+        for l in cmd_out(f"cut -f6,8,9 {self.filename} | bedtools coverage -a {bed_file} -b -"):
+            row = l.strip().split()
+            results.append(
+                TargetQC(
+                    target = row[3],
+                    percent_depth_pass=float(row[9]),
+                    median_depth=int(float(row[9])),
+                )
+            )
+        return results
+
+    def get_ref_variants(self,refseq: str,sample_name: str,file_prefix: str) -> str:
+        """
+        Generate a vcf file of variants against a reference sequence from a paf file
+        
+        Arguments
+        ---------
+        refseq : str
+            Reference sequence
+        sample_name : str
+            Sample name
+        file_prefix : str
+            Prefix for output file
+        
+        Returns
+        -------
+        str
+            Filename of vcf file
+        """
+        self.refseq = refseq
+        self.sample_name = sample_name
+        self.file_prefix = file_prefix
+        run_cmd("cat %(filename)s | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(sample_name)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
+        return "%s.vcf.gz" % self.file_prefix

@@ -1,14 +1,13 @@
 from __future__ import division
 from .bam import Bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,revcom
-from uuid import uuid4
-import statistics as stats
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,cmd_out
 import os
-from tqdm import tqdm 
+from collections import defaultdict
 from .kmer import KmerDump
 import platform
 import logging
 from .sourmash import SourmashSig
+from .models import FastqQC
 
 
 class Fastq:
@@ -154,3 +153,20 @@ class Fastq:
         read2 = self.r2 if self.r2 else ""
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {read1} {read2}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
+    
+    def get_qc(self):
+        """Get quality control metrics"""
+        header = None
+        result = defaultdict(int)
+        for l in cmd_out('seqkit stats -T %s' % "\t".join(self.files)):
+            row = l.strip().split()
+            if row[0]=='file': 
+                header = row
+                continue
+            r = dict(zip(header,row))
+            for column in ('num_seqs','sum_len'):
+                result[column] += int(r[column])
+        return FastqQC(
+            num_bases=result['sum_len'],
+            num_sequences=result['num_seqs']
+        )

@@ -3,6 +3,8 @@ import logging
 from .utils import run_cmd
 import csv
 from uuid import uuid4
+import os
+
 
 class SourmashSig:
 
@@ -52,6 +54,8 @@ class SourmashSig:
 
         results = []
         filtered_rows = []
+        if not os.path.exists(outfile):
+            return []
         for row in csv.DictReader(open(outfile)):
             logging.debug(row)
             if intersect_bp and float(row['intersect_bp'])<intersect_bp:
@@ -70,6 +74,11 @@ class SourmashSig:
                 "accession": row["name"],
                 "species":species[row["name"]],
                 "ani":round(float(row["match_containment_ani"])*100,2),
-                "abundance":row["average_abund"]
+                "abundance":float(row["average_abund"]),
             })
+            total_abundance = sum([r['abundance'] for r in results])
+            for r in results:
+                r['relative_abundance'] = r['abundance']/total_abundance
         return results[:10]
+    
+

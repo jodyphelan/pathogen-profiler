@@ -11,7 +11,10 @@ header.add_meta('INFO',items=tag.items())
 
 vcf_out = pysam.VariantFile("-", "w", header=header)
 for var in vcf_in:
+    if var.samples[0]['AD'] == (None,):
+        maaf = 0
+    else:
     # calculate MAF from FMT/AD
-    maaf = max(var.samples[0]['AD'][1:])/sum(var.samples[0]['AD'])
+        maaf = max(var.samples[0]['AD'][1:])/sum(var.samples[0]['AD'])
     var.info['MAAF'] = maaf
     vcf_out.write(var)
