@@ -15,7 +15,7 @@ class DictSet:
         if data:
             for d in data:
                 self.container.add(json.dumps(d))
-    def add(self,data: dict|list) -> None:
+    def add(self,data: Union[dict,list]) -> None:
         if isinstance(data,list):
             for d in data:
                 self.container.add(json.dumps(d))

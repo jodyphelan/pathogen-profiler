@@ -4,7 +4,7 @@ from .utils import revcom
 from itertools import combinations, product
 import os
 import logging
-
+from .models import Species
 
 
 
@@ -39,7 +39,7 @@ class KmerDump:
             os.remove(self.kmer_file)
         return self.kmer_counts
 
-    def get_taxonomic_support(self,kmer_db_file,output_kmer_counts=None):
+    def get_taxonomic_support(self,kmer_db_file,output_kmer_counts=None) -> Species:
         if not hasattr(self, 'kmer_counts'):
             self.load_kmer_counts(kmer_db_file,max_mismatch=0)
         
@@ -57,7 +57,7 @@ class KmerDump:
                 continue
             mean = stats.mean(support)
             std = stats.stdev(support)
-            taxon_support.append({"species":s,"mean":mean,"std":std})
+            taxon_support.append(Species(**{"species":s,"prediction_info":{"mean":mean,"std":std}}))
 
         return taxon_support
 
