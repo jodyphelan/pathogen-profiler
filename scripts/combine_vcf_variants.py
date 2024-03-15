@@ -107,6 +107,14 @@ for var in vcf:
     else:
         coding_variants[(gene,cpos)].append(var)
 
+def has_md_tag(bam):
+    for read in bam.fetch():
+        break
+    if read.has_tag('MD'):
+        return True
+    else:
+        return False
+
 for key,variants in coding_variants.items():
     if len(variants)==1:
         other_variants.append(variants[0])
@@ -117,7 +125,7 @@ for key,variants in coding_variants.items():
         positions.insert(1,GenomePosition(chrom=positions[0].chrom,pos=positions[0].pos+1))
 
     ref_hap = ''.join([ref.fetch(p.chrom,p.pos-1,p.pos) for p in positions])
-    if args.bam:
+    if args.bam and has_md_tag(pysam.AlignmentFile(args.bam)):
         haplotypes_by_strand = get_haplotype_counts(pysam.AlignmentFile(args.bam),positions,bystrand=True)
 
     else:
