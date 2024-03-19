@@ -547,6 +547,15 @@ class GenomePosition(BaseModel):
             raise ValueError(f"Cannot compare positions on different chromosomes: {self.chrom} and {other.chrom}")
         return self.pos < other.pos
 
+class BarcodePosition(BaseModel):
+    id: str
+    chrom: str
+    pos: int
+    target_allele_count: int
+    other_allele_count: int
+    target_allele_percent: float
+
+
 class GenomePositionDepth(BaseModel):
     """
     Class storing information about a missing position
@@ -773,6 +782,7 @@ class BarcodeResult(BaseModel):
     id: str
     frequency: float
     info: list = []
+    support: List[BarcodePosition]
 
 
 
