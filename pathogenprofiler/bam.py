@@ -3,7 +3,6 @@ from .kmer import KmerDump
 from .utils import TempFilePrefix, load_bed_regions, get_genome_chunks, add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, run_cmd_parallel_on_genome, load_bed
 from .vcf import Vcf
 from collections import defaultdict
-import json
 from uuid import uuid4
 import os
 import platform 
