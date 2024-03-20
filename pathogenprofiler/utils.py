@@ -1,7 +1,6 @@
 import sys
 import os.path
 from collections import defaultdict
-import random
 import math
 import re
 import json
@@ -177,22 +176,8 @@ def variable2string(var,quote=False):
         return "%s%s%s" % (q,str(var),q)
 
 def dict_list2text(l,columns = None, mappings = None,sep="\t"):
-    if mappings:
-        headings = list(mappings)
-    elif columns:
-        headings = columns
-    else:
-        headings = list(l[0].keys())
-    rows = []
-    header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
-    for row in l:
-        r = sep.join([variable2string(return_fields(row,x)) for x in headings])
-        rows.append(r)
-    str_rows = "\n".join(rows)
-    out ="%s\n%s" % (header,str_rows)
-    return out.strip()
-
-def dict_list2text(l,columns = None, mappings = None,sep="\t"):
+    if len(l)==0:
+        return ""
     if mappings:
         headings = list(mappings)
     elif columns:
@@ -209,6 +194,8 @@ def dict_list2text(l,columns = None, mappings = None,sep="\t"):
     return out.strip()
 
 def object_list2text(l: list,columns: list = None, mappings: dict = None,sep: str="\t"):
+    if len(l)==0:
+        return ""
     l = [l.dict() for l in l]
     if mappings:
         headings = list(mappings)

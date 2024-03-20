@@ -1,4 +1,4 @@
-from .models import Variant, Consequence
+from .models import Variant
 
 def set_change(var: Variant) -> None:
     """

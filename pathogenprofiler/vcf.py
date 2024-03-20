@@ -1,30 +1,14 @@
-from .utils import TempFilePrefix, run_cmd, cmd_out,add_arguments_to_self,rm_files, index_bcf,tabix, load_bed
+from .utils import TempFilePrefix, run_cmd, cmd_out,add_arguments_to_self, index_bcf,tabix, load_bed
 import logging
 from .fasta import Fasta
 from collections import defaultdict
 import re
-from uuid import uuid4
 import sys
 import os.path
 import json
 import pysam
 from .models import Variant,Consequence, VcfQC, GenomePosition
 from typing import Optional, List, Tuple, Dict
-
-# def get_stand_support(var,alt,caller):
-#     alt_index = list(var.alts).index(alt)
-#     forward_support = None
-#     reverse_support = None
-#     if caller == "freebayes" or caller=="lofreq":
-#         forward_support = var.info['SAF'][alt_index]
-#         reverse_support = var.info['SAR'][alt_index]
-#     elif caller=="bcftools":
-#         forward_support = var.samples[0]['ADF'][alt_index+1]
-#         reverse_support = var.samples[0]['ADR'][alt_index+1]
-#     else:
-#         forward_support = None
-#         reverse_support = None
-#     return forward_support, reverse_support
 
 def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
     alt_index = list(var.alts).index(alt)
