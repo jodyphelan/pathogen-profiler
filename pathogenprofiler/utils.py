@@ -10,13 +10,17 @@ import subprocess as sp
 from uuid import uuid4
 import logging 
 import pysam
-from typing import List, Dict
+from typing import List, Dict, Generator
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from glob import glob
 from .models import GenomeRange
 
+
 tmp_prefix = str(uuid4())
+
+shared_dict = {}
+
 
 class TempFilePrefix(object):
     """Create a temporary file prefix"""
@@ -153,7 +157,7 @@ def return_fields(obj,args,i=0):
     if isinstance(sub_obj,dict):
         return return_fields(sub_obj,args,i+1)
     elif isinstance(sub_obj,list):
-        return [return_fields(x,args,i+1) for x in sub_obj]
+        return list(set([return_fields(x,args,i+1) for x in sub_obj]))
     else:
         return sub_obj
         
@@ -230,33 +234,33 @@ def get_lt2drugs(bed_file):
     return lt2drugs
 
 
-def process_variants(results: dict,conf: dict,annotations: List[str]):
-    variant_containers = {d:[] for d in annotations}
-    variant_containers['other'] = []
-    variant_containers['qc_fail'] = []
-    for var in results['variants']:
-        annotation_containers = {d:[a for a in var.get('annotation',[]) if a['type']==d] for d in annotations}
-        qc  = filter_variant(var,conf["variant_filters"])
-        if qc=="hard_fail":
-            continue
-        elif qc=="soft_fail":
-            variant_containers['qc_fail'].append(var)
-        else:
-            assigned = False
-            for a in annotations:
-                if annotation_containers[a]:
-                    assigned = True
-                    variant_containers[a].append(var)
-            if not assigned:
-                variant_containers['other'].append(var)
+# def process_variants(results: dict,conf: dict,annotations: List[str]):
+#     variant_containers = {d:[] for d in annotations}
+#     variant_containers['other'] = []
+#     variant_containers['qc_fail'] = []
+#     for var in results['variants']:
+#         annotation_containers = {d:[a for a in var.get('annotation',[]) if a['type']==d] for d in annotations}
+#         qc  = filter_variant(var,conf["variant_filters"])
+#         if qc=="hard_fail":
+#             continue
+#         elif qc=="soft_fail":
+#             variant_containers['qc_fail'].append(var)
+#         else:
+#             assigned = False
+#             for a in annotations:
+#                 if annotation_containers[a]:
+#                     assigned = True
+#                     variant_containers[a].append(var)
+#             if not assigned:
+#                 variant_containers['other'].append(var)
             
-    for a in annotations:
-        results[a+"_variants"] = variant_containers[a]
-    results['other_variants'] = variant_containers['other']
-    results['qc_fail_variants'] = variant_containers['qc_fail']
-    del results['variants']
+#     for a in annotations:
+#         results[a+"_variants"] = variant_containers[a]
+#     results['other_variants'] = variant_containers['other']
+#     results['qc_fail_variants'] = variant_containers['qc_fail']
+#     del results['variants']
 
-    return results
+#     return results
 
 
 
@@ -495,7 +499,7 @@ def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
         raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,result.stderr.decode()))
     return result
 
-def cmd_out(cmd: str) -> str:
+def cmd_out(cmd: str) -> Generator[str, None, None]:
     filename = str(uuid4())
     cmd = f"{cmd} > {filename}"
     run_cmd(cmd)
