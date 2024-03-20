@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 import logging
 from typing import List
-from .models import GenomePosition, BarcodeResult
+from .models import GenomePosition, BarcodeResult, BarcodePosition
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -42,7 +42,17 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
 
         if  tmp==[0,0]: continue
         barcode_support[marker[3]].append(tmp)
-        snps_report.append([marker[3],marker[0],marker[2],tmp[1],tmp[0],(tmp[1]/sum(tmp))])
+        snps_report.append(
+            BarcodePosition(
+                id=marker[3],
+                chrom=marker[0],
+                pos = marker[2],
+                target_allele_count=tmp[1],
+                other_allele_count=tmp[0],
+                target_allele_percent=(tmp[1]/sum(tmp))*100
+            )
+        )
+    
         
     return (barcode_support,snps_report)
 
@@ -60,9 +70,8 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
     barcode_support,snps_report = get_barcoding_mutations(mutations,barcode_bed)
 
     # with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
-    with open("snps.dump.txt","w") as O:
-        for tmp in sorted(snps_report,key=lambda x: x[0]):
-            O.write("%s\n" % "\t".join([str(x) for x in tmp]))
+    #     for tmp in sorted(snps_report,key=lambda x: x[0]):
+    #         O.write("%s\n" % "\t".join([str(x) for x in tmp]))
 
     barcode_frac = defaultdict(float)
     for l in barcode_support:
@@ -91,5 +100,6 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
         tmp = {"id":l,"frequency":barcode_frac[l],"info":[]}
         if bed_num_col>6:
             tmp["info"] = [lineage_info[l][i] for i in range(5,bed_num_col)]
+        tmp['support'] = [p for p in snps_report if p.id==tmp['id']]
         final_results.append(BarcodeResult(**tmp))
     return final_results

@@ -2,7 +2,7 @@ import re
 import logging
 from .utils import cmd_out, revcom
 from .gff import Gene
-from typing import Tuple, List
+from typing import List
 from pysam import FastaFile
 from uuid import uuid4
 import os

@@ -55,7 +55,13 @@ class MutationDB:
                 self.db[(gene,var)] = db[gene][var]
                 if self.db[(gene,var)]['genome_positions']:
                     for pos in self.db[(gene,var)]['genome_positions']:
-                        self.genome_pos2annotation[(db[gene][var]['chromosome'],pos)] = (db[gene][var]['annotations'])
+                        for ann in self.db[(gene,var)]['annotations']:
+                            # deep copy the annotation to avoid changing the original
+                            ann = deepcopy(ann)
+                            ann['gene'] = gene
+                            ann['variant'] = var
+                            self.genome_pos2annotation[(db[gene][var]['chromosome'],pos)].append(ann)
+                        
 
     def annotate_variant(self,var: dict) -> List[dict]:
         """Annotate a variant with data from the database"""

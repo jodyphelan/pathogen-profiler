@@ -7,6 +7,7 @@ import logging
 from .sourmash import SourmashSig
 from .models import TargetQC, FastaQC
 from typing import List
+from .utils import shared_dict
 
 
 class Fasta:
@@ -55,6 +56,7 @@ class Fasta:
             
         return bed
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2, counter = "kmc"):
+        shared_dict['kmer_counting'] = counter
         if counter=="kmc":
             if threads>32:
                 threads = 32
