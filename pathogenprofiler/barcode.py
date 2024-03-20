@@ -101,6 +101,5 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
         if bed_num_col>6:
             tmp["info"] = [lineage_info[l][i] for i in range(5,bed_num_col)]
         tmp['support'] = [p for p in snps_report if p.id==tmp['id']]
-        print(tmp)
         final_results.append(BarcodeResult(**tmp))
     return final_results

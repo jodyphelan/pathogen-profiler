@@ -1,6 +1,6 @@
 from __future__ import division
 from .bam import Bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,cmd_out
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,cmd_out, shared_dict
 import os
 from collections import defaultdict
 from .kmer import KmerDump
@@ -8,6 +8,7 @@ import platform
 import logging
 from .sourmash import SourmashSig
 from .models import FastqQC
+
 
 
 class Fastq:
@@ -36,6 +37,7 @@ class Fastq:
     def trim(self, prefix, threads=1):
         """Perform trimming"""
         logging.info("Trimming reads")
+        shared_dict['trimming'] = 'trimmomatic'
         add_arguments_to_self(self, locals())
         if self.paired:
             run_cmd("trimmomatic PE -threads %(threads)s -phred33 %(r1)s %(r2)s -baseout %(prefix)s LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
@@ -117,11 +119,12 @@ class Fastq:
                     run_cmd("rm %(bam_single_file)s %(bam_pair_file)s %(bam_unsort_file)s" % vars(self))
                 else:
                     run_cmd("rm %(bam_pair_file)s" % vars(self))
-
+        shared_dict['mapping'] = aligner
         return Bam(self.bam_file,self.prefix,self.platform,threads=threads)
     
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=8,counter = "kmc"):
         logging.info("Counting kmers")
+        shared_dict['kmer_counting'] = counter
         if counter=="kmc":
             if threads>32:
                 threads = 32

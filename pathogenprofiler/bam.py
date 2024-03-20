@@ -12,6 +12,7 @@ import logging
 from pysam import FastaFile
 from .models import BamQC, TargetQC, GenomePositionDepth, GenomePosition
 from typing import List
+from .utils import shared_dict
 
 
 
@@ -140,6 +141,7 @@ class Bam:
             else:
                 logging.debug("Unknown combination %(platform)s + %(caller)s" % vars(self))
             logging.info("Running variant calling")
+            shared_dict['variant_calling'] = self.caller
             run_cmd_parallel_on_genome(self.calling_cmd,ref_file,bed_file = bed_file,threads=threads,desc="Calling variants")
             cmd = "bcftools index  %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self) 
             run_cmd_parallel_on_genome(cmd,ref_file,bed_file = bed_file,threads=threads,desc="Indexing variants")
@@ -151,6 +153,7 @@ class Bam:
     
     def get_median_depth(self,ref_file,software="samtools"):
         logging.info("Calculating median depth using %s" % software)
+        shared_dict['depth_calculation'] = software
         if software=="bedtools":
             lines = []
             for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):
