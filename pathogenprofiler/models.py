@@ -738,7 +738,7 @@ class BamQC(SequenceQC):
     percent_reads_mapped: float
     num_reads_mapped: int
     target_median_depth: float
-    genome_median_depth: int
+    genome_median_depth: float
     target_qc: List[TargetQC]
     missing_positions: List[GenomePositionDepth] = []
 
