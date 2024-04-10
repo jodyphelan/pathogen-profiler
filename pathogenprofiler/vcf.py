@@ -205,6 +205,8 @@ class Vcf:
             if sum(ad)==0:
                 continue
             af_dict = {alleles[i]:ad[i]/sum(ad) for i in range(len(alleles))}
+            if "ANN" not in var.info:
+                continue
             ann_strs = var.info['ANN']
             ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
