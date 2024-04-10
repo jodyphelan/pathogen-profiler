@@ -588,6 +588,14 @@ def bwa_index(ref):
         cmd = "bwa index %s" % ref
         run_cmd(cmd)
 
+def bwa_meme_index(ref):
+    """
+    Create BWA index for a reference
+    """
+    if nofile("%s.0123"%ref):
+        cmd = "bwa index %s" % ref
+        run_cmd(cmd)
+
 def which(program):
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
