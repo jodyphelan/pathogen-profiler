@@ -636,23 +636,23 @@ class TargetQC(BaseModel):
     median_depth: float
 
 class SequenceQC(BaseModel):
-    def get_target_median_depth(self) -> float:
+    def get_target_median_depth(self) -> Optional[float]:
         if hasattr(self,'target_qc'):
             return median([x.median_depth for x in self.target_qc])
         else:
-            return float('nan')
+            return None
         
-    def get_reads_mapped(self) -> int:
+    def get_reads_mapped(self) -> Optional[int]:
         if hasattr(self,'num_reads_mapped'):
             return self.num_reads_mapped
         else:
-            return float('nan')
+            return None
         
-    def get_percent_reads_mapped(self) -> float:
+    def get_percent_reads_mapped(self) -> Optional[float]:
         if hasattr(self,'percent_reads_mapped'):
             return self.percent_reads_mapped
         else:
-            return float('nan')
+            return None
 
 class FastqQC(SequenceQC):
     num_sequences: int
