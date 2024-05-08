@@ -81,6 +81,8 @@ def extract_genome_positions(db,gene):
     return list(set(pos))
 
 def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfile:str,padding: int = 200) -> None:
+    if os.path.exists(ref_file+".fai"):
+        os.remove(ref_file+".fai")
     ref = FastaFile(ref_file)
     lines = []
     for gene in gene_dict:
