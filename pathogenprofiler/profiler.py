@@ -13,14 +13,18 @@ def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)        
-    barcode_assignment = barcode(barcode_mutations,conf["barcode"])
+    if not hasattr(args,'barcode_snps'):
+        args.barcode_snps = None
+    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode_snps)
     return barcode_assignment
 
 def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf
     vcf = Vcf(args.vcf)
     barcode_mutations = vcf.get_bed_gt(conf["barcode"],conf["ref"])        
-    barcode_assignment = barcode(barcode_mutations,conf["barcode"])
+    if not hasattr(args,'barcode_snps'):
+        args.barcode_snps = None
+    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode)
     return barcode_assignment
 
 

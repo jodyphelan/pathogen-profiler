@@ -69,9 +69,9 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
 
     barcode_support,snps_report = get_barcoding_mutations(mutations,barcode_bed)
 
-    # with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
-    #     for tmp in sorted(snps_report,key=lambda x: x[0]):
-    #         O.write("%s\n" % "\t".join([str(x) for x in tmp]))
+    with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
+        for tmp in sorted(snps_report,key=lambda x: x.id):
+            O.write("%s\n" % "\t".join([str(x) for x in vars(tmp).values()]))
 
     barcode_frac = defaultdict(float)
     for l in barcode_support:
