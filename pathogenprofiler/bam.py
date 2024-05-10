@@ -10,7 +10,7 @@ import statistics as stats
 import logging 
 from pysam import FastaFile
 from .models import BamQC, TargetQC, GenomePositionDepth, GenomePosition
-from typing import List
+from typing import List, Optional
 from .utils import shared_dict
 
 
@@ -20,8 +20,19 @@ class Bam:
     """
     A class to perform operations on BAM files such as SNP calling and QC
     """
-    def __init__(self,bam_file,prefix,platform,threads=1):
-        add_arguments_to_self(self, locals())
+    def __init__(
+        self,
+        bam_file: str,
+        prefix: str,
+        platform: str,
+        threads: int = 1
+    ):
+        self.bam_file = bam_file
+        self.prefix = prefix
+        self.platform = platform
+        self.threads = threads
+
+
         logging.debug("Creating Bam object with %s" % (bam_file))
         filecheck(self.bam_file)
         index_bam(bam_file,threads=threads)
@@ -87,7 +98,16 @@ class Bam:
         return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
 
                 
-    def call_variants(self,ref_file,caller,filters,bed_file=None,threads=1,calling_params=None, samclip=False) -> Vcf:
+    def call_variants(
+        self,
+        ref_file: str,
+        caller: str,
+        filters: str,
+        bed_file: Optional[str] = None,
+        threads: int = 1,
+        calling_params: Optional[str] = None, 
+        samclip: bool = False
+    ) -> Vcf:
         """Method to run variant calling"""
         add_arguments_to_self(self, locals())
         filecheck(ref_file)
@@ -150,7 +170,11 @@ class Bam:
 
         return Vcf(self.vcf_file)
     
-    def get_median_depth(self,ref_file,software="samtools"):
+    def get_median_depth(
+        self,
+        ref_file: str,
+        software: str = "samtools"
+    ):
         logging.info("Calculating median depth using %s" % software)
         shared_dict['depth_calculation'] = software
         if software=="bedtools":
@@ -279,30 +303,6 @@ class Bam:
         os.remove(f"{self.prefix}.tmp.bam.bai")
 
         return results
-
-    # def calculate_region_coverage(self,bed_file,depth_threshold=0,region_column=None):
-    #     logging.info("Calculating coverage for regions in bed file")
-
-    #     add_arguments_to_self(self, locals())
-    #     numrows =len(open(bed_file).readline().split())
-    #     if region_column is None:
-    #         if numrows==7:
-    #             region_column = 7
-    #         else:
-    #             region_column = 4
-    #     self.region_cov = defaultdict(list)
-    #     self.region_qc = []
-    #     self.genome_coverage = []
-
-    #     for l in cmd_out(f"samtools view -Mb -L {bed_file} {self.bam_file} | bedtools coverage -a {bed_file} -b - -d -sorted"):
-    #         row = l.split()
-    #         region = row[region_column-1]
-    #         depth = int(row[-1])
-    #         genomic_position = int(row[1]) + int(row[-2]) -1
-    #         self.genome_coverage.append((genomic_position, depth))
-    #         self.region_cov[region].append(depth)
-
-
 
     def calculate_bamstats(self):
         logging.info("Calculating bamstats")

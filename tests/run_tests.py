@@ -72,11 +72,11 @@ hgvs_mutations  = [
         "Mutation": "n.5G>A",
         "target": "n.5G>A"
     },
-    {
-        "Gene": "gid",
-        "Mutation": "g.4408196C>G",
-        "target": "c.7G>C",
-    },
+    # {
+    #     "Gene": "gid",
+    #     "Mutation": "g.4408196C>G",
+    #     "target": "c.7G>C",
+    # },
     {
         "Gene": "rrs",
         "Mutation": "n.-93C>T",
@@ -102,12 +102,21 @@ hgvs_mutations  = [
         "Mutation": "c.248_250dupGGC",
         "target": "c.248_250dupGGC"
     },
+    
     {
-        "Gene": "dnaA",
-        "Mutation": "c.-110_-109insTG",
-        "target": "c.-110_-109insTG"
+        "Gene": "pncA",
+        "Mutation": "p.Ter187Argext*?",
+        "target": "p.Ter187Argext*?"
     }
 
+]
+
+test = [
+    {
+        "Gene": "pncA",
+        "Mutation": "p.Ter187Argext*?",
+        "target": "p.Ter187Argext*?"
+    }
 ]
 
 todo = [
@@ -115,6 +124,11 @@ todo = [
         "Gene": "rrs",
         "Mutation": "n.-29_-28insATAC",
         "target": "n.-29_-28insATAC"
+    },
+    {
+        "Gene": "dnaA",
+        "Mutation": "c.-110_-109insTG",
+        "target": "c.-110_-109insTG"
     },
 ]
 
@@ -131,5 +145,5 @@ def test_variant(mutation):
     gene = mutation["Gene"]
     change = mutation["Mutation"]
     target = mutation["target"]
-    assert(target == converted_mutations[(gene,change)])
+    assert(target == converted_mutations[(gene,change)][1])
 

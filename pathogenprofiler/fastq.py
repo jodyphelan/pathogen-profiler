@@ -1,6 +1,6 @@
 from __future__ import division
 from .bam import Bam
-from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa2_index,bowtie_index,cmd_out, shared_dict
+from .utils import filecheck, add_arguments_to_self, run_cmd,bwa_index,bwa_meme_index,bwa2_index,bowtie_index,cmd_out, shared_dict
 import os
 from collections import defaultdict
 from .kmer import KmerDump
@@ -53,7 +53,7 @@ class Fastq:
         logging.info("Mapping to reference genome")
         add_arguments_to_self(self, locals())
         self.aligner = aligner.lower()
-        accepted_aligners = ["bwa","bwa-mem2","bowtie2","minimap2"]
+        accepted_aligners = ["bwa","bwa-meme","bwa-mem2","bowtie2","minimap2"]
         if self.aligner not in accepted_aligners:
             quit("ERROR: %s not in accepted aligners\n" % aligner)
 
@@ -65,9 +65,10 @@ class Fastq:
         if self.aligner=="minimap2":
             pass
         else:
-            {"bwa":bwa_index,"bwa-mem2":bwa2_index,"bowtie2":bowtie_index}[self.aligner](ref_file)
+            {"bwa":bwa_index,"bwa-meme":bwa_meme_index,"bwa-mem2":bwa2_index,"bowtie2":bowtie_index}[self.aligner](ref_file)
 
         self.bwa_prefix = "bwa mem -t %(threads)s -K 10000000 -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
+        self.bwa_meme_prefix = "bwa-meme mem -t %(threads)s -K 10000000 -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bwa2_prefix = "bwa-mem2 mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bowtie2_prefix = "bowtie2 -p %(threads)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' --rg 'PL:%(platform)s'" % vars(self)
         self.minimap2_prefix = "minimap2 -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % vars(self)
@@ -86,6 +87,12 @@ class Fastq:
                     run_cmd("%(bwa_prefix)s %(ref_file)s %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
             elif aligner=="bwa" and not self.paired:
                 run_cmd("%(bwa_prefix)s %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
+            elif aligner=="bwa-meme" and self.paired:
+                run_cmd("%(bwa_meme_prefix)s %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
+                if self.r3:
+                    run_cmd("%(bwa_meme_prefix)s %(ref_file)s %(r3)s | samtools sort -@ %(threads)s -o %(bam_single_file)s -" % vars(self))
+            elif aligner=="bwa-meme" and not self.paired:
+                run_cmd("%(bwa_meme_prefix)s %(ref_file)s %(r1)s | samtools sort -@ %(threads)s -o %(bam_file)s -" % vars(self))
             elif aligner=="bwa-mem2" and self.paired:
                 run_cmd("%(bwa2_prefix)s %(ref_file)s %(r1)s %(r2)s | samtools sort -@ %(threads)s -o %(bam_pair_file)s -" % vars(self))
                 if self.r3:

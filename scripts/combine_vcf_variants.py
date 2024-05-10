@@ -100,6 +100,11 @@ ref = pysam.FastaFile(args.ref)
 coding_variants = defaultdict(list)
 other_variants = []
 vcf = pysam.VariantFile(args.vcf) if args.vcf else pysam.VariantFile('-')
+
+if "AF" not in vcf.header.info.keys():
+    ##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1]">
+    vcf.header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1]">')
+
 for var in vcf:
     gene,cpos = get_codon_pos(var.chrom,var.pos,exons)
     if gene==None:
