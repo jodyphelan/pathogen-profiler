@@ -24,7 +24,7 @@ def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     barcode_mutations = vcf.get_bed_gt(conf["barcode"],conf["ref"])        
     if not hasattr(args,'barcode_snps'):
         args.barcode_snps = None
-    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode)
+    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode_snps)
     return barcode_assignment
 
 
