@@ -143,18 +143,18 @@ for key,variants in coding_variants.items():
         v = variants[0]
         if 'DP4' in v.info:
             haplotypes_by_strand = {
-                ref_hap: v.info['DP4'][0]+v.info['DP4'][1]
+                ref_hap: int(v.info['DP4'][0])+int(v.info['DP4'][1])
             }
         elif 'AD' in v.samples[0]:
             haplotypes_by_strand = {
-                ref_hap: v.samples[0]['AD'][0]
+                ref_hap: int(v.samples[0]['AD'][0])
             }
         for alts in product(*ds.values()):
             hap = ''.join(alts)
             if 'DP4' in v.info:
-                haplotypes_by_strand[hap] = v.info['DP4'][2]+v.info['DP4'][3]
+                haplotypes_by_strand[hap] = int(v.info['DP4'][2])+int(v.info['DP4'][3])
             elif 'AD' in v.samples[0]:
-                haplotypes_by_strand[hap] = v.samples[0]['AD'][1]
+                haplotypes_by_strand[hap] = int(v.samples[0]['AD'][1])
 
 
 
