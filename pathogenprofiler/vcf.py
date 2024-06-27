@@ -186,7 +186,7 @@ class Vcf:
         variants = []
         vcf = pysam.VariantFile(self.filename)
         for var in vcf:
-            logging.debug(var)
+            logging.debug(str(var)[:500])
             chrom = var.chrom
             pos = var.pos
             ref = var.ref
@@ -343,19 +343,19 @@ class Vcf:
                 num_variants = int(l.split("\t")[3].strip())
         return VcfQC(total_variants=num_variants)
 
-class DellyVcf(Vcf):
-    def __init__(self,filename):
-        Vcf.__init__(self,filename)
-    def get_robust_calls(self,prefix,bed_file = None):
-        self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
-        self.outfile = f"{prefix}.delly.vcf.gz"
-        run_cmd("bcftools view -c 2  %(filename)s | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(tmpfile)s" % vars(self))
-        if bed_file:
-            run_cmd(f"bcftools index {self.tmpfile}")
-            run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
-        else:
-            self.outfile = self.tmpfile
-        return DellyVcf(self.outfile)
+# class DellyVcf(Vcf):
+#     def __init__(self,filename):
+#         Vcf.__init__(self,filename)
+#     def get_robust_calls(self,prefix,bed_file = None):
+#         self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
+#         self.outfile = f"{prefix}.delly.vcf.gz"
+#         run_cmd("bcftools view -c 2  %(filename)s | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(tmpfile)s" % vars(self))
+#         if bed_file:
+#             run_cmd(f"bcftools index {self.tmpfile}")
+#             run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
+#         else:
+#             self.outfile = self.tmpfile
+#         return DellyVcf(self.outfile)
 
 def uniqify_dict_list(data):
     s = []
@@ -439,4 +439,5 @@ def filter_variant(var,filter_params):
             qc = "hard_fail"
         elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
             qc = "soft_fail"
+    logging.debug(qc)
     return qc
