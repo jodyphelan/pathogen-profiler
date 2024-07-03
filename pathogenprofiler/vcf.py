@@ -191,7 +191,6 @@ class Vcf:
             pos = var.pos
             ref = var.ref
             alleles = var.alleles
-            alt_str = list(var.alts)[0]
             if "SVTYPE" in var.info:
                 if var.info['SVTYPE']!="DEL":
                     continue
