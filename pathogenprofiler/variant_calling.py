@@ -7,7 +7,18 @@ import os
 from .vcf import Vcf
 
 class VariantCaller:
-    def __init__(self, ref_file, bam_file, prefix, bed_file=None, threads=1, samclip=False, platform="illumina", calling_params = None):
+    def __init__(
+        self, 
+        ref_file: str, 
+        bam_file: str, 
+        prefix: str, 
+        bed_file: str = None, 
+        threads: int = 1, 
+        samclip: bool = False, 
+        platform: str = "illumina", 
+        calling_params: str = None,
+        filters: dict = {}
+    ):
         self.temp_file_prefix = str(uuid4())
         self.ref_file = ref_file
         self.bam_file = bam_file
@@ -17,7 +28,7 @@ class VariantCaller:
         self.samclip = samclip
         self.platform = platform
         self.calling_params = calling_params if calling_params else ""
-
+        self.af_hard = filters['af_hard'] if 'af_hard' in filters else 0
         if self.platform in ("illumina"):
             self.samclip_cmd = "| samclip --ref %(ref_file)s" % vars(self) if self.samclip else ""
         else:

@@ -102,7 +102,7 @@ class Bam:
         self,
         ref_file: str,
         caller: str,
-        filters: str,
+        filters: dict,
         bed_file: Optional[str] = None,
         threads: int = 1,
         calling_params: Optional[str] = None, 
@@ -111,7 +111,17 @@ class Bam:
         from .variant_calling import VariantCaller
         subclasses = {cls.__software__:cls for cls in VariantCaller.__subclasses__()}
         chosen_class = subclasses[caller]
-        caller = chosen_class(ref_file=ref_file,bam_file=self.bam_file,prefix=self.prefix,bed_file=bed_file,threads=threads,samclip=samclip,platform=self.platform,calling_params=calling_params)
+        caller = chosen_class(
+            ref_file=ref_file,
+            bam_file=self.bam_file,
+            prefix=self.prefix,
+            bed_file=bed_file,
+            threads=threads,
+            samclip=samclip,
+            platform=self.platform,
+            calling_params=calling_params,
+            filters=filters
+        )
         return caller.call_variants()
     
     
