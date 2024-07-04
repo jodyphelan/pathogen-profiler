@@ -52,10 +52,10 @@ def main(args):
 						quit(f"AF and DP not found in {row[7]}")
 				
 				else:
-					# alt = 100
-					# ref = 0
-					# row[9]+=f":{ref},{alt}"
-					quit(f"AD not found in {row[7]}")
+					alt = 100
+					ref = 0
+					row[9]+=f":{ref},{alt}"
+					# quit(f"AD not found in {row[7]}")
 			if args.add_dp:
 				if "DP" not in row[8]:
 					row[8]+=":DP"
