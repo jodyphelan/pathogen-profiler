@@ -37,12 +37,7 @@ class Bam:
         filecheck(self.bam_file)
         index_bam(bam_file,threads=threads)
         self.filetype = "cram" if bam_file[-5:]==".cram" else "bam"
-        for l in cmd_out("samtools view -H %s" % (bam_file)):
-            if l[:3]=="@RG":
-                row = l.strip().split("\t")
-                for r in row:
-                    if r.startswith("SM:"):
-                        self.bam_sample_name = r.replace("SM:","")
+        
     def calculate_bed_depth(self,bed_file: str) -> List[GenomePositionDepth]:
         """
         Calculate depth of BAM file in regions specified by a BED file

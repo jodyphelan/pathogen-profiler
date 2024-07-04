@@ -1,10 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
-from .utils import run_cmd, run_cmd_parallel_on_genome, load_bed_regions, get_genome_chunks, TempFilePrefix, shared_dict
+from .utils import cmd_out, run_cmd, run_cmd_parallel_on_genome, load_bed_regions, get_genome_chunks, TempFilePrefix, shared_dict
 from uuid import uuid4
 from glob import glob
 import os
 from .vcf import Vcf
+
 
 class VariantCaller:
     def __init__(
@@ -33,7 +34,14 @@ class VariantCaller:
             self.samclip_cmd = "| samclip --ref %(ref_file)s" % vars(self) if self.samclip else ""
         else:
             self.samclip_cmd = ""
-
+        
+        for l in cmd_out("samtools view -H %s" % (bam_file)):
+            if l[:3]=="@RG":
+                row = l.strip().split("\t")
+                for r in row:
+                    if r.startswith("SM:"):
+                        self.bam_sample_name = r.replace("SM:","")
+                        
     @abstractmethod
     def call_variants(self):
         pass
