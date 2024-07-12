@@ -5,6 +5,7 @@ from uuid import uuid4
 from glob import glob
 import os
 from .vcf import Vcf
+from typing import Optional
 
 
 class VariantCaller:
@@ -17,8 +18,9 @@ class VariantCaller:
         threads: int = 1, 
         samclip: bool = False, 
         platform: str = "illumina", 
-        calling_params: str = None,
-        filters: dict = {}
+        calling_params: Optional[str] = None,
+        filters: dict = {},
+        cli_args: dict = {}
     ):
         self.temp_file_prefix = str(uuid4())
         self.ref_file = ref_file
@@ -30,28 +32,36 @@ class VariantCaller:
         self.platform = platform
         self.calling_params = calling_params if calling_params else ""
         self.af_hard = filters['af_hard'] if 'af_hard' in filters else 0
+        
+        # set the samclip command based on the platform
         if self.platform in ("illumina"):
             self.samclip_cmd = "| samclip --ref %(ref_file)s" % vars(self) if self.samclip else ""
         else:
             self.samclip_cmd = ""
         
+        # get the sample name from the bam file
         for l in cmd_out("samtools view -H %s" % (bam_file)):
             if l[:3]=="@RG":
                 row = l.strip().split("\t")
                 for r in row:
                     if r.startswith("SM:"):
                         self.bam_sample_name = r.replace("SM:","")
-                        
+        
+        # for each key in cli_args, set the value of the key as an attribute of the class
+        for k,v in cli_args.items():
+            if not hasattr(self,k):
+                setattr(self,k,v)
+
     @abstractmethod
     def call_variants(self):
         pass
 
     def run_calling(self, cmd):
         if self.bed_file:
-            self.vcf_file = "%s.short_variants.targets.vcf.gz" % (self.prefix) if self.bed_file else "%s.vcf.gz" % (self.prefix)
+            self.vcf_file = "%s.short_variants.targets.vcf.gz" % (self.prefix) 
             genome_chunks = [r.safe for r in load_bed_regions(self.bed_file)]
         else:
-            self.vcf_file = "%s.short_variants.vcf.gz" % (self.prefix) if self.bed_file else "%s.vcf.gz" % (self.prefix)
+            self.vcf_file = "%s.vcf.gz" % (self.prefix)
             genome_chunks = [r.safe for r in get_genome_chunks(self.ref_file,self.threads)]
 
         
