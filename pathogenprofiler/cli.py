@@ -68,7 +68,8 @@ def run_vcf_qc(args: argparse.Namespace):
 
 def get_resistance_db_from_species_prediction(args: argparse.Namespace,species_prediction:SpeciesPrediction):
     logging.debug("Attempting to load db with species prediction")
-    if len(species_prediction.species)==1:
+    number_of_species = len(set([s.species for s in species_prediction.species]))
+    if number_of_species==1:
         return get_db(args.software_name,species_prediction.species[0].species.replace(" ","_")) 
     else:
         return None
@@ -143,12 +144,12 @@ def get_vcf_from_bam(args: argparse.Namespace):
     ### Create bam object and call variants ###
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if args.call_whole_genome:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
         vcf_obj = wg_vcf_obj
         # TODO optional?
         # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
 
     ### Run delly if specified ###
     final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
