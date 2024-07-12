@@ -62,7 +62,8 @@ class Bam:
         for l in cmd_out("samtools view -Mb -L %(bed_file)s %(bam_file)s | samtools depth - " % vars(self)):
             row = l.strip().split()
             p = GenomePosition(chrom=row[0],pos=int(row[1]))
-            position_depth[p] = int(row[2])
+            if p in position_depth:
+                position_depth[p] = int(row[2])
 
         self.position_depth = [GenomePositionDepth(chrom=p.chrom,pos=p.pos,depth=v) for p,v in position_depth.items()]
         return self.position_depth
@@ -101,7 +102,8 @@ class Bam:
         bed_file: Optional[str] = None,
         threads: int = 1,
         calling_params: Optional[str] = None, 
-        samclip: bool = False
+        samclip: bool = False,
+        cli_args: dict = {}
     ) -> Vcf:
         from .variant_calling import VariantCaller
         subclasses = {cls.__software__:cls for cls in VariantCaller.__subclasses__()}
@@ -115,7 +117,8 @@ class Bam:
             samclip=samclip,
             platform=self.platform,
             calling_params=calling_params,
-            filters=filters
+            filters=filters,
+            cli_args=cli_args
         )
         return caller.call_variants()
     
