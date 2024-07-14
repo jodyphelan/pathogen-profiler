@@ -180,7 +180,7 @@ def so_term_in_mutation(mutation: str) -> bool:
 
 def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     logging.debug("Converting HGVS to snpEff format")
-    genes = load_gff(gff,aslist=True)
+    genes = load_gff(gff)
     refseq = FastaFile(ref)
     converted_mutations = {}
     so_term_rows = [r for r in hgvs_variants if so_term_in_mutation(r['Mutation'])]

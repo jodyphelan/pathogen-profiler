@@ -69,7 +69,7 @@ def get_haplotype_counts(
     return counts
 
 
-gff = load_gff(args.gff,aslist=True)
+gff = load_gff(args.gff)
 exons = []
 for gene in gff:
     for transcript in gene.transcripts:
