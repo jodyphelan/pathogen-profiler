@@ -1,6 +1,8 @@
 import re
 from uuid import uuid4
 from collections import defaultdict
+from typing import List
+from .models import GenomeRange, GenomePosition
 
 class Gene:
     def __init__(self,name,gene_id,strand,chrom,start,end,length):
@@ -16,6 +18,11 @@ class Gene:
         self.transcripts = []
     def __repr__(self) -> str:
         return f"Gene: {vars(self)}"
+    def __contains__(self,position: tuple[str,int]) -> bool:
+        chrom,pos = position
+        pos = GenomePosition(chrom=chrom,pos=pos)
+        range = GenomeRange(chrom=self.chrom,start=self.feature_start,end=self.feature_end)
+        return pos in range
 
 class Exon:
     def __init__(self, chrom, start, end, strand, phase):
@@ -32,7 +39,7 @@ class Transcript:
         self.name = name
         self.exons = []
 
-def load_gff(gff,aslist=False):
+def load_gff(gff) -> List[Gene]:
     GFF = open(gff)
     genes = {}
     relationships = {}
@@ -105,7 +112,5 @@ def load_gff(gff,aslist=False):
         if isinstance(items[item],Gene):
             genes[items[item].gene_id] = items[item]
 
-    if aslist:
-        return list(genes.values())
-    else:
-        return genes
+
+    return list(genes.values())
