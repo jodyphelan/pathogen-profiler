@@ -33,9 +33,12 @@ def check_coordinates(var: pysam.VariantRecord,refseq: pysam.FastaFile, directio
     if direction == "right":
         nextseq = refseq.fetch(var.chrom, end-1, end+svlen-2)
     else:
+        if start-svlen < 0:
+            return original_tuple
         nextseq = refseq.fetch(var.chrom, start-svlen, start-1)
-    logging.info((svlen,deleted_seq,nextseq))
     if deleted_seq == nextseq:
+        logging.info((svlen,deleted_seq,nextseq))
+        logging.info(f"Deletion {var.chrom}:{start}-{end} is a tandem repeat")
         if direction == "right":
             last_del_nuc = deleted_seq[-1]
             ref = last_del_nuc + deleted_seq
@@ -55,6 +58,7 @@ def check_coordinates(var: pysam.VariantRecord,refseq: pysam.FastaFile, directio
                 alt = first_del_nuc
             return start-svlen+1, start, ref, (alt,)
     else:
+        logging.info(f"Deletion {var.chrom}:{start}-{end} is not a tandem repeat")
         return original_tuple
 
 vcf_in = pysam.VariantFile(args.input)
