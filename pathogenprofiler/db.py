@@ -479,6 +479,9 @@ def create_db(args,extra_files = None):
             version["Author"] = args.db_author if args.db_author else "NA"
 
         variables['version'] = version
+        if 'db-schema-version' in variables:
+            variables['version']['db-schema-version'] = variables['db-schema-version']
+
         json.dump(db,open(json_file,"w"))
         
         
