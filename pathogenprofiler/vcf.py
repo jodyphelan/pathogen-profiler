@@ -136,8 +136,8 @@ class Vcf:
                 else:
                     self.phasing_bam = ""
                 run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
+                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
                 run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
@@ -186,12 +186,11 @@ class Vcf:
         variants = []
         vcf = pysam.VariantFile(self.filename)
         for var in vcf:
-            logging.debug(var)
+            logging.debug(str(var)[:500])
             chrom = var.chrom
             pos = var.pos
             ref = var.ref
             alleles = var.alleles
-            alt_str = list(var.alts)[0]
             if "SVTYPE" in var.info:
                 if var.info['SVTYPE']!="DEL":
                     continue
@@ -343,19 +342,19 @@ class Vcf:
                 num_variants = int(l.split("\t")[3].strip())
         return VcfQC(total_variants=num_variants)
 
-class DellyVcf(Vcf):
-    def __init__(self,filename):
-        Vcf.__init__(self,filename)
-    def get_robust_calls(self,prefix,bed_file = None):
-        self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
-        self.outfile = f"{prefix}.delly.vcf.gz"
-        run_cmd("bcftools view -c 2  %(filename)s | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(tmpfile)s" % vars(self))
-        if bed_file:
-            run_cmd(f"bcftools index {self.tmpfile}")
-            run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
-        else:
-            self.outfile = self.tmpfile
-        return DellyVcf(self.outfile)
+# class DellyVcf(Vcf):
+#     def __init__(self,filename):
+#         Vcf.__init__(self,filename)
+#     def get_robust_calls(self,prefix,bed_file = None):
+#         self.tmpfile = f"{prefix}.tmp.delly.vcf.gz"
+#         self.outfile = f"{prefix}.delly.vcf.gz"
+#         run_cmd("bcftools view -c 2  %(filename)s | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(tmpfile)s" % vars(self))
+#         if bed_file:
+#             run_cmd(f"bcftools index {self.tmpfile}")
+#             run_cmd(f"bcftools view -R {bed_file} {self.tmpfile} -Oz -o {self.outfile}")
+#         else:
+#             self.outfile = self.tmpfile
+#         return DellyVcf(self.outfile)
 
 def uniqify_dict_list(data):
     s = []
@@ -439,4 +438,5 @@ def filter_variant(var,filter_params):
             qc = "hard_fail"
         elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
             qc = "soft_fail"
+    logging.debug(qc)
     return qc

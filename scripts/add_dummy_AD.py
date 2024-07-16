@@ -41,16 +41,21 @@ def main(args):
 						alt = dp4[2]+dp4[3]
 						row[9]+=f":{ref},{alt}"
 				elif "AF=" in row[7]:
-					r = re.search("AF=([0-9\.]+)",row[7])
-					if r:
-						alt = int(100*float(r.group(1)))
-						ref = int(100-alt)
+					raf = re.search("AF=([0-9\.]+)",row[7])
+					rdp = re.search("DP=([0-9]+)",row[7])
+					if raf and rdp:
+						dp = int(rdp.group(1))
+						alt = int(dp*float(raf.group(1)))
+						ref = int(dp-alt)
 						row[9]+=f":{ref},{alt}"
+					else:
+						quit(f"AF and DP not found in {row[7]}")
 				
 				else:
 					alt = 100
 					ref = 0
 					row[9]+=f":{ref},{alt}"
+					# quit(f"AD not found in {row[7]}")
 			if args.add_dp:
 				if "DP" not in row[8]:
 					row[8]+=":DP"

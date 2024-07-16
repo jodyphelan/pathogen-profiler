@@ -10,6 +10,7 @@ import argparse
 from .models import Variant, DrVariant, Gene, DrGene, SpeciesPrediction, Species, BarcodeResult
 from .mutation_db import MutationDB
 from .vcf import Vcf
+from .sanity import check_bam_for_rg, check_vcf_chrom_match
 
 def get_variant_filters(args):
     filters = {}
@@ -51,11 +52,12 @@ def run_bam_qc(args: argparse.Namespace):
 
 def run_fasta_qc(args: argparse.Namespace):
     fasta = Fasta(args.fasta)
-    paf = Paf(args.paf)
     qc = fasta.get_fasta_qc()
-    qc.target_qc = paf.get_target_qc(
-        bed_file=args.conf["bed"]
-    )
+    if hasattr(args,'paf') and args.paf:
+        paf = Paf(args.paf)
+        qc.target_qc = paf.get_target_qc(
+            bed_file=args.conf["bed"]
+        )
     return qc
 
 def run_vcf_qc(args: argparse.Namespace):
@@ -66,7 +68,8 @@ def run_vcf_qc(args: argparse.Namespace):
 
 def get_resistance_db_from_species_prediction(args: argparse.Namespace,species_prediction:SpeciesPrediction):
     logging.debug("Attempting to load db with species prediction")
-    if len(species_prediction.species)==1:
+    number_of_species = len(set([s.species for s in species_prediction.species]))
+    if number_of_species==1:
         return get_db(args.software_name,species_prediction.species[0].species.replace(" ","_")) 
     else:
         return None
@@ -141,17 +144,17 @@ def get_vcf_from_bam(args: argparse.Namespace):
     ### Create bam object and call variants ###
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if args.call_whole_genome:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
         vcf_obj = wg_vcf_obj
         # TODO optional?
         # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip)
+        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
 
     ### Run delly if specified ###
     final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
     if not args.no_delly:
-        delly_vcf_obj = bam.run_delly(conf['bed'])
+        delly_vcf_obj = bam.run_delly(conf['ref'],conf['bed'])
         if delly_vcf_obj is not None:
             run_cmd("bcftools index %s" % delly_vcf_obj.filename)
             run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
@@ -200,7 +203,7 @@ def run_profiler(args) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
             tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
             run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py --sample {args.prefix} | bcftools view -Oz -o {tmp_vcf_file}")
             args.vcf = tmp_vcf_file
-    
+    # check_vcf_chrom_match(args.vcf,args.conf["ref"])
     annotated_variants = vcf_profiler(args)
 
     return annotated_variants
@@ -258,6 +261,7 @@ def get_bam_file(args):
         )
         bam_file = bam_obj.bam_file
     else:
+        check_bam_for_rg(args.bam)
         bam_file = args.bam
 
     return bam_file
@@ -296,7 +300,7 @@ def get_sourmash_hit(args):
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
-    sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=2500000,f_match_threshold=0.1)
+    sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=500000,f_match_threshold=0.1)
     result =  []
 
     if len(sourmash_sig)>0:

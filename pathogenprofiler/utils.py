@@ -33,6 +33,18 @@ class TempFilePrefix(object):
         for f in glob(self.prefix+"*"):
             os.remove(f)
 
+class TempFolder(object):
+    """Create a temporary file prefix"""
+    def __init__(self):
+        self.prefix = str(uuid4())
+    def __enter__(self):
+        os.mkdir(self.prefix)
+        return self.prefix
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Remove temporary files"""
+        logging.debug("Removing temporary folder: %s" % self.prefix)
+        os.rmdir(self.prefix)
+
 def get_tmp_file(prefix=None):
     """Get a temporary file"""
     if prefix:

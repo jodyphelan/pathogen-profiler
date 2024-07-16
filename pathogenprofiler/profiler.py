@@ -8,18 +8,23 @@ import os
 from .models import Variant
 from typing import List, Union
 import argparse
+import logging
 
 def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf
+    if 'barcode' not in conf:
+        return []
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
-    barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)        
     if not hasattr(args,'barcode_snps'):
         args.barcode_snps = None
+    barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)        
     barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode_snps)
     return barcode_assignment
 
 def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf
+    if 'barcode' not in conf:
+        return []
     vcf = Vcf(args.vcf)
     barcode_mutations = vcf.get_bed_gt(conf["barcode"],conf["ref"])        
     if not hasattr(args,'barcode_snps'):
