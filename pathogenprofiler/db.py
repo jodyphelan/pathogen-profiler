@@ -421,8 +421,9 @@ def create_db(args,extra_files = None):
                     O.write("\t".join(row)+"\n")        
 
     genes = load_gff(gff_file)
-    gene_name2gene_id = {g.name:g.gene_id for g in genes.values()}
-    gene_name2gene_id.update({g.gene_id:g.gene_id for g in genes.values()})
+    gene_name2gene_id = {g.name:g.gene_id for g in genes}
+    gene_name2gene_id.update({g.gene_id:g.gene_id for g in genes})
+    gene_dict = {g.gene_id:g for g in genes}
     db = {}
     locus_tag_to_ann_dict = defaultdict(set)
     with open(args.prefix+".conversion.log","w") as L:
@@ -449,8 +450,8 @@ def create_db(args,extra_files = None):
                 tmp_annotation = annotation_info
 
                 db[locus_tag][mut]["annotations"].append(tmp_annotation)
-                db[locus_tag][mut]["genome_positions"] = get_genome_position(genes[locus_tag],mut) if mut not in supported_so_terms else None
-                db[locus_tag][mut]["chromosome"] = genes[locus_tag].chrom
+                db[locus_tag][mut]["genome_positions"] = get_genome_position(gene_dict[locus_tag],mut) if mut not in supported_so_terms else None
+                db[locus_tag][mut]["chromosome"] = gene_dict[locus_tag].chrom
         
 
 
@@ -501,13 +502,13 @@ def create_db(args,extra_files = None):
                     O.write("\t".join(row)+"\n")
         
         if "amplicon_primers" in vars(args) and args.amplicon_primers:
-            write_amplicon_bed(genome_file,genes,db,args.amplicon_primers,bed_file)
+            write_amplicon_bed(genome_file,gene_dict,db,args.amplicon_primers,bed_file)
             variables['amplicon'] = True
         else:
             write_bed(
                 db=db,
                 gene_dict=locus_tag_to_ann_dict,
-                gene_info=genes,
+                gene_info=gene_dict,
                 ref_file=genome_file,
                 outfile=bed_file
             )
