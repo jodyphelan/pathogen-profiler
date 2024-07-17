@@ -126,7 +126,7 @@ def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfi
         if len(drugs)==0:
             drugs = "None"
         else:
-            drugs = ",".join(drugs)
+            drugs = ",".join(sorted(list(drugs)))
         lines.append([
             gene_info[gene].chrom,
             str(genome_start),
