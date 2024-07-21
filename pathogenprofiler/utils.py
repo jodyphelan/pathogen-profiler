@@ -482,7 +482,7 @@ def add_arguments_to_self(self,args: dict) -> None:
 
 
 
-def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
+def run_cmd(cmd: str, desc=None, log: str=None, exit_on_error: bool=True) -> sp.CompletedProcess:
     if desc:
         logging.info(desc)
     programs = set([x.strip().split()[0] for x in re.split("[|&;]",cmd) if x!=""])
@@ -495,7 +495,8 @@ def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
     result = sp.run(cmd,shell=True,stderr=output,stdout=output)
     if result.returncode != 0:
         logging.error(result.stderr.decode("utf-8"))
-        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,result.stderr.decode()))
+        if exit_on_error:
+            raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,result.stderr.decode()))
     return result
 
 def cmd_out(cmd: str) -> Generator[str, None, None]:
