@@ -86,12 +86,13 @@ class Bam:
         self.ref_file = ref_file
         if self.platform=="illumina":
             cmd = "delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
-            errcode = run_cmd(cmd, exit_on_error=False)
+            result = run_cmd(cmd, exit_on_error=False)
         else:
             cmd = "delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
-            errcode = run_cmd(cmd, exit_on_error=False)
+            result = run_cmd(cmd, exit_on_error=False)
         
-        if errcode!=0:
+        exitcode = result.returncode
+        if exitcode!=0:
             logging.error("Delly failed, skipping")
             return None
 
