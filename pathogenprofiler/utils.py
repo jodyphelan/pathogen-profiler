@@ -20,6 +20,43 @@ tmp_prefix = str(uuid4())
 
 shared_dict = {}
 
+def get_version(tool):
+    cmds = {
+    'bcftools': 'bcftools --version',
+    'samtools': 'samtools --version',
+    'delly': 'delly --version',
+    'bwa': 'bwa',
+    'trimmomatic': 'trimmomatic -version',
+    'gatk': 'gatk -version',
+    'lofreq': 'lofreq version',
+    'bedtools': 'bedtools --version',
+    'minimap2': 'minimap2 --version',
+    'freebayes': 'freebayes --version',
+    'pilon': 'pilon --version',
+    'snpEff': 'snpEff -version',
+    'kmc': 'kmc',
+    'sourmash': 'sourmash --version',
+}
+regex = {
+    'bcftools': r'bcftools (\d+\.\d+\.?\d?)',
+    'samtools': r'samtools (\d+\.\d+\.?\d?)',
+    'delly': r'Delly version: v(\d+\.\d+\.?\d?)',
+    'bwa': r'Version: (\d+\.\d+\.?\d?)',
+    'trimmomatic': r'(\d+\.\d+)',
+    'gatk': r'The Genome Analysis Toolkit \(GATK\) v(\d+\.\d+\.?\d?)',
+    'lofreq': r'version: (\d+\.\d+\.?\d?)',
+    'bedtools': r'bedtools v(\d+\.\d+\.?\d?)',
+    'minimap2': r'(\d+\.\d+)',
+    'freebayes': r'version:  v(\d+\.\d+\.?\d?)',
+    'pilon': r'Pilon version (\d+\.\d+\.?\d?)',
+    'snpEff': r'SnpEff\t(\d+\.\d+.?)',
+    'kmc': r'K-Mer Counter \(KMC\) ver. (\d+\.\d+\.\d+)',
+    'sourmash': r'sourmash (\d+\.\d+\.\d?)',
+}
+    x = sp.run([cmds[tool]], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    text = x.stdout.decode('utf-8') + x.stderr.decode('utf-8')
+    version = re.search(regex[tool], text).group(1)
+    return version
 
 class TempFilePrefix(object):
     """Create a temporary file prefix"""
