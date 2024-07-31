@@ -69,13 +69,6 @@ def get_haplotype_counts(
     return counts
 
 
-gff = load_gff(args.gff)
-exons = []
-for gene in gff:
-    for transcript in gene.transcripts:
-        for i,exon in enumerate(transcript.exons):
-            exon.id = f"{gene.gene_id}_exon{i+1}"
-            exons.append(exon)
 
 def get_overlapping_exons(chrom: str,pos: int,exons: List[Exon]):
     exons = [e for e in exons if e.start<=pos and e.end>=pos and chrom==e.chrom]
@@ -95,6 +88,13 @@ def get_codon_pos(chrom: str,pos: int,exons: List[Exon]):
     return (e.id,codon_pos)
         
 
+gff = load_gff(args.gff)
+exons = []
+for gene in gff:
+    for transcript in gene.transcripts:
+        for i,exon in enumerate(transcript.exons):
+            exon.id = f"{gene.gene_id}_exon{i+1}"
+            exons.append(exon)
 
 ref = pysam.FastaFile(args.ref)
 coding_variants = defaultdict(list)
@@ -107,7 +107,9 @@ if "AF" not in vcf.header.info.keys():
 
 for var in vcf:
     gene,cpos = get_codon_pos(var.chrom,var.pos,exons)
-    if gene==None:
+    if var.rlen!=1 or len(var.alts[0])!=1:
+        other_variants.append(var)
+    elif gene==None:
         other_variants.append(var)
     else:
         coding_variants[(gene,cpos)].append(var)
