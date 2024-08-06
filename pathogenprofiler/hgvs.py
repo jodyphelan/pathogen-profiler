@@ -333,3 +333,29 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
     
     logging.debug(converted_mutations)
     return converted_mutations
+
+
+def split_protein_hgvs(hgvs) -> List[str]:
+    """
+    Split a protein HGVS into its components.
+
+    Parameters:
+    hgvs (str): The protein HGVS.
+
+    Returns:
+    List[str]: A list of protein HGVS components.
+
+    Example:
+    >>> split_protein_hgvs("p.MetAsnLys74IleGluThr")
+    ['p.Met74Ile', 'p.Asn74Glu', 'p.Lys74Thr']
+    """
+    # Remove the 'p.' prefix
+    hgvs = hgvs[2:]
+    components = []
+    aa = re.findall(r'[A-Z][a-z][a-z]', hgvs)
+    refs = aa[:len(aa)//2]
+    alts = aa[len(aa)//2:]
+    start_pos = int(re.search(r'\d+', hgvs).group())
+    for i,(ref,alt) in enumerate(zip(refs, alts)):
+        components.append(f'p.{ref}{start_pos+i}{alt}')
+    return components
