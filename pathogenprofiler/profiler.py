@@ -48,7 +48,8 @@ def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
     vcf_targets_file = "%s.targets.vcf.gz" % args.files_prefix
     if not vcf_is_indexed(args.vcf):
         run_cmd("bcftools index %s" % args.vcf)
-    # run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],args.vcf,vcf_targets_file))
+    if args.caller == 'freebayes-haplotype':
+        args.supplementary_bam = None
     annotated_variants = vcf_variant_profiler(conf, args.files_prefix, args.vcf, bam_for_phasing=args.supplementary_bam)
     return annotated_variants
     
