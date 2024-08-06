@@ -130,3 +130,19 @@ class LofreqCaller(VariantCaller):
             raise NotImplementedError("%s not implemented for %s platform" % (self.__software__,self.platform))
         return self.run_calling(self.calling_cmd)
 
+class FreebayesHaplotypeCaller(VariantCaller):
+    __software__ = "freebayes-haplotype"
+    def call_variants(self) -> Vcf:
+        # Call variants using Lofreq
+        
+        self.calling_cmd = """
+            samtools view -T %(ref_file)s  -h %(bam_file)s {region} %(samclip_cmd)s | \
+            samtools view -b > %(temp_file_prefix)s.{region_safe}.tmp.bam && \
+            samtools index %(temp_file_prefix)s.{region_safe}.tmp.bam && \
+            freebayes -f %(ref_file)s -r {region} %(calling_params)s  %(temp_file_prefix)s.{region_safe}.tmp.bam | \
+            bcftools view -Oz -o %(temp_file_prefix)s.{region_safe}.tmp.vcf.gz && \
+            tabix %(temp_file_prefix)s.{region_safe}.tmp.vcf.gz && \
+            freebayes -f %(ref_file)s -r {region} %(calling_params)s  %(temp_file_prefix)s.{region_safe}.tmp.bam --haplotype-length 100 --haplotype-basis-alleles %(temp_file_prefix)s.{region_safe}.tmp.vcf.gz | bcftools norm -a -Oz -o %(temp_file_prefix)s.{region_safe}.vcf.gz
+            """ % vars(self)
+        
+        return self.run_calling(self.calling_cmd)
