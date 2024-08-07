@@ -219,7 +219,7 @@ class Vcf:
                     ref = ref,
                     alt = alt,
                     depth = sum(ad),
-                    freq = af_dict[alt],
+                    freq = sum(strand_support)/sum(ad),
                     forward_reads = strand_support[0],
                     reverse_reads = strand_support[1],
                     sv = sv,
