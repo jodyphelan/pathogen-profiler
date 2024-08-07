@@ -212,14 +212,14 @@ class Vcf:
             ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
                 strand_support = get_stand_support(var,alt)
-
+                freq = af_dict[alt]/sum(ad) if sv else sum(strand_support)/sum(ad)
                 tmp_var = Variant(
                     chrom = chrom,
                     pos = int(pos),
                     ref = ref,
                     alt = alt,
                     depth = sum(ad),
-                    freq = sum(strand_support)/sum(ad),
+                    freq = freq,
                     forward_reads = strand_support[0],
                     reverse_reads = strand_support[1],
                     sv = sv,
