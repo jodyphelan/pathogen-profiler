@@ -89,9 +89,9 @@ def get_overlapping_exons(chrom: str,pos: int,exons: List[Exon]):
 
 def get_codon_pos(chrom: str,pos: int,exons: List[Exon]):
     e = get_overlapping_exons(chrom,pos,exons)
-    logging.debug(f"{chrom}:{pos} {vars(e)}")
     if e==None:
         return (None,None)
+    logging.debug(f"{chrom}:{pos} {vars(e)}")
     if e.strand=="+":
         codon_pos = (pos-e.start-e.phase)//3 + 1
     else:
@@ -196,6 +196,14 @@ for key,variants in coding_variants.items():
         variant.info.update({'AF':count/dp})
         if 'DP4' in variant.info:
             variant.info['DP4'] = [ref_fwd,ref_rev,hap_fwd,hap_rev]
+        if 'SAF' in variant.info:
+            variant.info['SAF'] = hap_fwd
+            variant.info['SAR'] = hap_rev
+        if 'ADF' in var.samples[0]:
+            var.samples[0]['ADF'] = hap_fwd
+            var.samples[0]['ADR'] = hap_rev
+        if 'AD' in variant.samples[0]:
+            variant.samples[0]['AD'] = [dp - count, hap_fwd + hap_rev]
         
         other_variants.append(variant)
 
