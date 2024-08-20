@@ -220,7 +220,6 @@ class Vcf:
                     elif sv:
                         freq = af_dict[alt]
                     else:
-                        print(var)
                         raise NotImplementedError
                     
                 tmp_var = Variant(
