@@ -212,7 +212,16 @@ class Vcf:
             ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
                 strand_support = get_stand_support(var,alt)
-                freq = af_dict[alt] if sv else sum(strand_support)/sum(ad)
+                if strand_support[0]:
+                    freq = sum(strand_support)/sum(ad)
+                else:
+                    if 'QNAME' in var.info:
+                        freq = 1.0
+                    elif sv:
+                        freq = af_dict[alt]
+                    else:
+                        raise NotImplementedError
+                    
                 tmp_var = Variant(
                     chrom = chrom,
                     pos = int(pos),
