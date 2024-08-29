@@ -135,10 +135,11 @@ class Vcf:
                     self.phasing_bam = f"--bam {bam_for_phasing}"
                 else:
                     self.phasing_bam = ""
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-                run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
-                run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                run_cmd("bcftools view -c 1 -a %(filename)s | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
+                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
+                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
+                # run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return Vcf(self.vcf_csq_file,self.prefix)
@@ -186,7 +187,7 @@ class Vcf:
         variants = []
         vcf = pysam.VariantFile(self.filename)
         for var in vcf:
-            logging.debug(str(var)[:500])
+            logging.debug(str(var)[:5000])
             chrom = var.chrom
             pos = var.pos
             ref = var.ref
@@ -211,14 +212,23 @@ class Vcf:
             ann_list = [x.split("|") for x in ann_strs]
             for alt in alleles[1:]:
                 strand_support = get_stand_support(var,alt)
-
+                if strand_support[0] != None:
+                    freq = sum(strand_support)/sum(ad)
+                else:
+                    if 'QNAME' in var.info:
+                        freq = 1.0
+                    elif sv:
+                        freq = af_dict[alt]
+                    else:
+                        raise NotImplementedError
+                    
                 tmp_var = Variant(
                     chrom = chrom,
                     pos = int(pos),
                     ref = ref,
                     alt = alt,
                     depth = sum(ad),
-                    freq = af_dict[alt],
+                    freq = freq,
                     forward_reads = strand_support[0],
                     reverse_reads = strand_support[1],
                     sv = sv,

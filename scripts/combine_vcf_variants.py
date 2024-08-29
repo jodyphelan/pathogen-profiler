@@ -6,6 +6,7 @@ import argparse
 from pathogenprofiler.models import GenomePosition
 from pathogenprofiler.gff import load_gff, Exon
 from itertools import product
+import logging
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--vcf',type=str,help='')
@@ -13,7 +14,13 @@ parser.add_argument('--gff',type=str,help='',required = True)
 parser.add_argument('--ref',type=str,help='',required = True)
 parser.add_argument('--out',type=str,help='')
 parser.add_argument('--bam',type=str,help='')
+parser.add_argument('--debug',action='store_true',help='Log file')
 args = parser.parse_args()
+
+if args.debug:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 
 def get_alleles(
@@ -54,6 +61,7 @@ def get_haplotype_counts(
     start = min(positions).pos
     end = max(positions).pos
     for read in bam.fetch(contig=chrom,start=start,end=end):
+        logging.debug((read.qname, read.mapping_quality<10, read.is_secondary, read.is_supplementary, read.is_unmapped))
         if read.mapping_quality < 10:
             continue
         if read.is_secondary:
@@ -63,19 +71,14 @@ def get_haplotype_counts(
         if read.is_unmapped:
             continue
         alleles = get_alleles(read,positions=positions,bystrand=bystrand)
+        logging.debug(alleles)
         if all(alleles):
             allele_combinations.append(''.join(alleles))
     counts = Counter(allele_combinations)
+    logging.debug(counts)
     return counts
 
 
-gff = load_gff(args.gff)
-exons = []
-for gene in gff:
-    for transcript in gene.transcripts:
-        for i,exon in enumerate(transcript.exons):
-            exon.id = f"{gene.gene_id}_exon{i+1}"
-            exons.append(exon)
 
 def get_overlapping_exons(chrom: str,pos: int,exons: List[Exon]):
     exons = [e for e in exons if e.start<=pos and e.end>=pos and chrom==e.chrom]
@@ -88,13 +91,21 @@ def get_codon_pos(chrom: str,pos: int,exons: List[Exon]):
     e = get_overlapping_exons(chrom,pos,exons)
     if e==None:
         return (None,None)
+    logging.debug(f"{chrom}:{pos} {vars(e)}")
     if e.strand=="+":
-        codon_pos = (pos-e.start)//3 + 1
+        codon_pos = (pos-e.start-e.phase)//3 + 1
     else:
-        codon_pos = (e.end - pos )//3 + 1
+        codon_pos = (e.end + e.phase - pos )//3 + 1
     return (e.id,codon_pos)
         
 
+gff = load_gff(args.gff)
+exons = []
+for gene in gff:
+    for transcript in gene.transcripts:
+        for i,exon in enumerate(transcript.exons):
+            exon.id = f"{gene.gene_id}_exon{i+1}"
+            exons.append(exon)
 
 ref = pysam.FastaFile(args.ref)
 coding_variants = defaultdict(list)
@@ -107,7 +118,9 @@ if "AF" not in vcf.header.info.keys():
 
 for var in vcf:
     gene,cpos = get_codon_pos(var.chrom,var.pos,exons)
-    if gene==None:
+    if var.rlen!=1 or len(var.alts[0])!=1:
+        other_variants.append(var)
+    elif gene==None:
         other_variants.append(var)
     else:
         coding_variants[(gene,cpos)].append(var)
@@ -149,6 +162,13 @@ for key,variants in coding_variants.items():
             haplotypes_by_strand = {
                 ref_hap: int(v.samples[0]['AD'][0])
             }
+        if len(ds)==2 and list(ds)[0]+2 == list(ds)[1]:
+            midpos = list(ds)[0]+1
+            # insert the ref allele in between
+            ds[midpos] = ref.fetch(v.chrom,midpos-1,midpos)
+            # sort
+            ds = dict(sorted(ds.items()))        
+
         for alts in product(*ds.values()):
             hap = ''.join(alts)
             if 'DP4' in v.info:
@@ -168,7 +188,7 @@ for key,variants in coding_variants.items():
     for i,(hap,count) in enumerate(haplotypes.items()):
         hap_fwd = haplotypes_by_strand.get(hap.upper(),0)
         hap_rev = haplotypes_by_strand.get(hap.lower(),0)
-        if hap==ref_hap: 
+        if hap.upper()==ref_hap.upper(): 
             continue
         variant = variants[0].copy()
         variant.alts = (hap,)
@@ -176,6 +196,14 @@ for key,variants in coding_variants.items():
         variant.info.update({'AF':count/dp})
         if 'DP4' in variant.info:
             variant.info['DP4'] = [ref_fwd,ref_rev,hap_fwd,hap_rev]
+        if 'SAF' in variant.info:
+            variant.info['SAF'] = hap_fwd
+            variant.info['SAR'] = hap_rev
+        if 'ADF' in var.samples[0]:
+            var.samples[0]['ADF'] = hap_fwd
+            var.samples[0]['ADR'] = hap_rev
+        if 'AD' in variant.samples[0]:
+            variant.samples[0]['AD'] = [dp - count, hap_fwd + hap_rev]
         
         other_variants.append(variant)
 

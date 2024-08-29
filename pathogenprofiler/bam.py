@@ -85,9 +85,16 @@ class Bam:
         self.bed_file = bed_file
         self.ref_file = ref_file
         if self.platform=="illumina":
-            run_cmd("delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))            
+            cmd = "delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
+            result = run_cmd(cmd, exit_on_error=False)
         else:
-            run_cmd("delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self))
+            cmd = "delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
+            result = run_cmd(cmd, exit_on_error=False)
+        
+        exitcode = result.returncode
+        if exitcode!=0:
+            logging.error("Delly failed, skipping")
+            return None
 
         run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
         run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))

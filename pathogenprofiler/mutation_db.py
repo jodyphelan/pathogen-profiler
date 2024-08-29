@@ -23,7 +23,7 @@ class DictSet:
             self.container.add(json.dumps(data))
 
     def to_dict_list(self) -> List[dict]:
-        return [json.loads(d) for d in self.container]
+        return [json.loads(d) for d in sorted(list(self.container))]
 
 
 
