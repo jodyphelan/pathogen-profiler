@@ -1,7 +1,7 @@
 from .fastq import Fastq
 from .utils import run_cmd, cmd_out
 from .bam import Bam
-from .db import get_db
+from .db import get_db, check_db_exists
 from .fasta import Fasta, Paf
 from .profiler import vcf_profiler, bam_barcoder, vcf_barcoder
 import logging
@@ -335,6 +335,7 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     >>> species_prediction.species
     [Species(species='Mycobacterium abscessus', prediction_info=None)]
     """
+    check_db_exists(args.software_name,args.resistance_db)
     conf = get_db(args.software_name,args.resistance_db)
     species = Species(
         species=conf["species"]
