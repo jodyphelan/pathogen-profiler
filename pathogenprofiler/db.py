@@ -574,12 +574,30 @@ def check_db_files(variables):
             if not os.path.isfile(val+".fai"):
                 index_ref(val)
 
+def is_db_path(string):
+    if "/" in string:
+        return True
+    elif os.path.isfile(string+".variables.json"):
+        return True
+    return False
 
-def get_db(software_name,db_name):
-    if "/" in db_name:
-        share_path = "/".join(db_name.split("/")[:-1])
-        db_name = db_name.split("/")[-1]
-        variable_file_name = f"{share_path}/{db_name}.variables.json"
+def check_db_exists(software_name,db_name):
+    db = get_db(software_name=software_name,db_name=db_name,verbose=False)
+    if db is None:
+        share_path = f"{sys.base_prefix}/share/{software_name}/"
+        logging.error(f"DB {db_name} does not exist in the current directory or in {share_path}")
+        raise FileExistsError
+    
+
+def get_db(software_name,db_name,verbose=True):
+    if is_db_path(db_name):
+        if "/" in db_name:
+            share_path = "/".join(db_name.split("/")[:-1])
+            db_name = db_name.split("/")[-1]
+            variable_file_name = f"{share_path}/{db_name}.variables.json"
+        else:
+            share_path = '.'
+            variable_file_name = f"{share_path}/{db_name}.variables.json"
     else:
         share_path = f"{sys.base_prefix}/share/{software_name}/"
         variable_file_name = get_variable_file_name(software_name,db_name)
@@ -588,7 +606,8 @@ def get_db(software_name,db_name):
         return None
     variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
-        logging.info(f"Using {key} file: {share_path}/{val}")
+        if verbose:
+            logging.info(f"Using {key} file: {share_path}/{val}")
         if ".json" in val:
             variables[key] = json.load(open(f"{share_path}/{val}"))
         elif key=='rules':
@@ -608,9 +627,13 @@ def list_db(software_name):
 
 
 def create_species_db(args,extra_files = None):
+    variables = json.load(open("variables.json"))
     if not extra_files:
         extra_files = {}
-    version = {"name":args.prefix}
+    version = {
+        "db-schema-version":variables['db-schema-version'],
+        "name":args.prefix
+    }
     if os.path.isdir('.git'):
         for l in pp.cmd_out("git log | head -4"):
             row = l.strip().split()
@@ -626,12 +649,12 @@ def create_species_db(args,extra_files = None):
         shutil.copyfile(file,target)
 
     variables_file = args.prefix+".variables.json"
-    variables = {
+    variables.update({
         "version": version,
         "files":{
             "variables": variables_file
         }
-    }
+    })
 
     if extra_files:
         for key,val in extra_files.items():
