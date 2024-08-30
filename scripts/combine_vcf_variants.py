@@ -173,9 +173,11 @@ for key,variants in coding_variants.items():
             hap = ''.join(alts)
             if 'DP4' in v.info:
                 haplotypes_by_strand[hap] = int(v.info['DP4'][2])+int(v.info['DP4'][3])
+            elif 'SAF' in v.info:
+                haplotypes_by_strand[hap] = int(v.info['SAF'][0])
+                haplotypes_by_strand[hap.lower()] = int(v.info['SAR'][0])
             elif 'AD' in v.samples[0]:
                 haplotypes_by_strand[hap] = int(v.samples[0]['AD'][1])
-
 
 
     haplotypes = Counter()
