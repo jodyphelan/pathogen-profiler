@@ -17,3 +17,13 @@ def check_vcf_chrom_match(vcf_file, ref_file) -> None:
     for chrom in vcf.header.contigs:
         if chrom not in ref.references:
             raise Exception(f"Chromosome {chrom} in VCF file {vcf_file} not found in reference file {ref_file}.")
+
+def check_bam_chrom_match(bam_file, ref_file) -> None:
+    """
+    Check if the chromosomes in the BAM file match the reference file.
+    """
+    bam = pysam.AlignmentFile(bam_file, "rb")
+    ref = pysam.FastaFile(ref_file)
+    for chrom in bam.references:
+        if chrom not in ref.references:
+            raise Exception(f"Chromosome {chrom} in BAM file {bam_file} not found in reference file {ref_file}.")
