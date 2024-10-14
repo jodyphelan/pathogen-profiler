@@ -298,6 +298,7 @@ def get_sourmash_hit(args):
     elif args.bam:
         run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
         fq_file = f"{args.files_prefix}.tmp.fastq"
+        args.temp_fastq_file = fq_file
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
