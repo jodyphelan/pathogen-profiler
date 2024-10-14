@@ -103,7 +103,7 @@ class GatkCaller(VariantCaller):
     def call_variants(self) -> Vcf:
         # Call variants using GATK
         if self.platform=="illumina":
-            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {region} %(samclip_cmd)s | samtools view -b > %(temp_file_prefix)s.{region_safe}.tmp.bam && samtools index %(temp_file_prefix)s.{region_safe}.tmp.bam && gatk HaplotypeCaller -R %(ref_file)s -I %(temp_file_prefix)s.{region_safe}.tmp.bam -O /dev/stdout -L {region} %(calling_params)s -OVI false | bcftools norm -f %(ref_file)s -Oz -o %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self)
+            self.calling_cmd = "samtools view -T %(ref_file)s -h %(bam_file)s {region} %(samclip_cmd)s | samtools view -b > %(temp_file_prefix)s.{region_safe}.tmp.bam && samtools index %(temp_file_prefix)s.{region_safe}.tmp.bam && gatk HaplotypeCaller -A StrandBiasBySample -R %(ref_file)s -I %(temp_file_prefix)s.{region_safe}.tmp.bam -O /dev/stdout -L {region} %(calling_params)s -OVI false | bcftools norm -f %(ref_file)s -Oz -o %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self)
         else:
             raise NotImplementedError("%s not implemented for %s platform" % (self.__software__,self.platform))
         return self.run_calling(self.calling_cmd)
