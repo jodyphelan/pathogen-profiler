@@ -356,7 +356,10 @@ class Bam:
             if row[0]!="SN": continue
             if row[1]=='raw total sequences:': self.total_reads = int(row[2])
             if row[1]=='reads mapped:': self.mapped_reads = int(row[2])
-        self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
+        if self.total_reads==0:
+            self.pct_reads_mapped = 0
+        else:
+            self.pct_reads_mapped = round(self.mapped_reads/self.total_reads*100,2)
         os.remove(temp_file)
     
     def get_missing_genomic_positions(self, bed_file:str, cutoff: int=10) -> List[GenomePositionDepth]:
