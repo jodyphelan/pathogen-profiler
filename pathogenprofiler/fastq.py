@@ -71,7 +71,7 @@ class Fastq:
         self.bwa_meme_prefix = "bwa-meme mem -t %(threads)s -K 10000000 -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bwa2_prefix = "bwa-mem2 mem -t %(threads)s -c 100 -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -M -T 50" % vars(self)
         self.bowtie2_prefix = "bowtie2 -p %(threads)s --rg-id '%(sample_name)s' --rg 'SM:%(sample_name)s' --rg 'PL:%(platform)s'" % vars(self)
-        self.minimap2_prefix = "minimap2 -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % vars(self)
+        self.minimap2_prefix = "minimap2 --MD -t %(threads)s -R '@RG\\tID:%(sample_name)s\\tSM:%(sample_name)s\\tPL:%(platform)s' -a" % vars(self)
         self.bam_file = "%s.bam" % self.prefix
         self.bam_single_file = "%s.single.bam" % self.prefix
         self.bam_pair_file = "%s.pair.bam" % self.prefix
