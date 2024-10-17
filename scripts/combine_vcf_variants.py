@@ -136,11 +136,9 @@ for var in vcf:
         coding_variants[(gene,cpos)].append(var)
 
 
-logging.debug(coding_variants[('PVP01_1429500_exon2', 164)][0])
+
 
 for key,variants in coding_variants.items():
-    logging.debug((key,[str(v) for v in variants]))
-    logging.debug(coding_variants[('PVP01_1429500_exon2', 164)][0])
     if len(variants)==1:
         other_variants.append(variants[0])
         continue
