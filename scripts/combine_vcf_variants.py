@@ -202,8 +202,10 @@ for key,variants in coding_variants.items():
             variant.info['SAF'] = hap_fwd
             variant.info['SAR'] = hap_rev
         if 'ADF' in var.samples[0]:
-            var.samples[0]['ADF'] = hap_fwd
-            var.samples[0]['ADR'] = hap_rev
+            print(var)
+            print(hap_fwd,hap_rev)
+            var.samples[0]['ADF'] = (ref_fwd,hap_fwd)
+            var.samples[0]['ADR'] = (ref_rev,hap_rev)
         if 'AD' in variant.samples[0]:
             variant.samples[0]['AD'] = [dp - count, hap_fwd + hap_rev]
         
