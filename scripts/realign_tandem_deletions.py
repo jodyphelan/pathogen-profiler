@@ -37,8 +37,8 @@ def check_coordinates(var: pysam.VariantRecord,refseq: pysam.FastaFile, directio
             return original_tuple
         nextseq = refseq.fetch(var.chrom, start-svlen, start-1)
     if deleted_seq == nextseq:
-        logging.info((svlen,deleted_seq,nextseq))
-        logging.info(f"Deletion {var.chrom}:{start}-{end} is a tandem repeat")
+        logging.debug((svlen,deleted_seq,nextseq))
+        logging.debug(f"Deletion {var.chrom}:{start}-{end} is a tandem repeat")
         if direction == "right":
             last_del_nuc = deleted_seq[-1]
             ref = last_del_nuc + deleted_seq
@@ -58,7 +58,7 @@ def check_coordinates(var: pysam.VariantRecord,refseq: pysam.FastaFile, directio
                 alt = first_del_nuc
             return start-svlen+1, start, ref, (alt,)
     else:
-        logging.info(f"Deletion {var.chrom}:{start}-{end} is not a tandem repeat")
+        logging.debug(f"Deletion {var.chrom}:{start}-{end} is not a tandem repeat")
         return original_tuple
 
 vcf_in = pysam.VariantFile(args.input)
@@ -82,7 +82,7 @@ for var in vcf_in:
     gene_ends_list = gene_ends[var.chrom]
     gene_end_index = bisect.bisect_left(gene_ends_list, var.start) 
     if gene_ends_list[gene_end_index] > var.start and gene_ends_list[gene_end_index] < var.stop:
-        logging.info(f"Variant overlaps with gene end {genes[gene_end_index].name}")
+        logging.debug(f"Variant overlaps with gene end {genes[gene_end_index].name}")
         direction = "right" if genes[gene_end_index].strand == "+" else "left"
         start,end,ref,alts = check_coordinates(var,refseq,direction)
         var.start = start
