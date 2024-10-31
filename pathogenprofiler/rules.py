@@ -133,22 +133,45 @@ def parse_flexible_dsl(rule: str) -> dict:
     >>> parse_flexible_dsl('Variant(gene_name="gyrA") inactivates_resistance Variant(gene_name="gyrB")')
     {'source_query': 'Variant(gene_name="gyrA")', 'target_query': 'Variant(gene_name="gyrB")', 'action': 'inactivates_resistance'}
     """
-    parts = rule.split(' inactivates_resistance ')
-    if len(parts) != 2:
+    parts = rule.split()
+    parts = parts[:3] + [' '.join(parts[3:])]
+    if len(parts) < 3:
         return None
-
-    source_query, target_query = parts
+    if len(parts)==3:
+        parts.append(None)
+    source_query, action, target_query, note = parts
 
     return {
         'source_query': source_query,
         'target_query': target_query,
-        'action': 'inactivates_resistance'
+        'action': action,
+        'note': note
     }
 
 
-def execute_inactivates_resistance_flexible(data_structure: List[Variant], source_query: dict, target_query: dict) -> bool:
+def execute_inactivates_resistance_flexible(data_structure: List[Variant], source_query: dict, target_query: dict, note: str, just_make_note=False) -> bool:
     """
     Execute the 'inactivates_resistance' action in a flexible manner where either genes or mutations
+    can inactivate resistance on genes or mutations.
+    """
+    source_objects = search_for_object(data_structure, source_query)
+    target_objects = search_for_object(data_structure, target_query)
+
+    if source_objects and target_objects:
+        for target_object in target_objects:
+            for annotation in vars(target_object).get('annotation', []):
+                if annotation.get('type') == 'drug_resistance':
+                    if note:
+                        annotation['note'] = note
+                    if not just_make_note:
+                        annotation['type'] = 'inactivated_drug_resistance'
+
+        return True
+    return False
+
+def execute_make_interaction_note(data_structure: List[Variant], source_query: dict, target_query: dict) -> bool:
+    """
+    Execute the 'make_note' action in a flexible manner where either genes or mutations
     can inactivate resistance on genes or mutations.
     """
     source_objects = search_for_object(data_structure, source_query)
@@ -157,12 +180,11 @@ def execute_inactivates_resistance_flexible(data_structure: List[Variant], sourc
         for target_object in target_objects:
             for annotation in vars(target_object).get('annotation', []):
                 if annotation.get('type') == 'drug_resistance':
-                    annotation['type'] = 'inactivated_drug_resistance'
+                    annotation['note'] = 'There is an interaction between %s and %s. Please check mutations for further details.' % (source_query, target_query)
         return True
     return False
 
-
-def apply_rules(rules: List[str], genetic_objects: List[dict]) -> List[str]:
+def apply_rules(rules: List[str], genetic_objects: List[dict], just_make_note: bool=False) -> List[str]:
     """
     Apply the rules to the genetic objects.
     
@@ -185,20 +207,27 @@ def apply_rules(rules: List[str], genetic_objects: List[dict]) -> List[str]:
     >>> data[1].annotation[0]['type']=='inactivated_drug_resistance'
     True
     """
+    actions = {
+        'inactivates_resistance': execute_inactivates_resistance_flexible,
+        'make_interaction_note': execute_make_interaction_note
+    }
     rules_applied = []
     for rule in rules:
         logging.debug("Applying rule: %s" % rule)
         parsed_query = parse_flexible_dsl(rule)
         if parsed_query:
-            action_executed = execute_inactivates_resistance_flexible(
+            action_executed = actions[parsed_query['action']](
                 genetic_objects,
                 parsed_query['source_query'], 
-                parsed_query['target_query']
+                parsed_query['target_query'],
+                parsed_query['note'],
+                just_make_note=just_make_note
             )
             if not action_executed:
                 pass
             else:
                 rules_applied.append(rule)
+
 
     return rules_applied
     
