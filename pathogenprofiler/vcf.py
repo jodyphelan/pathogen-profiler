@@ -223,10 +223,9 @@ class Vcf:
                 else:
                     if 'QNAME' in var.info:
                         freq = 1.0
-                    elif sv:
-                        freq = af_dict[alt]
                     else:
-                        raise NotImplementedError
+                        freq = af_dict[alt]
+
                     
                 tmp_var = Variant(
                     chrom = chrom,
