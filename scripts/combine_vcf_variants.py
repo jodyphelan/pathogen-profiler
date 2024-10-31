@@ -40,6 +40,7 @@ def get_alleles(
             continue
         if read.query_qualities[read_pos] < 12:
             continue
+        
         if read_nt.islower():
             read_nt = read.query_sequence[read_pos].upper()
         
@@ -107,6 +108,14 @@ for gene in gff:
             exon.id = f"{gene.gene_id}_exon{i+1}"
             exons.append(exon)
 
+def has_md_tag(bam):
+    for read in bam.fetch():
+        break
+    if read.has_tag('MD'):
+        return True
+    else:
+        return False
+    
 ref = pysam.FastaFile(args.ref)
 coding_variants = defaultdict(list)
 other_variants = []
@@ -117,6 +126,7 @@ if "AF" not in vcf.header.info.keys():
     vcf.header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1]">')
 
 for var in vcf:
+    logging.debug(var)
     gene,cpos = get_codon_pos(var.chrom,var.pos,exons)
     if var.rlen!=1 or len(var.alts[0])!=1:
         other_variants.append(var)
@@ -125,13 +135,8 @@ for var in vcf:
     else:
         coding_variants[(gene,cpos)].append(var)
 
-def has_md_tag(bam):
-    for read in bam.fetch():
-        break
-    if read.has_tag('MD'):
-        return True
-    else:
-        return False
+
+
 
 for key,variants in coding_variants.items():
     if len(variants)==1:
@@ -145,11 +150,11 @@ for key,variants in coding_variants.items():
     ref_hap = ''.join([ref.fetch(p.chrom,p.pos-1,p.pos) for p in positions])
     if args.bam and has_md_tag(pysam.AlignmentFile(args.bam)):
         haplotypes_by_strand = get_haplotype_counts(pysam.AlignmentFile(args.bam),positions,bystrand=True)
-
+        logging.debug(haplotypes_by_strand)
     else:
         # alt is just a combination of all the alt alleles
         alt_hap = ''.join([v.alts[0] for v in variants])
-
+        logging.debug('adkasjdaosdjaoisd')
         ds = defaultdict(list)
         for v in variants:
             ds[v.pos].append(v.alts[0])
@@ -202,8 +207,8 @@ for key,variants in coding_variants.items():
             variant.info['SAF'] = hap_fwd
             variant.info['SAR'] = hap_rev
         if 'ADF' in var.samples[0]:
-            var.samples[0]['ADF'] = hap_fwd
-            var.samples[0]['ADR'] = hap_rev
+            variant.samples[0]['ADF'] = (ref_fwd,hap_fwd)
+            variant.samples[0]['ADR'] = (ref_rev,hap_rev)
         if 'AD' in variant.samples[0]:
             variant.samples[0]['AD'] = [dp - count, hap_fwd + hap_rev]
         

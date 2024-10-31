@@ -10,7 +10,7 @@ import argparse
 from .models import Variant, DrVariant, Gene, DrGene, SpeciesPrediction, Species, BarcodeResult
 from .mutation_db import MutationDB
 from .vcf import Vcf
-from .sanity import check_bam_for_rg, check_vcf_chrom_match
+from .sanity import check_bam_for_rg, check_vcf_chrom_match, check_bam_chrom_match
 
 def get_variant_filters(args):
     filters = {}
@@ -203,7 +203,7 @@ def run_profiler(args) -> List[Union[Variant,DrVariant,Gene,DrGene]]:
             tmp_vcf_file = f"{args.files_prefix}.tmp.vcf.gz"
             run_cmd(f"bcftools view {args.vcf} | modify_lofreq_vcf.py --sample {args.prefix} | bcftools view -Oz -o {tmp_vcf_file}")
             args.vcf = tmp_vcf_file
-    # check_vcf_chrom_match(args.vcf,args.conf["ref"])
+    check_vcf_chrom_match(args.vcf,args.conf["ref"])
     annotated_variants = vcf_profiler(args)
 
     return annotated_variants
@@ -262,6 +262,7 @@ def get_bam_file(args):
         bam_file = bam_obj.bam_file
     else:
         check_bam_for_rg(args.bam)
+        check_bam_chrom_match(args.bam,args.conf["ref"])
         bam_file = args.bam
 
     return bam_file
@@ -297,6 +298,7 @@ def get_sourmash_hit(args):
     elif args.bam:
         run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
         fq_file = f"{args.files_prefix}.tmp.fastq"
+        args.temp_fastq_file = fq_file
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 

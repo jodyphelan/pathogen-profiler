@@ -112,8 +112,8 @@ class Paf:
             row = l.strip().split()
             results.append(
                 TargetQC(
-                    target = row[3],
-                    percent_depth_pass=float(row[9]),
+                    target = row[4],
+                    percent_depth_pass=float(row[9])*100,
                     median_depth=int(float(row[9])),
                 )
             )
