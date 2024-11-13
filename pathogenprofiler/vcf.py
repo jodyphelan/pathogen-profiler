@@ -21,11 +21,12 @@ def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
         forward_support = var.samples[0]['ADF'][alt_index+1]
         reverse_support = var.samples[0]['ADR'][alt_index+1]
     elif 'SB' in var.samples[0]:
-        forward_support = var.samples[0]['SB'][(alt_index+1)*2]
-        reverse_support = var.samples[0]['SB'][(alt_index+1)*2+1]
+        logging.debug(var.samples[0]['SB'])
+        forward_support = var.samples[0]['SB'][1*2]
+        reverse_support = var.samples[0]['SB'][1*2+1]
     elif 'DP4' in var.info:
-        forward_support = var.info['DP4'][alt_index*2]
-        reverse_support = var.info['DP4'][alt_index*2+1]
+        forward_support = var.info['DP4'][1*2]
+        reverse_support = var.info['DP4'][1*2+1]
     else:
         forward_support = None
         reverse_support = None
