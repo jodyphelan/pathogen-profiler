@@ -1,10 +1,7 @@
 import sys
 import os.path
 from collections import defaultdict
-import math
 import re
-import json
-import csv
 import subprocess as sp
 from uuid import uuid4
 import logging 
@@ -14,6 +11,7 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 from glob import glob
 from .models import GenomeRange
+import shutil
 
 
 tmp_prefix = str(uuid4())
@@ -80,7 +78,7 @@ class TempFolder(object):
     def __exit__(self, exc_type, exc_value, traceback):
         """Remove temporary files"""
         logging.debug("Removing temporary folder: %s" % self.prefix)
-        os.rmdir(self.prefix)
+        shutil.rmtree(self.prefix)
 
 def get_tmp_file(prefix=None):
     """Get a temporary file"""
