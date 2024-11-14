@@ -478,9 +478,13 @@ def create_db(args,extra_files = None):
             version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
             version["Author"] = args.db_author if args.db_author else "NA"
 
-        variables['version'] = version
-        if 'db-schema-version' in variables:
-            variables['version']['db-schema-version'] = variables['db-schema-version']
+        version_obj = version.copy()
+        for k,v in variables.items():
+            if 'version' in k:
+                version_obj[k] = v
+        variables['version'] = version_obj
+        # if 'db-schema-version' in variables:
+        #     variables['version']['db-schema-version'] = variables['db-schema-version']
 
         json.dump(db,open(json_file,"w"))
         
@@ -634,6 +638,9 @@ def create_species_db(args,extra_files = None):
         "db-schema-version":variables['db-schema-version'],
         "name":args.prefix
     }
+    for key,val in variables.items():
+        if 'version' in key:
+            version[key] = val
     if os.path.isdir('.git'):
         for l in pp.cmd_out("git log | head -4"):
             row = l.strip().split()
