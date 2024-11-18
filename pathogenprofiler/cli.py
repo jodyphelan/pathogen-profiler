@@ -159,6 +159,7 @@ def get_vcf_from_bam(args: argparse.Namespace):
         if delly_vcf_obj is not None:
             run_cmd("bcftools index %s" % delly_vcf_obj.filename)
             run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
+            run_cmd("bcftools index %s" % (final_target_vcf_file))
         else:
             return vcf_obj.filename
             #run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
