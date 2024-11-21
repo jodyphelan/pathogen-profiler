@@ -101,7 +101,7 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
             continue
         # if number of barcoding positions > 5 and there are less than 5% of possible positions with alternate
         if len(barcode_support[l])>5 and num_positions_with_alt<=0.10*len(barcode_support[l]):
-            logging.debug("Number of positions with alternate <10% for %s" % l)
+            logging.debug("Number of positions with alternate < 10 percent for %s" % l)
             continue
         
         barcode_pos_reads = sum([x[1] for x in barcode_support[l]])
