@@ -57,7 +57,7 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
     return (barcode_support,snps_report)
 
 
-def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
+def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15) -> List[BarcodeResult]:
     bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
     # bed = []
     lineage_info = {}
@@ -77,7 +77,7 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
     for l in barcode_support:
         logging.debug("Processing %s" % l)
         logging.debug(barcode_support[l])
-        # If stdev of fraction across all barcoding positions > 0.15
+        # If stdev of fraction across all barcoding positions > stdev_cutoff
         # Only look at positions with >5 reads
         tmp_allelic_dp = [x[1]/(x[0]+x[1]) for x in barcode_support[l] if sum(x)>5]
         logging.debug(tmp_allelic_dp)
@@ -89,8 +89,8 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
         if len(tmp_allelic_dp)==0: 
             logging.debug("No SNPs found for %s" % l)
             continue
-        if stdev(tmp_allelic_dp)>0.15:
-            logging.debug("Stdev > 0.15 for %s" % l)
+        if stdev(tmp_allelic_dp)>stdev_cutoff:
+            logging.debug(f"Stdev {stdev(tmp_allelic_dp)} > {stdev_cutoff} for {l}")
             continue
 
         # if number of barcoding positions > 5 and only one shows alternate
