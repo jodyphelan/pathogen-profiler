@@ -301,20 +301,26 @@ class Bam:
             cmd = "freebayes -f %(ref_file)s -t %(bed_file)s %(prefix)s.tmp.bam --haplotype-length -1 | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
         elif caller == "bcftools":
             cmd = "bcftools mpileup -f %(ref_file)s -T %(bed_file)s %(prefix)s.tmp.bam -BI -a AD | bcftools call -mv | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
+        elif caller == "mpileup":
+            cmd = "bcftools mpileup -f %(ref_file)s -T %(bed_file)s %(prefix)s.tmp.bam -BI -a AD | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%AD]\\n'" % vars(self)
         else:
             cmd = "freebayes -f %(ref_file)s -t %(bed_file)s %(prefix)s.tmp.bam --haplotype-length -1 | bcftools query -f '%%CHROM\\t%%POS\\t%%REF\\t%%ALT[\\t%%GT\\t%%AD]\\n'" % vars(self)
 
         for l in cmd_out(cmd):
             # Chromosome    4348079    0/0    51
-            chrom, pos, ref, alt, gt, ad = l.rstrip().split()
+            row = l.strip().split()
+            if len(row)==6:
+                chrom, pos, ref, alt, gt, ad = l.rstrip().split()
+            elif len(row)==5:
+                chrom, pos, ref, alt, ad = l.rstrip().split()
+                gt = None
+
             p = GenomePosition(chrom=chrom,pos=int(pos))
             d = {}
             alts = alt.split(",")
             ad = [int(x) for x in ad.split(",")]
-            # if gt == "0/0":
-            #     d[ref] = ad[0]
-            # elif gt == "./.":
-            if gt == "./.":
+
+            if gt and gt == "./.":
                 d[ref] = 0
             else:
                 genotypes = list([ref]+alts)
