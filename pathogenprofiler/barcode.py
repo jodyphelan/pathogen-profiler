@@ -58,6 +58,8 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
 
 
 def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15) -> List[BarcodeResult]:
+    if stdev_cutoff is None:
+        stdev_cutoff = 0.15
     bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
     # bed = []
     lineage_info = {}
