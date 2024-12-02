@@ -57,7 +57,9 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
     return (barcode_support,snps_report)
 
 
-def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
+def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15) -> List[BarcodeResult]:
+    if stdev_cutoff is None:
+        stdev_cutoff = 0.15
     bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
     # bed = []
     lineage_info = {}
@@ -75,24 +77,42 @@ def barcode(mutations,barcode_bed: str,snps_file=None) -> List[BarcodeResult]:
 
     barcode_frac = defaultdict(float)
     for l in barcode_support:
-        # If stdev of fraction across all barcoding positions > 0.15
+        logging.debug("Processing %s" % l)
+        logging.debug(barcode_support[l])
+        # If stdev of fraction across all barcoding positions > stdev_cutoff
         # Only look at positions with >5 reads
         tmp_allelic_dp = [x[1]/(x[0]+x[1]) for x in barcode_support[l] if sum(x)>5]
+        logging.debug(tmp_allelic_dp)
+
         # remove positions with no SNP (fraction=0)
         tmp_allelic_dp = [x for x in tmp_allelic_dp if x>0]
-        if len(tmp_allelic_dp)==0: continue
-        if stdev(tmp_allelic_dp)>0.15: continue
+        logging.debug(tmp_allelic_dp)
+
+        if len(tmp_allelic_dp)==0: 
+            logging.debug("No SNPs found for %s" % l)
+            continue
+        if stdev(tmp_allelic_dp)>stdev_cutoff:
+            logging.debug(f"Stdev {stdev(tmp_allelic_dp)} > {stdev_cutoff} for {l}")
+            continue
 
         # if number of barcoding positions > 5 and only one shows alternate
         num_positions_with_alt = len([x for x in barcode_support[l] if (x[1]/(x[0]+x[1]))>0])
-        if len(barcode_support[l])>5 and num_positions_with_alt<2: continue
+        logging.debug("Number of positions with alternate %s" % num_positions_with_alt)
+        if len(barcode_support[l])>5 and num_positions_with_alt<2:
+            logging.debug("Number of positions with alternate <2 for %s" % l)
+            continue
         # if number of barcoding positions > 5 and there are less than 5% of possible positions with alternate
-        if len(barcode_support[l])>5 and num_positions_with_alt<=0.10*len(barcode_support[l]): continue
+        if len(barcode_support[l])>5 and num_positions_with_alt<=0.10*len(barcode_support[l]):
+            logging.debug("Number of positions with alternate < 10 percent for %s" % l)
+            continue
         
         barcode_pos_reads = sum([x[1] for x in barcode_support[l]])
         barcode_neg_reads = sum([x[0] for x in barcode_support[l]])
         lf = barcode_pos_reads/(barcode_pos_reads+barcode_neg_reads)
-        if lf<0.05:continue
+        logging.debug("Barcode %s has frequency %s" % (l,lf))
+        if lf<0.05:
+            logging.debug("Frequency < 0.05 for %s" % l)
+            continue
         barcode_frac[l] = lf
     final_results = []
 
