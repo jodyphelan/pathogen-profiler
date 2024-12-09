@@ -30,6 +30,8 @@ def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
     else:
         forward_support = None
         reverse_support = None
+    
+    logging.debug(f"Forward support: {forward_support}, Reverse support: {reverse_support}")
     return forward_support, reverse_support
 
 def get_sv_ad(var):
