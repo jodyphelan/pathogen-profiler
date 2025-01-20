@@ -71,7 +71,7 @@ def get_resistance_db_from_species_prediction(args: argparse.Namespace,species_p
     logging.debug("Attempting to load db with species prediction")
     number_of_species = len(set([s.species for s in species_prediction.species]))
     if number_of_species==1:
-        return get_db(args.software_name,species_prediction.species[0].species.replace(" ","_")) 
+        return get_db(args.db_dir,species_prediction.species[0].species.replace(" ","_")) 
     else:
         return None
     
@@ -294,7 +294,7 @@ def set_platform_params(args):
     return args
 
 def get_sourmash_hit(args):
-    args.species_conf = get_db(args.software_name,args.species_db)
+    args.species_conf = get_db(args.db_dir,args.species_db)
     if args.read1:
         if args.read2:
             fastq = Fastq(args.read1,args.read2)
@@ -311,6 +311,8 @@ def get_sourmash_hit(args):
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
+    # print(args.species_conf)
+    # quit()
     sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=500000,f_match_threshold=0.1)
     result =  []
 
@@ -346,8 +348,8 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     >>> species_prediction.species
     [Species(species='Mycobacterium abscessus', prediction_info=None)]
     """
-    check_db_exists(args.software_name,args.resistance_db)
-    conf = get_db(args.software_name,args.resistance_db)
+    check_db_exists(args.db_dir,args.resistance_db)
+    conf = get_db(args.db_dir,args.resistance_db)
     species = Species(
         species=conf["species"]
     )
@@ -375,7 +377,7 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
         A SpeciesPrediction object
 
     """
-    conf = get_db(args.software_name,args.species_db)
+    conf = get_db(args.db_dir,args.species_db)
     sourmash_species_prediction = get_sourmash_hit(args)
     species = []
     for obj in sourmash_species_prediction:
