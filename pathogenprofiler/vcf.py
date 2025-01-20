@@ -104,15 +104,15 @@ class Vcf:
         return Vcf(self.newfile)
 
 
-    def run_snpeff(self, db: str,ref_file: str,gff_file: str,rename_chroms: dict = None, split_indels: bool=True, bam_for_phasing: str=None, snpeff_config: str=None):
+    def run_snpeff(self, db: str,ref_file: str,gff_file: str,rename_chroms: dict = None, split_indels: bool=True, bam_for_phasing: str=None, db_dir: str=None):
         logging.info("Running snpEff")
         add_arguments_to_self(self,locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
         
-        if snpeff_config:
-            self.snpeff_config_opt = f'-config {snpeff_config}'
+        if db_dir:
+            self.snpeff_config_opt = f'-config {db_dir}/snpeff/snpEff.config'
         else:
             self.snpeff_config_opt = f'-config {get_default_snpeff_config()}'
 

@@ -57,7 +57,7 @@ def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
         prefix=args.files_prefix, 
         vcf_file=args.vcf, 
         bam_for_phasing=args.supplementary_bam,
-        snpeff_config=args.snpeff_config if hasattr(args,'snpeff_config') else None
+        db_dir=args.db_dir if hasattr(args,'db_dir') else None
     )
     return annotated_variants
     
@@ -66,13 +66,13 @@ def vcf_profiler(args: argparse.Namespace) -> List[Union[Variant,DrVariant,Gene,
 
 
 
-def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str, bam_for_phasing: str = None, snpeff_config: str = None) -> List[Union[Variant,Gene]]:
+def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str, bam_for_phasing: str = None, db_dir: str = None) -> List[Union[Variant,Gene]]:
     vcf_targets_file = "%s.targets_for_profile.vcf.gz" % prefix
     if not vcf_is_indexed(vcf_file):
         run_cmd("bcftools index %s" % vcf_file)
     run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = Vcf(vcf_targets_file)
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms=conf.get("chromosome_conversion",None),bam_for_phasing=bam_for_phasing, snpeff_config=snpeff_config)
+    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms=conf.get("chromosome_conversion",None),bam_for_phasing=bam_for_phasing, db_dir=db_dir)
     variants = vcf_obj.load_ann(conf['variant_filters'],bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
     # compare against database of variants
