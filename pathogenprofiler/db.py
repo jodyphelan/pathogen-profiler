@@ -398,7 +398,7 @@ def create_db(args,extra_files = None):
 
     if os.path.isfile("snpEffectPredictor.bin"):
             snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
-            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name,args.software_name)
+            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name,args.db_dir)
             
     if not extra_files:
         extra_files = {}
@@ -681,10 +681,10 @@ def get_snpeff_dir():
     else: 
         return None
 
-def load_snpEff_db(bin_file,genome_name,software_name):
+def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
     default_snpeff_dir = get_snpeff_dir()
     default_snpeff_config = f"{default_snpeff_dir}/snpEff.config"
-    custom_snpeff_dir = f"{sys.base_prefix}/share/{software_name}/snpeff/"
+    custom_snpeff_dir = f"{db_dir}/snpeff/"
     if not os.path.isdir(custom_snpeff_dir):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
