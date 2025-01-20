@@ -178,7 +178,7 @@ def so_term_in_mutation(mutation: str) -> bool:
             return True
     return False
 
-def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
+def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB,db_dir):
     logging.debug("Converting HGVS to snpEff format")
     genes = load_gff(gff)
     refseq = FastaFile(ref)
@@ -186,7 +186,7 @@ def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     so_term_rows = [r for r in hgvs_variants if so_term_in_mutation(r['Mutation'])]
     hgvs_variants = [r for r in hgvs_variants if not so_term_in_mutation(r['Mutation'])]
 
-    converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
+    converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB,db_dir)
     for row in so_term_rows:
         converted_mutations[(row["Gene"],row['Mutation'])] = (row['Gene'],row['Mutation'])
 
@@ -429,7 +429,7 @@ def create_db(args,extra_files = None):
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
             hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
-            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],args.db_dir)
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
