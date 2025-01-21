@@ -689,6 +689,7 @@ def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
     custom_snpeff_config = f"{custom_snpeff_dir}/snpEff.config"
+    logging.debug(f'Looking for {custom_snpeff_config}')
     if not os.path.isfile(custom_snpeff_config):
         logging.debug(f"Could not find {custom_snpeff_config}")
         with open(default_snpeff_config,"r") as INPUT, open(custom_snpeff_config,"w") as OUTPUT:
