@@ -389,7 +389,11 @@ def replace_file_column(oldfilename,newfilename,column,conversion,sep="\t"):
                     row[column-1] = val
             f.write(sep.join(row)+"\n")
 
+
 def create_db(args,extra_files = None):
+    # set up snpeff folders if they don't exist
+    create_snpeff_directories(args.db_dir)
+
     variables = json.load(open("variables.json"))    
     genome_file = "%s.fasta" % args.prefix
     gff_file = "%s.gff" % args.prefix
@@ -674,29 +678,40 @@ def create_species_db(args: argparse.Namespace ,extra_files:dict = None, db_dir:
         logging.debug(f"Copying file: {val} ---> {target}")
         shutil.copyfile(val,target)
 
-def get_snpeff_dir():
+def get_default_snpeff_dir():
     tmp = glob(f"{sys.base_prefix}/share/*snpeff*")
     if len(tmp)>0:
         return tmp[0]
     else: 
         return None
 
-def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
-    default_snpeff_dir = get_snpeff_dir()
-    default_snpeff_config = f"{default_snpeff_dir}/snpEff.config"
-    custom_snpeff_dir = f"{db_dir}/snpeff/"
+def get_default_snpeff_config():
+    default_snpeff_dir = get_default_snpeff_dir()
+    return f"{default_snpeff_dir}/snpEff.config"
+
+def get_custom_snpeff_dir(db_dir):
+    return f"{db_dir}/snpeff/"
+
+def get_custom_snpeff_config(db_dir):
+    return f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
+
+def create_snpeff_directories(db_dir):
+    default_snpeff_config = get_default_snpeff_config()
+    custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    custom_snpeff_config = get_custom_snpeff_config(db_dir)
     if not os.path.isdir(custom_snpeff_dir):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
-    custom_snpeff_config = f"{custom_snpeff_dir}/snpEff.config"
-    logging.debug(f'Looking for {custom_snpeff_config}')
-    if not os.path.isfile(custom_snpeff_config):
-        logging.debug(f"Could not find {custom_snpeff_config}")
         with open(default_snpeff_config,"r") as INPUT, open(custom_snpeff_config,"w") as OUTPUT:
             for l in INPUT:
                 OUTPUT.write(l)
 
-            OUTPUT.write(f"{genome_name}.genome : {genome_name}\n")
+
+def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
+    custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    with open(custom_snpeff_config,"a") as F:
+        F.write(f"{genome_name}.genome : {genome_name}\n")
     
     
 
