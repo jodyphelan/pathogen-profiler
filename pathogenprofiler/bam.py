@@ -396,7 +396,10 @@ class Bam:
             self.calculate_bed_depth(bed_file)
         target_qc = []
         for r, data in load_bed(self.bed_file).items():
-            target = data[4]
+            if len(data)==7:
+                target = data[6]
+            else:
+                target = data[4]
             target_depth = [p for p in self.position_depth if p in r]
             region_len = len(target_depth)
             pos_pass_thresh = len([p for p in target_depth if p.depth>=cutoff])

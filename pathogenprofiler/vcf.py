@@ -10,6 +10,24 @@ import pysam
 from .models import Variant,Consequence, VcfQC, GenomePosition
 from typing import Optional, List, Tuple, Dict
 
+def get_default_snpeff_config():
+    share_dir = os.path.join(sys.base_prefix, 'share')
+    # check folder exists
+    if os.path.isdir(share_dir):
+        snp_eff_dirs = [d for d in os.listdir(share_dir) if d.startswith('snpeff-')]
+        if len(snp_eff_dirs) == 1:
+            snp_eff_dir = snp_eff_dirs[0]
+            return os.path.join(share_dir, snp_eff_dir, 'snpEff.config')
+    
+def get_custom_snpeff_config(software_name: str):
+    # check folder exists
+    share_dir = os.path.join(sys.base_prefix, 'share')
+    software_dir = os.path.join(share_dir, software_name)
+    if os.path.isdir(software_dir):
+        config = os.path.join(software_dir, 'snpEff.config')
+        if os.path.isfile(config):
+            return config
+
 def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
     alt_index = list(var.alts).index(alt)
     forward_support = None
@@ -30,6 +48,8 @@ def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
     else:
         forward_support = None
         reverse_support = None
+    
+    logging.debug(f"Forward support: {forward_support}, Reverse support: {reverse_support}")
     return forward_support, reverse_support
 
 def get_sv_ad(var):
@@ -84,55 +104,18 @@ class Vcf:
         return Vcf(self.newfile)
 
 
-    def set_snpeff_datadir(self):
-        """
-            Look for snpEff database directory and if not found, set it to current working directory.
-            Store the directory found in self.snpeff_data_dir
-        """
-        snpeff_basedir = None
-        for path_el in os.environ.get('PATH','').split(os.pathsep):
-            path_el = path_el.strip('"')
-
-            fpath = os.path.join(path_el, 'snpEff')
-
-            if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-                snpeff_basedir = path_el.rstrip('/').rstrip('bin')
-                break
-        
-        snpeff_data_dir = None
-        if snpeff_basedir is not None:
-            snpeff_shared_dir = os.path.join(snpeff_basedir, 'share')
-            for path_el in os.listdir(snpeff_shared_dir):
-                if path_el.startswith('snpeff-'):
-                    snpeff_data_dir = os.path.join(snpeff_shared_dir, path_el, 'data')
-                    snpeff_db_dir = os.path.join(snpeff_data_dir, self.db)
-                    if not os.path.isdir(snpeff_data_dir) and os.access(os.path.join(snpeff_shared_dir, path_el), os.W_OK | os.X_OK | os.R_OK):
-                        os.mkdir(snpeff_data_dir)
-                    if (os.path.isdir(snpeff_db_dir) or 
-                        (os.path.isdir(snpeff_data_dir) and os.access(snpeff_data_dir, os.W_OK | os.X_OK | os.R_OK))
-                        ):
-                        self.snpeff_data_dir = snpeff_data_dir
-                        return snpeff_data_dir
-
-        # if we have got here, we need to try an store the snpEff DB in the current working directory
-        snpeff_data_dir = os.getcwd()
-        if os.access(snpeff_data_dir, os.W_OK | os.R_OK):
-            self.snpeff_data_dir = snpeff_data_dir
-            return snpeff_data_dir
-        
-        return None
-
-    def run_snpeff(self,db,ref_file,gff_file,rename_chroms = None, split_indels=True, bam_for_phasing=None):
+    def run_snpeff(self, db: str,ref_file: str,gff_file: str,rename_chroms: dict = None, split_indels: bool=True, bam_for_phasing: str=None, db_dir: str=None):
         logging.info("Running snpEff")
         add_arguments_to_self(self,locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
-        if self.set_snpeff_datadir() is None:
-            logging.warning("snpEff database not found and no writeable directory to store database in, analysis might fail", file=sys.stderr)
-            self.snpeff_data_dir_opt = ''
+        
+        if db_dir:
+            self.snpeff_config_opt = f'-config {db_dir}/snpeff/snpEff.config'
         else:
-            self.snpeff_data_dir_opt = '-dataDir %(snpeff_data_dir)s' % vars(self)
+            self.snpeff_config_opt = f'-config {get_default_snpeff_config()}'
+
         if split_indels:
             with TempFilePrefix() as tmp:
                 self.tmp_file1 = f"{tmp}.1.vcf.gz"
@@ -142,13 +125,10 @@ class Vcf:
                     self.phasing_bam = f"--bam {bam_for_phasing}"
                 else:
                     self.phasing_bam = ""
-                run_cmd("bcftools view -c 1 -a %(filename)s | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
-                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v snps | combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file1)s && bcftools index %(tmp_file1)s" % vars(self))
-                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v indels | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file2)s && bcftools index %(tmp_file2)s" % vars(self))
-                # run_cmd("bcftools view -c 1 -a %(filename)s | bcftools view -v other | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(tmp_file3)s && bcftools index %(tmp_file3)s" % vars(self))
-                # run_cmd("bcftools concat -a %(tmp_file1)s %(tmp_file2)s %(tmp_file3)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                run_cmd("bcftools view -a %(filename)s | bcftools view -c 1 | realign_tandem_deletions.py - %(ref_file)s %(gff_file)s - |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                
         else :
-            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_data_dir_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
+            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return Vcf(self.vcf_csq_file,self.prefix)
 
 
