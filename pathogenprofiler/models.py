@@ -366,6 +366,9 @@ class Variant(BaseModel):
 
     def __lt__(self, other) -> bool:
         return self.get_str() < other.get_str()
+    
+    def __hash__(self) -> int:
+        return self.model_dump_json().__hash__()
 
 class DrVariant(Variant):
     drugs: List[dict] = Field(default_factory=list)

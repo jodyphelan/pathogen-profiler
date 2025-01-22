@@ -16,7 +16,7 @@ import logging
 from .hgvs import verify_mutation_list
 from pysam import FastaFile
 from typing import List
-
+import argparse
 
 supported_so_terms = [
     'coding_sequence_variant', 'chromosome', 'duplication', 'inversion', 'coding_sequence_variant', 
@@ -178,7 +178,7 @@ def so_term_in_mutation(mutation: str) -> bool:
             return True
     return False
 
-def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
+def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB,db_dir):
     logging.debug("Converting HGVS to snpEff format")
     genes = load_gff(gff)
     refseq = FastaFile(ref)
@@ -186,7 +186,7 @@ def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB):
     so_term_rows = [r for r in hgvs_variants if so_term_in_mutation(r['Mutation'])]
     hgvs_variants = [r for r in hgvs_variants if not so_term_in_mutation(r['Mutation'])]
 
-    converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB)
+    converted_mutations = verify_mutation_list(hgvs_variants,genes,refseq, snpEffDB,db_dir)
     for row in so_term_rows:
         converted_mutations[(row["Gene"],row['Mutation'])] = (row['Gene'],row['Mutation'])
 
@@ -389,7 +389,11 @@ def replace_file_column(oldfilename,newfilename,column,conversion,sep="\t"):
                     row[column-1] = val
             f.write(sep.join(row)+"\n")
 
+
 def create_db(args,extra_files = None):
+    # set up snpeff folders if they don't exist
+    create_snpeff_directories(args.db_dir)
+
     variables = json.load(open("variables.json"))    
     genome_file = "%s.fasta" % args.prefix
     gff_file = "%s.gff" % args.prefix
@@ -398,7 +402,7 @@ def create_db(args,extra_files = None):
 
     if os.path.isfile("snpEffectPredictor.bin"):
             snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
-            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name)
+            load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name,args.db_dir)
             
     if not extra_files:
         extra_files = {}
@@ -429,7 +433,7 @@ def create_db(args,extra_files = None):
     with open(args.prefix+".conversion.log","w") as L:
         if args.csv:
             hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
-            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"])
+            mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],args.db_dir)
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
@@ -544,7 +548,7 @@ def create_db(args,extra_files = None):
         
         
         if args.load:
-            load_db(variables_file,args.software_name)
+            load_db(variables_file,args.db_dir)
 
 def index_ref(target):
     # pp.run_cmd(f"bwa index {target}")
@@ -552,15 +556,15 @@ def index_ref(target):
     tmp = target.replace(".fasta","")
     pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
 
-def load_db(variables_file,software_name,source_dir="."):
+def load_db(variables_file,db_dir,source_dir="."):
     variables = json.load(open(variables_file))
-    load_dir = f"{sys.base_prefix}/share/{software_name}"
-    if not os.path.isdir(load_dir):   
-        os.mkdir(load_dir)
+
+    if not os.path.isdir(db_dir):   
+        os.mkdir(db_dir)
 
     for key,val in variables['files'].items():
         source = f"{source_dir}/{val}"
-        target = f"{load_dir}/{val}"
+        target = f"{db_dir}/{val}"
         # logging.info(f"Copying file: {source} ---> {target}")
         shutil.copyfile(source,target)
         if key=="ref":
@@ -568,8 +572,8 @@ def load_db(variables_file,software_name,source_dir="."):
     
     logging.info("[green]Sucessfully imported library[/]",extra={"markup":True})
 
-def get_variable_file_name(software_name,library_name):
-    library_prefix = f"{sys.base_prefix}/share/{software_name}/{library_name}"
+def get_variable_file_name(db_dir:str,library_name:str):
+    library_prefix = f"{db_dir}/{library_name}"
     return f"{library_prefix}.variables.json"
 
 def check_db_files(variables):
@@ -585,52 +589,49 @@ def is_db_path(string):
         return True
     return False
 
-def check_db_exists(software_name,db_name):
-    db = get_db(software_name=software_name,db_name=db_name,verbose=False)
+def check_db_exists(db_dir:str,db_name:str):
+    db = get_db(db_dir=db_dir,db_name=db_name,verbose=False)
     if db is None:
-        share_path = f"{sys.base_prefix}/share/{software_name}/"
-        logging.error(f"DB {db_name} does not exist in the current directory or in {share_path}")
+        logging.error(f"DB {db_name} does not exist in the current directory or in {db_dir}")
         raise FileExistsError
     
 
-def get_db(software_name,db_name,verbose=True):
+def get_db(db_dir:str,db_name:str,verbose:bool=True):
     if is_db_path(db_name):
         if "/" in db_name:
-            share_path = "/".join(db_name.split("/")[:-1])
+            db_dir = "/".join(db_name.split("/")[:-1])
             db_name = db_name.split("/")[-1]
-            variable_file_name = f"{share_path}/{db_name}.variables.json"
+            variable_file_name = f"{db_dir}/{db_name}.variables.json"
         else:
-            share_path = '.'
-            variable_file_name = f"{share_path}/{db_name}.variables.json"
+            db_dir = '.'
+            variable_file_name = f"{db_dir}/{db_name}.variables.json"
     else:
-        share_path = f"{sys.base_prefix}/share/{software_name}/"
-        variable_file_name = get_variable_file_name(software_name,db_name)
+        variable_file_name = os.path.join(db_dir,f"{db_name}.variables.json")
     
     if not os.path.isfile(variable_file_name):
         return None
     variables = json.load(open(variable_file_name))
     for key,val in variables['files'].items():
         if verbose:
-            logging.info(f"Using {key} file: {share_path}/{val}")
+            logging.info(f"Using {key} file: {db_dir}/{val}")
         if ".json" in val:
-            variables[key] = json.load(open(f"{share_path}/{val}"))
+            variables[key] = json.load(open(f"{db_dir}/{val}"))
         elif key=='rules':
-            variables[key] = [l.strip() for l in open(f'{share_path}/{val}')]
+            variables[key] = [l.strip() for l in open(f'{db_dir}/{val}')]
         else:
-            variables[key] = f"{share_path}/{val}"
+            variables[key] = f"{db_dir}/{val}"
     
     check_db_files(variables)
     return variables    
 
-def list_db(software_name):
-    share_path = f"{sys.base_prefix}/share/{software_name}"
-    if not os.path.isdir(share_path):
+def list_db(db_dir):
+    if not os.path.isdir(db_dir):
         return []
-    return [json.load(open(f"{share_path}/{f}")) for f in os.listdir(share_path) if f.endswith(".variables.json")]
+    return [json.load(open(f"{db_dir}/{f}")) for f in os.listdir(db_dir) if f.endswith(".variables.json")]
 
 
 
-def create_species_db(args,extra_files = None):
+def create_species_db(args: argparse.Namespace ,extra_files:dict = None, db_dir:str = None):
     variables = json.load(open("variables.json"))
     if not extra_files:
         extra_files = {}
@@ -668,33 +669,53 @@ def create_species_db(args,extra_files = None):
             variables["files"][key] = f"{args.prefix}.{val}"
     json.dump(variables,open(variables_file,"w"))
 
-    if args.load:
-        load_dir = f"{sys.base_prefix}/share/{args.software_name}"
-        if not os.path.isdir(load_dir):   
-            os.mkdir(load_dir)
 
-        for key,val in variables['files'].items():
-            target = f"{load_dir}/{val}"
-            logging.debug(f"Copying file: {val} ---> {target}")
-            shutil.copyfile(val,target)
+    if not os.path.isdir(db_dir):   
+        os.mkdir(db_dir)
 
-def get_snpeff_dir():
+    for key,val in variables['files'].items():
+        target = f"{db_dir}/{val}"
+        logging.debug(f"Copying file: {val} ---> {target}")
+        shutil.copyfile(val,target)
+
+def get_default_snpeff_dir():
     tmp = glob(f"{sys.base_prefix}/share/*snpeff*")
     if len(tmp)>0:
         return tmp[0]
     else: 
         return None
 
-def load_snpEff_db(bin_file,genome_name):
-    snpeff_dir = get_snpeff_dir()
-    snpeff_config = f"{snpeff_dir}/snpEff.config"
-    with open(snpeff_config,"a") as F:
-        F.write(f"\n{genome_name}.genome : {genome_name}\n")
+def get_default_snpeff_config():
+    default_snpeff_dir = get_default_snpeff_dir()
+    return f"{default_snpeff_dir}/snpEff.config"
+
+def get_custom_snpeff_dir(db_dir):
+    return f"{db_dir}/snpeff/"
+
+def get_custom_snpeff_config(db_dir):
+    return f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
+
+def create_snpeff_directories(db_dir):
+    default_snpeff_config = get_default_snpeff_config()
+    custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    if not os.path.isdir(custom_snpeff_dir):
+        os.mkdir(custom_snpeff_dir)
+        os.mkdir(f"{custom_snpeff_dir}/data")
+        with open(default_snpeff_config,"r") as INPUT, open(custom_snpeff_config,"w") as OUTPUT:
+            for l in INPUT:
+                OUTPUT.write(l)
+
+
+def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
+    custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    with open(custom_snpeff_config,"a") as F:
+        F.write(f"{genome_name}.genome : {genome_name}\n")
     
-    data_dir = f"{snpeff_dir}/data"
-    genome_dir = f"{data_dir}/{genome_name}"
-    if not os.path.isdir(data_dir):
-        os.mkdir(data_dir)
+    
+
+    genome_dir = f"{custom_snpeff_dir}/data/{genome_name}"
     if not os.path.isdir(genome_dir):
         os.mkdir(genome_dir)
     shutil.copyfile(bin_file,f"{genome_dir}/{bin_file}")
