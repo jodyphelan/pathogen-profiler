@@ -720,6 +720,8 @@ def create_snpeff_directories(db_dir):
     default_snpeff_config = get_default_snpeff_config()
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    if not os.path.isdir(db_dir):
+        os.mkdir(db_dir)
     if not os.path.isdir(custom_snpeff_dir):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
