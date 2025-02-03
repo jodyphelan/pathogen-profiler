@@ -17,6 +17,44 @@ from .hgvs import verify_mutation_list
 from pysam import FastaFile
 from typing import List
 import argparse
+import subprocess as sp
+
+
+def get_git_repo_info():
+    git_info = {
+        'repo': None,
+        'branch': None,
+        'commit': None,
+        'status': None,
+        'author': None,
+        'date': None
+    }
+    status = sp.run('git status', shell=True, capture_output=True).stderr.decode("utf-8")
+
+    if status.startswith('fatal'):
+        log = None
+        logging.warning("Not a git repository")
+    else:
+        log = sp.run('git log -1', shell=True, capture_output=True).stdout.decode("utf-8")
+        # git config --get remote.origin.url
+        git_info['repo'] = sp.run('git config --get remote.origin.url', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+        # git rev-parse --abbrev-ref HEAD
+        git_info['branch'] = sp.run('git rev-parse --abbrev-ref HEAD', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+        # git rev-parse --short=8 HEAD
+        git_info['commit'] = sp.run('git rev-parse --short=8 HEAD', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+        # git status
+        tmp = sp.run('git status', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+        if 'modified' in tmp:
+            git_info['status'] = 'modified'
+        else:
+            git_info['status'] = 'clean'
+        # git log -1 --pretty=format:"%an"
+        git_info['author'] = sp.run('git log -1 --pretty=format:"%an"', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+        # git log -1 --pretty=format:"%ad"
+        git_info['date'] = sp.run('git log -1 --pretty=format:"%ad"', shell=True, capture_output=True).stdout.decode("utf-8").strip()
+
+    return git_info
+
 
 supported_so_terms = [
     'coding_sequence_variant', 'chromosome', 'duplication', 'inversion', 'coding_sequence_variant', 
@@ -470,17 +508,7 @@ def create_db(args,extra_files = None):
 
 
         version = {"name":args.prefix}
-        if os.path.isdir('.git'):
-            
-            for i,l in enumerate(cmd_out("git log")):
-                if i>3: continue
-                row = l.strip().split()
-                if row == []: continue
-                version[row[0].replace(":","")] = " ".join(row[1:])
-            version["commit"] = version["commit"][:7]
-        else:
-            version["Date"] = str(datetime.now()) if not args.db_date else args.db_date
-            version["Author"] = args.db_author if args.db_author else "NA"
+        version.update(get_git_repo_info())
 
         version_obj = version.copy()
         for k,v in variables.items():
@@ -642,15 +670,8 @@ def create_species_db(args: argparse.Namespace ,extra_files:dict = None, db_dir:
     for key,val in variables.items():
         if 'version' in key:
             version[key] = val
-    if os.path.isdir('.git'):
-        for l in pp.cmd_out("git log | head -4"):
-            row = l.strip().split()
-            if row == []: continue
-            version[row[0].replace(":","")] = " ".join(row[1:])
-        version["commit"] = version["commit"][:7]
-    else:
-        version["Date"] = str(datetime.now())
-        version["Author"] = args.db_author if args.db_author else "NA"
+    
+    version.update(get_git_repo_info())
 
     for file in extra_files.values():
         target = f"{args.prefix}.{file}"
