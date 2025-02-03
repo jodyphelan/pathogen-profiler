@@ -73,7 +73,7 @@ class MutationDB:
         """Apply loss of function annotation to a variant"""
         for csq in var.consequences:
             for annotation in csq.annotation:
-                if annotation['type']=='loss_of_function_variant':
+                if annotation['type']=='loss_of_function':
                     csq.type = annotation['so_term']        
             
 
