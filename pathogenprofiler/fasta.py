@@ -44,6 +44,7 @@ class Fasta:
         self.fa_dict = result
     
     def align_to_ref(self,refseq,file_prefix):
+        shared_dict['software']['alignment'] = 'minimap2'
         self.ref_aln = f"{file_prefix}.paf"
         run_cmd(f"minimap2 {refseq} {self.fa_file} --cs | sort -k6,6 -k8,8n > {self.ref_aln}")
         return self.ref_aln
@@ -56,7 +57,7 @@ class Fasta:
             
         return bed
     def get_kmer_counts(self,prefix,klen = 31,threads=1,max_mem=2, counter = "kmc"):
-        shared_dict['kmer_counting'] = counter
+        shared_dict['software']['kmer_counting'] = counter
         if counter=="kmc":
             if threads>32:
                 threads = 32
@@ -80,6 +81,7 @@ class Fasta:
     
     def sourmash_sketch(self,prefix,scaled=1000):
         logging.info("Sketching fasta")
+        shared_dict['software']['taxonomic_classifier'] = 'sourmash'
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {self.fa_file}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
     
@@ -140,5 +142,6 @@ class Paf:
         self.refseq = refseq
         self.sample_name = sample_name
         self.file_prefix = file_prefix
+        shared_dict['software']['variant_calling'] = 'paftools.js'
         run_cmd("cat %(filename)s | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(sample_name)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
         return "%s.vcf.gz" % self.file_prefix

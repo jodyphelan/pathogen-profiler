@@ -52,6 +52,9 @@ class VariantCaller:
             if not hasattr(self,k):
                 setattr(self,k,v)
 
+        # log the software used for variant calling
+        logging.info(f"Variant calling software: {self.__software__}")
+
     @abstractmethod
     def call_variants(self):
         pass
@@ -73,6 +76,7 @@ class VariantCaller:
         for f in glob(self.temp_file_prefix+"*"):
             os.remove(f)
 
+        shared_dict['software']['variant_calling'] = self.__software__
         return Vcf(self.vcf_file)
 
 class BcftoolsCaller(VariantCaller):

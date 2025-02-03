@@ -95,6 +95,8 @@ class Bam:
         if exitcode!=0:
             logging.error("Delly failed, skipping")
             return None
+        else:
+            shared_dict['software']['long_variant_calling'] = 'delly'
 
         run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
         run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))
@@ -203,7 +205,7 @@ class Bam:
             else:
                 logging.debug("Unknown combination %(platform)s + %(caller)s" % vars(self))
             logging.info("Running variant calling")
-            shared_dict['variant_calling'] = self.caller
+            shared_dict['software']['variant_calling'] = self.caller
             run_cmd_parallel_on_genome(self.calling_cmd,ref_file,bed_file = bed_file,threads=threads,desc="Calling variants")
             cmd = "bcftools index  %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self) 
             run_cmd_parallel_on_genome(cmd,ref_file,bed_file = bed_file,threads=threads,desc="Indexing variants")
@@ -219,7 +221,7 @@ class Bam:
         software: str = "samtools"
     ):
         logging.info("Calculating median depth using %s" % software)
-        shared_dict['depth_calculation'] = software
+        shared_dict['software']['depth_calculation'] = software
         if software=="bedtools":
             lines = []
             for l in cmd_out("bedtools genomecov -ibam %s" % (self.bam_file)):

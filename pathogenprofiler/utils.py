@@ -19,7 +19,9 @@ import csv
 
 tmp_prefix = str(uuid4())
 
-shared_dict = {}
+shared_dict = {
+    'software': {}
+}
 
 def get_version(tool):
     cmds = {
@@ -37,6 +39,7 @@ def get_version(tool):
         'snpEff': 'snpEff -version',
         'kmc': 'kmc',
         'sourmash': 'sourmash --version',
+        'paftools.js': 'paftools.js version',
     }
     regex = {
         'bcftools': r'bcftools (\d+\.\d+\.?\d?)',
@@ -53,11 +56,23 @@ def get_version(tool):
         'snpEff': r'SnpEff\t(\d+\.\d+.?)',
         'kmc': r'K-Mer Counter \(KMC\) ver. (\d+\.\d+\.\d+)',
         'sourmash': r'sourmash (\d+\.\d+\.\d?)',
+        'paftools.js': r'([\w.-]+)',
     }
     x = sp.run([cmds[tool]], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     text = x.stdout.decode('utf-8') + x.stderr.decode('utf-8')
     version = re.search(regex[tool], text).group(1)
     return version
+
+def get_software_used():
+    data = []
+    for process,software in shared_dict['software'].items():
+        
+        data.append({
+            'process': process,
+            'software': software,
+            'version': get_version(software)
+        })
+    return data
 
 class TempFilePrefix(object):
     """Create a temporary file prefix"""
