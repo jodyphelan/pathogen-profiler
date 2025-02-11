@@ -190,6 +190,10 @@ for key,variants in coding_variants.items():
         haplotypes[h.upper()] += count
     dp = sum(haplotypes.values())
 
+    if dp==0:
+        # can happen if malformed VCF (e.g. https://github.com/jodyphelan/pathogen-profiler/issues/63)
+        continue
+
     ref_fwd = haplotypes_by_strand.get(ref_hap.upper(),0)
     ref_rev = haplotypes_by_strand.get(ref_hap.lower(),0)
     for i,(hap,count) in enumerate(haplotypes.items()):
