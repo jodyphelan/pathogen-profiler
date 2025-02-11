@@ -622,9 +622,10 @@ def check_db_exists(db_dir:str,db_name:str):
     if db is None:
         logging.error(f"DB {db_name} does not exist in the current directory or in {db_dir}")
         raise FileExistsError
-    
+
 
 def get_db(db_dir:str,db_name:str,verbose:bool=True):
+    create_snpeff_directories(db_dir)
     if is_db_path(db_name):
         if "/" in db_name:
             db_dir = "/".join(db_name.split("/")[:-1])
