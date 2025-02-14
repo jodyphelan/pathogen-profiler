@@ -14,7 +14,7 @@ parser.add_argument('--gff',type=str,help='',required = True)
 parser.add_argument('--ref',type=str,help='',required = True)
 parser.add_argument('--out',type=str,help='')
 parser.add_argument('--bam',type=str,help='')
-parser.add_argument('--debug',action='store_true',help='Log file')
+parser.add_argument('--debug',action='store_true',help='Print debug information')
 args = parser.parse_args()
 
 if args.debug:
@@ -139,6 +139,7 @@ for var in vcf:
 
 
 for key,variants in coding_variants.items():
+    logging.debug((key, variants))
     if len(variants)==1:
         other_variants.append(variants[0])
         continue
@@ -154,7 +155,6 @@ for key,variants in coding_variants.items():
     else:
         # alt is just a combination of all the alt alleles
         alt_hap = ''.join([v.alts[0] for v in variants])
-        logging.debug('adkasjdaosdjaoisd')
         ds = defaultdict(list)
         for v in variants:
             ds[v.pos].append(v.alts[0])
@@ -189,6 +189,10 @@ for key,variants in coding_variants.items():
     for h,count in haplotypes_by_strand.items():
         haplotypes[h.upper()] += count
     dp = sum(haplotypes.values())
+
+    if dp==0:
+        # can happen if malformed VCF (e.g. https://github.com/jodyphelan/pathogen-profiler/issues/63)
+        continue
 
     ref_fwd = haplotypes_by_strand.get(ref_hap.upper(),0)
     ref_rev = haplotypes_by_strand.get(ref_hap.lower(),0)

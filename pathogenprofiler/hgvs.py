@@ -202,7 +202,7 @@ def get_ann(variants,snpEffDB,db_dir):
     keys = list(variants.keys())
     vals = list(variants.values())
     i = 0
-    for l in cmd_out(f"snpEff ann -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
+    for l in cmd_out(f"snpEff ann -noLog -noStats -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
         if l[0]=="#": continue
         row = l.strip().split()
         for ann in row[7].split(","):
