@@ -518,7 +518,7 @@ def create_db(args,extra_files = None):
         # if 'db-schema-version' in variables:
         #     variables['version']['db-schema-version'] = variables['db-schema-version']
 
-        json.dump(db,open(json_file,"w"))
+        json.dump(db,open(json_file,"w"),indent=4)
         
         
         for file in extra_files.values():
