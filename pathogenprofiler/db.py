@@ -391,7 +391,7 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
     
-    r = re.search("g.([0-9]+)([ACGT])>([ACGT])",change)
+    r = re.search("g.([0-9]+)",change)
     if r:
         pos = int(r.group(1))
         # todo - check if this is correct add in chromosome

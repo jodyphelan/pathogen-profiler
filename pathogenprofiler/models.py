@@ -119,6 +119,7 @@ class Consequence(BaseModel):
     type: str
     nucleotide_change: str
     protein_change: Union[str,None]
+    sequence_hgvs: str
     annotation: List[dict] = Field(default_factory=list)
 
     def causes_drug_resistance(self, drug: str = None) -> bool:
@@ -741,7 +742,7 @@ class BamQC(SequenceQC):
     percent_reads_mapped: float
     num_reads_mapped: int
     target_median_depth: float
-    genome_median_depth: float
+    genome_median_depth: Optional[float]
     target_qc: List[TargetQC]
     missing_positions: List[GenomePositionDepth] = []
 
