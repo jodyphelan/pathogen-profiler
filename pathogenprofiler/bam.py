@@ -427,7 +427,7 @@ class Bam:
         else:
             logging.error("Can't use dsk for bam files, please use kmc instead")
 
-    def get_bam_qc(self, bed_file: str, ref_file:str, depth_cutoff: int, coverage_tool: str = "samtools") -> BamQC:
+    def get_bam_qc(self, bed_file: str, ref_file:str, depth_cutoff: int, coverage_tool: str = "samtools", only_targets=False) -> BamQC:
         """
         Get QC metrics for a bam file
         
@@ -449,7 +449,10 @@ class Bam:
         self.calculate_bamstats()
         target_qc = self.get_region_qc(bed_file=bed_file,cutoff=depth_cutoff)
         region_median_depth = stats.median([x.median_depth for x in target_qc])
-        genome_median_depth = self.get_median_depth(ref_file=ref_file,software=coverage_tool)
+        if not only_targets:
+            genome_median_depth = self.get_median_depth(ref_file=ref_file,software=coverage_tool)
+        else:
+            genome_median_depth = None
         missing_positions = self.get_missing_genomic_positions(bed_file=bed_file,cutoff=depth_cutoff)
         return BamQC(
             percent_reads_mapped = self.pct_reads_mapped,
