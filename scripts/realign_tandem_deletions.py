@@ -7,15 +7,18 @@ from collections import defaultdict
 from tqdm import tqdm
 import bisect
 
-logging.basicConfig(level=logging.INFO)
-
 parser = argparse.ArgumentParser(description='Right-align deletions in a VCF file')
 parser.add_argument('input', help='VCF file with deletions to right-align')
 parser.add_argument('ref', help='Reference genome in fasta format')
 parser.add_argument('gff', help='Gff annotation file')
 parser.add_argument('output', help='Output VCF file with right-aligned deletions')
+parser.add_argument('--debug',action='store_true',help='Print debug information')
 
 args = parser.parse_args()
+
+if args.debug:
+    logging.basicConfig(level=logging.DEBUG)
+
 
 def check_coordinates(var: pysam.VariantRecord,refseq: pysam.FastaFile, direction: str) -> tuple[int,int,str,tuple]:
     original_tuple = (var.start, var.stop, var.ref, var.alts)
@@ -77,11 +80,11 @@ for chrom in refseq.references:
 
 vcf_out = pysam.VariantFile(args.output, "w", header=header)
 for var in vcf_in:
-    # logging.info(f"Processing variant {var.chrom}:{var.start}-{var.stop}")
+    logging.debug(f"Processing variant {var.chrom}:{var.start}-{var.stop}")
     # find if the variant overlaps with a gene end using the bisect module
     gene_ends_list = gene_ends[var.chrom]
     gene_end_index = bisect.bisect_left(gene_ends_list, var.start) 
-    if gene_ends_list[gene_end_index] > var.start and gene_ends_list[gene_end_index] < var.stop:
+    if gene_end_index<len(gene_ends_list) and gene_ends_list[gene_end_index] > var.start and gene_ends_list[gene_end_index] < var.stop:
         logging.debug(f"Variant overlaps with gene end {genes[gene_end_index].name}")
         direction = "right" if genes[gene_end_index].strand == "+" else "left"
         start,end,ref,alts = check_coordinates(var,refseq,direction)
