@@ -39,6 +39,7 @@ class SourmashSig:
                 'ani': float(row['ani']),
             }
             d.update(accession_data[row['name']])
+            print(d)
             results.append(d)
         results = [x for x in results if x["ani"]>=ani_threshold]
         return results[:10]
@@ -49,9 +50,9 @@ class SourmashSig:
         outfile = "%s" % self.tmp_prefix+".sourmash.csv"
         run_cmd(f"sourmash gather {self.filename} {ref_db} -o {outfile}")
 
-        species = {}
+        accession_data = {}
         for row in csv.DictReader(open(db_annotation)):
-            species[row["accession"]] = row["species"]
+            accession_data[row["accession"]] = row
 
         results = []
         filtered_rows = []
@@ -71,12 +72,14 @@ class SourmashSig:
             filtered_rows.append(row)
 
         for row in filtered_rows:
-            results.append({
+            d = {
                 "accession": row["name"],
-                "species":species[row["name"]],
                 "ani":round(float(row["match_containment_ani"])*100,2),
                 "abundance":float(row["average_abund"]),
-            })
+            }
+            d.update(accession_data[row["name"]])
+            results.append(d)
+
             total_abundance = sum([r['abundance'] for r in results])
             for r in results:
                 r['relative_abundance'] = r['abundance']/total_abundance
