@@ -28,17 +28,18 @@ class SourmashSig:
         outfile = "%s" % self.tmp_prefix+".sourmash.csv"
         run_cmd(f"sourmash search -n 10 {self.filename} {ref_db} --containment --estimate-ani --ignore-abundance -o {outfile}")
 
-        species = {}
+        accession_data = {}
         for row in csv.DictReader(open(db_annotation)):
-            species[row["accession"]] = row["species"]
+            accession_data[row["accession"]] = row
 
         results = []
         for row in csv.DictReader(open(outfile)):
-            results.append({
-                "accession": row["name"],
-                "species":species[row["name"]],
-                "ani":float(row["ani"])*100
-            })
+            d = {
+                'accession': row['name'],
+                'ani': float(row['ani']),
+            }
+            d.update(accession_data[row['name']])
+            results.append(d)
         results = [x for x in results if x["ani"]>=ani_threshold]
         return results[:10]
 
