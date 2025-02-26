@@ -119,7 +119,7 @@ class Consequence(BaseModel):
     type: str
     nucleotide_change: str
     protein_change: Union[str,None]
-    sequence_hgvs: str
+    sequence_hgvs: Union[str,None] = None
     annotation: List[dict] = Field(default_factory=list)
 
     def causes_drug_resistance(self, drug: str = None) -> bool:
