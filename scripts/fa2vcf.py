@@ -49,12 +49,12 @@ for variant in variants:
     if variant["alt"]=="*":
         record.info["AC"] = [0]
         record.info["AN"] = 0
-        record.samples["sample1"]["GT"] = (None)
+        record.samples[sample_name]["GT"] = (None)
 
     else:
         record.info["AC"] = [1]
         record.info["AN"] = 1
-        record.samples["sample1"]["GT"] = (1)
+        record.samples[sample_name]["GT"] = (1)
 
     # write GT field
     vcf.write(record)
