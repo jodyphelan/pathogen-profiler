@@ -100,19 +100,19 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
         # skip if number of positions left == 0
         filt_num_sites = df.shape[0]
         if filt_num_sites==0:
-            logging.info(f'Skipping {taxon} as all sites ({pre_filt_num_sites}) have been filtered out')
+            logging.debug(f'Skipping {taxon} as all sites ({pre_filt_num_sites}) have been filtered out')
             continue
 
         # skip if number of sites >= 5 and < 25% show alternate
         sites_with_alt = df[df['target_allele_count'] > 0].shape[0]
         if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
-            logging.info(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
+            logging.debug(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
             continue
 
         # skip if IQR > 15
         iqr = df['target_allele_percent'].quantile(0.75) - df['target_allele_percent'].quantile(0.25)
         if iqr > 15:
-            logging.info(f'Skipping {taxon} due to high IQR ({iqr})')
+            logging.debug(f'Skipping {taxon} due to high IQR ({iqr})')
             continue
 
         barcode_frac[taxon] = df['target_allele_percent'].median()
