@@ -190,7 +190,7 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
-def get_ann(variants,snpEffDB,db_dir):
+def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
     with open(uuid,"w") as O:
         O.write('##fileformat=VCFv4.2\n')
