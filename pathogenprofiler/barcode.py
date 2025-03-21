@@ -1,9 +1,10 @@
-from .utils import stdev, iupac
+from .utils import iupac
 import re
 from collections import defaultdict
 import logging
 from typing import List
 from .models import GenomePosition, BarcodeResult, BarcodePosition
+import pandas as pd
 
 def get_missense_codon(x):
     re_obj = re.search("([0-9]+)",x)
@@ -57,7 +58,7 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
     return (barcode_support,snps_report)
 
 
-def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15) -> List[BarcodeResult]:
+def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=False) -> List[BarcodeResult]:
     if stdev_cutoff is None:
         stdev_cutoff = 0.15
     bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
@@ -68,54 +69,55 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15) -> List
         # bed.append(row)
         lineage_info[row[3]] = row
 
-
+    
     barcode_support,snps_report = get_barcoding_mutations(mutations,barcode_bed)
+
 
     with open(snps_file,"w") if snps_file else open("/dev/null","w") as O:
         for tmp in sorted(snps_report,key=lambda x: x.id):
             O.write("%s\n" % "\t".join([str(x) for x in vars(tmp).values()]))
 
     barcode_frac = defaultdict(float)
-    for l in barcode_support:
-        logging.debug("Processing %s" % l)
-        logging.debug(barcode_support[l])
-        # If stdev of fraction across all barcoding positions > stdev_cutoff
-        # Only look at positions with >5 reads
-        tmp_allelic_dp = [x[1]/(x[0]+x[1]) for x in barcode_support[l] if sum(x)>5]
-        logging.debug(tmp_allelic_dp)
+    
+    rows = []
+    for pos in snps_report:
+        rows.append(vars(pos))
+    df_all = pd.DataFrame(rows)
+    for taxon in df_all.id.unique():
+        df = df_all[df_all.id==taxon].copy()
+        pre_filt_num_sites = df.shape[0]
+        
+
+        # remove positions with less than 5 reads
+        df = df[ (df['target_allele_count']+df['other_allele_count']) >= 5 ]
+
+        # remove positions at which the target allele frequency < 2%
+        df = df[ df['target_allele_percent'] >= 2 ]
 
         # remove positions with no SNP (fraction=0)
-        tmp_allelic_dp = [x for x in tmp_allelic_dp if x>0]
-        logging.debug(tmp_allelic_dp)
+        # df = df[ df['target_allele_percent'] > 0 ]
 
-        if len(tmp_allelic_dp)==0: 
-            logging.debug("No SNPs found for %s" % l)
-            continue
-        if stdev(tmp_allelic_dp)>stdev_cutoff:
-            logging.debug(f"Stdev {stdev(tmp_allelic_dp)} > {stdev_cutoff} for {l}")
+        # skip if number of positions left == 0
+        filt_num_sites = df.shape[0]
+        if filt_num_sites==0:
+            logging.info(f'Skipping {taxon} as all sites ({pre_filt_num_sites}) have been filtered out')
             continue
 
-        # if number of barcoding positions > 5 and only one shows alternate
-        num_positions_with_alt = len([x for x in barcode_support[l] if (x[1]/(x[0]+x[1]))>0])
-        logging.debug("Number of positions with alternate %s" % num_positions_with_alt)
-        if len(barcode_support[l])>5 and num_positions_with_alt<2:
-            logging.debug("Number of positions with alternate <2 for %s" % l)
+        # skip if number of sites >= 5 and < 25% show alternate
+        sites_with_alt = df[df['target_allele_count'] > 0].shape[0]
+        if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
+            logging.info(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
             continue
-        # if number of barcoding positions > 5 and there are less than 5% of possible positions with alternate
-        if len(barcode_support[l])>5 and num_positions_with_alt<=0.10*len(barcode_support[l]):
-            logging.debug("Number of positions with alternate < 10 percent for %s" % l)
+
+        # skip if IQR > 15
+        iqr = df['target_allele_percent'].quantile(0.75) - df['target_allele_percent'].quantile(0.25)
+        if iqr > 15:
+            logging.info(f'Skipping {taxon} due to high IQR ({iqr})')
             continue
-        
-        barcode_pos_reads = sum([x[1] for x in barcode_support[l]])
-        barcode_neg_reads = sum([x[0] for x in barcode_support[l]])
-        lf = barcode_pos_reads/(barcode_pos_reads+barcode_neg_reads)
-        logging.debug("Barcode %s has frequency %s" % (l,lf))
-        if lf<0.05:
-            logging.debug("Frequency < 0.05 for %s" % l)
-            continue
-        barcode_frac[l] = lf
+
+        barcode_frac[taxon] = df['target_allele_percent'].median()
+
     final_results = []
-
     for l in barcode_frac:
         tmp = {"id":l,"frequency":barcode_frac[l],"info":[]}
         if bed_num_col>6:
