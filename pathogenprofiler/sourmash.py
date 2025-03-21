@@ -39,7 +39,6 @@ class SourmashSig:
                 'ani': float(row['ani']),
             }
             d.update(accession_data[row['name']])
-            print(d)
             results.append(d)
         results = [x for x in results if x["ani"]>=ani_threshold]
         return results[:10]
