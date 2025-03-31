@@ -121,6 +121,7 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
             logging.debug(f'Skipping {taxon} due to low median frequency ({median_frac})')
             continue
         barcode_frac[taxon] = df['target_allele_percent'].median()
+        logging.debug(f'Keeping {taxon} with median frequency {median_frac}')
 
     final_results = []
     for l in barcode_frac:
