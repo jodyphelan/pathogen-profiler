@@ -87,24 +87,25 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
         df = df_all[df_all.id==taxon].copy()
         pre_filt_num_sites = df.shape[0]
         
-
+        fdf = df.copy() # filtered df
+        
         # remove positions with less than 5 reads
-        df = df[ (df['target_allele_count']+df['other_allele_count']) >= 5 ]
+        fdf = fdf[ (fdf['target_allele_count']+fdf['other_allele_count']) >= 5 ]
 
         # remove positions at which the target allele frequency < 2%
-        df = df[ df['target_allele_percent'] >= 2 ]
+        fdf = fdf[ fdf['target_allele_percent'] >= 2 ]
 
         # remove positions with no SNP (fraction=0)
-        # df = df[ df['target_allele_percent'] > 0 ]
+        # fdf = fdf[ fdf['target_allele_percent'] > 0 ]
 
         # skip if number of positions left == 0
-        filt_num_sites = df.shape[0]
+        filt_num_sites = fdf.shape[0]
         if filt_num_sites==0:
             logging.debug(f'Skipping {taxon} as all sites ({pre_filt_num_sites}) have been filtered out')
             continue
 
         # skip if number of sites >= 5 and < 25% show alternate
-        sites_with_alt = df[df['target_allele_count'] > 0].shape[0]
+        sites_with_alt = fdf[fdf['target_allele_count'] > 0].shape[0]
         if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
             logging.debug(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
             continue
