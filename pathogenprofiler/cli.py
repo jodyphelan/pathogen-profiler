@@ -314,8 +314,6 @@ def get_sourmash_hit(args):
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
-    # print(args.species_conf)
-    # quit()
     sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=500000,f_match_threshold=0.1)
     result =  []
 
