@@ -83,32 +83,32 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
     for pos in snps_report:
         rows.append(vars(pos))
     df_all = pd.DataFrame(rows)
+    df_all.loc[:,'all_allele_count'] = df_all['target_allele_count'] + df_all['other_allele_count']
+    
     for taxon in df_all.id.unique():
         df = df_all[df_all.id==taxon].copy()
         pre_filt_num_sites = df.shape[0]
         
         fdf = df.copy() # filtered df
+
+        num_good_sites = df[
+            (df['target_allele_percent'] >= 2)
+            & (df['all_allele_count'] >= 5)
+            
+        ].shape[0]
         
-        # remove positions with less than 5 reads
-        fdf = fdf[ (fdf['target_allele_count']+fdf['other_allele_count']) >= 5 ]
-
-        # remove positions at which the target allele frequency < 2%
-        fdf = fdf[ fdf['target_allele_percent'] >= 2 ]
-
-        # remove positions with no SNP (fraction=0)
-        # fdf = fdf[ fdf['target_allele_percent'] > 0 ]
-
-        # skip if number of positions left == 0
-        filt_num_sites = fdf.shape[0]
-        if filt_num_sites==0:
-            logging.debug(f'Skipping {taxon} as all sites ({pre_filt_num_sites}) have been filtered out')
+        if num_good_sites==0:
+            logging.debug(f'Skipping {taxon} as no sites pass basic filters')
             continue
 
         # skip if number of sites >= 5 and < 25% show alternate
-        sites_with_alt = fdf[fdf['target_allele_count'] > 0].shape[0]
-        if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
-            logging.debug(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
-            continue
+        
+        
+
+        # sites_with_alt = fdf[fdf['target_allele_count'] > 0].shape[0]
+        # if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
+        #     logging.debug(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
+        #     continue
 
         # skip if IQR > 15
         iqr = df['target_allele_percent'].quantile(0.75) - df['target_allele_percent'].quantile(0.25)
