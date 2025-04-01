@@ -116,8 +116,8 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
             logging.debug(f'Skipping {taxon} due to high IQR ({iqr})')
             continue
 
-        median_frac = df['target_allele_percent'].median()
         # skip if median frequency < 2%
+        median_frac = df['target_allele_percent'].median()
         if median_frac < 2:
             logging.debug(f'Skipping {taxon} due to low median frequency ({median_frac})')
             continue
