@@ -538,7 +538,8 @@ def add_arguments_to_self(self,args: dict) -> None:
 def run_cmd(cmd: str, desc=None, log: str=None, exit_on_error: bool=True) -> sp.CompletedProcess:
     if desc:
         logging.info(desc)
-    programs = set([x.strip().split()[0] for x in re.split("[|&;]",cmd.strip()) if x!=""])
+    processed_cmd = cmd.replace("&&","XX")
+    programs = set([x.strip().split()[0] for x in re.split("[|&;]",processed_cmd.strip()) if x!=""])
     missing = [p for p in programs if which(p)==False]
     if len(missing)>0:
         raise ValueError("Cant find programs: %s\n" % (", ".join(missing)))
