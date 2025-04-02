@@ -18,8 +18,16 @@ def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     if not hasattr(args,'barcode_snps'):
         args.barcode_snps = None
     barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)  
-    stdev_cutoff = args.barcode_stdev if hasattr(args,'barcode_stdev') else None      
-    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode_snps,stdev_cutoff=stdev_cutoff)
+    opts = {
+        'mutations': barcode_mutations,
+        'barcode_bed': conf["barcode"],
+        'snps_file': args.barcode_snps,
+    }
+    if hasattr(args,'barcode_iqr_cutoff'):
+        opts['iqr_cutoff'] = args.barcode_iqr_cutoff
+    if hasattr(args,'barcode_freq_cutoff'):
+        opts['freq_cutoff'] = args.barcode_freq_cutoff
+    barcode_assignment = barcode(**opts)
     return barcode_assignment
 
 def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
@@ -30,8 +38,16 @@ def vcf_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     barcode_mutations = vcf.get_bed_gt(conf["barcode"],conf["ref"])        
     if not hasattr(args,'barcode_snps'):
         args.barcode_snps = None
-    stdev_cutoff = args.barcode_stdev if hasattr(args,'barcode_stdev') else None      
-    barcode_assignment = barcode(barcode_mutations,conf["barcode"],args.barcode_snps,stdev_cutoff=stdev_cutoff)
+    opts = {
+        'mutations': barcode_mutations,
+        'barcode_bed': conf["barcode"],
+        'snps_file': args.barcode_snps,
+    }
+    if hasattr(args,'barcode_iqr_cutoff'):
+        opts['iqr_cutoff'] = args.barcode_iqr_cutoff
+    if hasattr(args,'barcode_freq_cutoff'):
+        opts['freq_cutoff'] = args.barcode_freq_cutoff
+    barcode_assignment = barcode(**opts)
     return barcode_assignment
 
 

@@ -40,12 +40,13 @@ def get_fastq_qc(args: argparse.Namespace):
     fastq = Fastq(args.read1,args.read2)
     return fastq.get_qc()
 
-def run_bam_qc(args: argparse.Namespace):
+def run_bam_qc(args: argparse.Namespace, only_targets = False):
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     qc = bam.get_bam_qc(
         bed_file=args.conf["bed"],
         ref_file=args.conf["ref"],
         depth_cutoff=args.conf['variant_filters']['depth_soft'],
+        only_targets=only_targets
     )
     mutation_db = MutationDB(args.conf["json_db"])
     mutation_db.annotate_missing_positions(qc.missing_positions)
@@ -154,6 +155,8 @@ def get_vcf_from_bam(args: argparse.Namespace):
 
     ### Run delly if specified ###
     final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
+    if 'amplicon' in args.conf and args.conf['amplicon']==True:
+        args.no_delly = True
     if not args.no_delly:
         delly_vcf_obj = bam.run_delly(conf['ref'],conf['bed'])
         if delly_vcf_obj is not None:
@@ -311,8 +314,6 @@ def get_sourmash_hit(args):
         fastq = Fastq(fq_file)
         sourmash_sig = fastq.sourmash_sketch(args.files_prefix)
 
-    # print(args.species_conf)
-    # quit()
     sourmash_sig = sourmash_sig.gather(args.species_conf["sourmash_db"],args.species_conf["sourmash_db_info"],intersect_bp=500000,f_match_threshold=0.1)
     result =  []
 

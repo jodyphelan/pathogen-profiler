@@ -250,7 +250,8 @@ class Vcf:
                             feature_id = ann[6],
                             type = ann[1],
                             nucleotide_change = ann[9],
-                            protein_change = ann[10]
+                            protein_change = ann[10],
+                            sequence_hgvs= f'{chrom}:g.{pos}{ref}>{alt}'
                         )
                     )
 

@@ -12,6 +12,7 @@ args = parser.parse_args()
 
 aln = pysam.FastaFile(args.aln)
 chrom = aln.references[0]
+sample_name = aln.references[1]
 chrom_len = aln.get_reference_length(chrom)
 
 variants = []
@@ -29,7 +30,7 @@ for i,(ref,alt) in enumerate(zip(aln.fetch(chrom),aln.fetch(aln.references[1])))
 # create vcf file
 
 header = pysam.VariantHeader()
-header.add_sample("sample1")
+header.add_sample(sample_name)
 header.contigs.add(chrom, length=chrom_len)
 header.add_line('##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes">')
 header.add_line('##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">')
@@ -48,12 +49,12 @@ for variant in variants:
     if variant["alt"]=="*":
         record.info["AC"] = [0]
         record.info["AN"] = 0
-        record.samples["sample1"]["GT"] = (None)
+        record.samples[sample_name]["GT"] = (None)
 
     else:
         record.info["AC"] = [1]
         record.info["AN"] = 1
-        record.samples["sample1"]["GT"] = (1)
+        record.samples[sample_name]["GT"] = (1)
 
     # write GT field
     vcf.write(record)

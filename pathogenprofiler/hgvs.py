@@ -190,7 +190,7 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
-def get_ann(variants,snpEffDB,db_dir):
+def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
     with open(uuid,"w") as O:
         O.write('##fileformat=VCFv4.2\n')
@@ -293,10 +293,13 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
         gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])
 
+        # Genomic Variants
+        if re.search("g.([0-9]+)",row["Mutation"]):
+            converted_mutations[key] = (row['Gene'],row["Mutation"])
 
 
         # Protein variants - not validated yet
-        if r := re.search("p\..+",row["Mutation"]):
+        elif r := re.search("p\..+",row["Mutation"]):
             converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Coding indels
@@ -311,9 +314,6 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
         elif re.search("c.(-?[0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
             mutations_genome[key] = parse_snv(row["Mutation"],gene,refseq)
 
-        # Genomic SNPs
-        elif re.search("g.([0-9]+)([ACGT])>([ACGT])",row["Mutation"]):
-            converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Non-coding SNPs
         elif re.search("n.(-?[0-9]+)([ACGT]+)>([ACGT]+)",row["Mutation"]):

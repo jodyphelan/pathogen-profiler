@@ -1,6 +1,6 @@
 from typing import List, Union, Set
 import json
-from .models import Variant, Gene, GenomePositionDepth
+from .models import Variant, Gene, GenomePositionDepth, Consequence
 from copy import deepcopy
 from collections import defaultdict
 import re
@@ -69,7 +69,7 @@ class MutationDB:
             annotations = self.get_annotation(csq)
             csq.annotation = annotations
 
-    def apply_lof_annotation(self,var):
+    def apply_lof_annotation(self, var: Variant) -> None:
         """Apply loss of function annotation to a variant"""
         for csq in var.consequences:
             for annotation in csq.annotation:
@@ -77,7 +77,7 @@ class MutationDB:
                     csq.type = annotation['so_term']        
             
 
-    def get_annotation(self,csq: dict) -> List[dict]:
+    def get_annotation(self,csq: Consequence) -> List[dict]:
         """Get the annotation for a consequence from the database"""
         db_var_match = DictSet()
         
@@ -90,7 +90,10 @@ class MutationDB:
         key = (csq.gene_id,csq.protein_change)
         if key in self.db:
             db_var_match.add(self.db[key]['annotations'])
-        
+        key = (csq.gene_id,csq.sequence_hgvs)
+        if key in self.db:
+            db_var_match.add(self.db[key]['annotations'])
+
         for t in csq.type.split("&"):
             key = (csq.gene_id,t)
             if key in self.db:

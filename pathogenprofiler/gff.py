@@ -65,9 +65,11 @@ def load_gff(gff) -> List[Gene]:
             gene_id = None
             search_strings = [
                 "ID=gene:([a-zA-Z0-9\.\-\_]+)",
+                "ID=gene-([a-zA-Z0-9\.\-\_]+)",
                 "gene_id=([a-zA-Z0-9\.\-\_]+)",
                 "ID=([a-zA-Z0-9\.\-\_]+)",
                 "locus_tag=([a-zA-Z0-9\.\-\_]+)",
+
             ]
             for s in search_strings:
                 re_obj = re.search(s,l)
