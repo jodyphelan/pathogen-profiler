@@ -58,9 +58,7 @@ def get_barcoding_mutations(mutations: dict, barcode_bed: str) -> tuple[dict, Li
     return (barcode_support,snps_report)
 
 
-def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=False) -> List[BarcodeResult]:
-    if stdev_cutoff is None:
-        stdev_cutoff = 0.15
+def barcode(mutations,barcode_bed: str,snps_file=None,iqr_cutoff=15, freq_cutoff=2) -> List[BarcodeResult]:
     bed_num_col = len(open(barcode_bed).readline().rstrip().split("\t"))
     # bed = []
     lineage_info = {}
@@ -101,24 +99,15 @@ def barcode(mutations,barcode_bed: str,snps_file=None,stdev_cutoff=0.15,iqr=Fals
             logging.debug(f'Skipping {taxon} as no sites pass basic filters')
             continue
 
-        # skip if number of sites >= 5 and < 25% show alternate
-        
-        
-
-        # sites_with_alt = fdf[fdf['target_allele_count'] > 0].shape[0]
-        # if pre_filt_num_sites>=5 and sites_with_alt/pre_filt_num_sites < 0.25:
-        #     logging.debug(f'Skipping {taxon} due to low number of sites ({sites_with_alt}/{pre_filt_num_sites}) with alternate')
-        #     continue
-
-        # skip if IQR > 15
+        # skip if IQR > cutoff (default=15)
         iqr = df['target_allele_percent'].quantile(0.75) - df['target_allele_percent'].quantile(0.25)
-        if iqr > 15:
+        if iqr > iqr_cutoff:
             logging.debug(f'Skipping {taxon} due to high IQR ({iqr})')
             continue
 
-        # skip if median frequency < 2%
+        # skip if median frequency < cutoff (default=2%)
         median_frac = df['target_allele_percent'].median()
-        if median_frac < 2:
+        if median_frac < freq_cutoff:
             logging.debug(f'Skipping {taxon} due to low median frequency ({median_frac})')
             continue
         barcode_frac[taxon] = df['target_allele_percent'].median()
