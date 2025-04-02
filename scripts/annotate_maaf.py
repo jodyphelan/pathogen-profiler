@@ -11,10 +11,23 @@ header.add_meta('INFO',items=tag.items())
 
 vcf_out = pysam.VariantFile("-", "w", header=header)
 for var in vcf_in:
-    if var.samples[0]['AD'] == (None,):
-        maaf = 0
+    # short variant
+    if 'AD' in var.samples[0]:
+        if var.samples[0]['AD'] == (None,):
+            maaf = 0
+        else:
+        # calculate MAF from FMT/AD
+            maaf = max(var.samples[0]['AD'][1:])/sum(var.samples[0]['AD'])
+
+    elif 'SVTYPE' in var.info:
+        # long variant
+        # use DR:DV:RR:RV
+        if var.samples[0]['RR'] == (None,):
+            maaf = 0
+        else:
+            maaf = (var.samples[0]['DV'] + var.samples[0]['RV'])/(var.samples[0]['RR'] + var.samples[0]['RV'] + var.samples[0]['DR'] + var.samples[0]['DV'])
     else:
-    # calculate MAF from FMT/AD
-        maaf = max(var.samples[0]['AD'][1:])/sum(var.samples[0]['AD'])
+        # panic
+        raise ValueError("No AD or SVTYPE in INFO field")
     var.info['MAAF'] = maaf
     vcf_out.write(var)
