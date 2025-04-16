@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import pysam
-
+import logging
 
 vcf_in = pysam.VariantFile("-")
 header = vcf_in.header
@@ -22,10 +22,13 @@ for var in vcf_in:
     elif 'SVTYPE' in var.info:
         # long variant
         # use DR:DV:RR:RV
+        total_reads = var.samples[0]['DR'] + var.samples[0]['DV'] + var.samples[0]['RR'] + var.samples[0]['RV']
         if var.samples[0]['RR'] == (None,):
             maaf = 0
+        elif total_reads==0:
+            maaf = 0
         else:
-            maaf = (var.samples[0]['DV'] + var.samples[0]['RV'])/(var.samples[0]['RR'] + var.samples[0]['RV'] + var.samples[0]['DR'] + var.samples[0]['DV'])
+            maaf = (var.samples[0]['DV'] + var.samples[0]['RV'])/total_reads
     else:
         # panic
         raise ValueError("No AD or SVTYPE in INFO field")
