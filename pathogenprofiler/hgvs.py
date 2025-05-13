@@ -207,6 +207,8 @@ def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
         row = l.strip().split()
         for ann in row[7].split(","):
             a = ann.split("|")
+            if a[1]=='non_coding_transcript_variant':
+                continue
             if len(a)!=16:continue
             if "target_gene" in vals[i]:
                 condition = vals[i]["target_gene"] in [a[3],a[4]]

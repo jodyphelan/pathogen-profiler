@@ -118,7 +118,15 @@ def extract_genome_positions(db,gene):
         pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
-def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfile:str,padding: int = 200) -> None:
+def write_bed(
+        db: dict,
+        gene_dict: dict,
+        gene_info: List[Gene],
+        ref_file: str,
+        outfile:str,
+        padding: int = 200,
+        gene_coordinates: List[dict] = None
+    ) -> None:
     if os.path.exists(ref_file+".fai"):
         os.remove(ref_file+".fai")
     ref = FastaFile(ref_file)
@@ -127,7 +135,10 @@ def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfi
         if gene not in gene_info:
             logging.error("%s not found in the 'gene_info' dictionary... Exiting!" % gene)
             quit()
-        if gene_info[gene].gene_id in db:
+        if gene_coordinates and gene in gene_coordinates:
+            genome_start = gene_coordinates[gene]['start']
+            genome_end = gene_coordinates[gene]['end']
+        elif gene_info[gene].gene_id in db:
             genome_positions = extract_genome_positions(db,gene_info[gene].gene_id)
             if gene_info[gene].strand=="+":
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
@@ -262,7 +273,8 @@ def get_genome_position(gene_object,change):
     if "any_missense_codon" in change:
         codon = int(change.replace("any_missense_codon_",""))
         change = f"p.Xyz{codon}Xyz"
-    
+
+    print(change)    
     if change[0]=="p":
         aa2genome = get_aa2genome_coords(g.transcripts[0].exons)
 
@@ -496,15 +508,23 @@ def create_db(args,extra_files = None):
                 db[locus_tag][mut]["chromosome"] = gene_dict[locus_tag].chrom
         
 
-
+        gene_coordinates = {}
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 locus_tag_to_ann_dict[locus_tag].add("")
                 if row['Info']=="": continue
                 info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
-                if "drug" in info:
+                if 'drug' in info:
                     locus_tag_to_ann_dict[locus_tag].add(info['drug'])
+                if 'start' in info and 'end' in info:
+                    if locus_tag not in gene_coordinates:
+                        gene_coordinates[locus_tag] = {
+                            'chromosome':gene_dict[locus_tag].chrom,
+                            'start':int(info['start']),
+                            'end':int(info['end'])
+                        }
+
 
 
         version = {"name":args.prefix}
@@ -549,7 +569,8 @@ def create_db(args,extra_files = None):
                 gene_dict=locus_tag_to_ann_dict,
                 gene_info=gene_dict,
                 ref_file=genome_file,
-                outfile=bed_file
+                outfile=bed_file,
+                gene_coordinates=gene_coordinates if len(gene_coordinates)>0 else None,
             )
             variables['amplicon'] = False
         
