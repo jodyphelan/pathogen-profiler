@@ -203,11 +203,12 @@ def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     vals = list(variants.values())
     i = 0
     for l in cmd_out(f"snpEff ann -noLog -noStats -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
+        print(l.strip())
         if l[0]=="#": continue
         row = l.strip().split()
-        for ann in row[7].split(","):
+        for ann in row[7].split(';')[0].split(","):
             a = ann.split("|")
-            if a[1]=='non_coding_transcript_variant':
+            if a[9]=='' and a[10]=='':
                 continue
             if len(a)!=16:continue
             if "target_gene" in vals[i]:

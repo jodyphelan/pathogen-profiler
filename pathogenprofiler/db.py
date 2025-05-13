@@ -485,6 +485,7 @@ def create_db(args,extra_files = None):
             hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],args.db_dir)
             for row in csv.DictReader(open(args.csv)):
+                print(row)
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
                 # data looks like this: type=drug_resistance;drug=macrolides;literature=10.1038/s41467-021-25484-9
