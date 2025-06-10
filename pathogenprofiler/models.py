@@ -1,4 +1,4 @@
-from typing import Any, List, Union, Optional, Generator
+from typing import List, Union, Optional, Generator
 from pydantic import BaseModel, Field
 from statistics import median
 

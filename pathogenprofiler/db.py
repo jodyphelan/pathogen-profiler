@@ -4,8 +4,6 @@ import json
 import re
 from collections import defaultdict
 import sys
-from datetime import datetime
-from .utils import cmd_out
 from .gff import load_gff, Gene
 from .fasta import Fasta
 import os

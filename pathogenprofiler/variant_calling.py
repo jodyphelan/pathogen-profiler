@@ -1,5 +1,5 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from .utils import cmd_out, run_cmd, run_cmd_parallel_on_genome, load_bed_regions, get_genome_chunks, TempFilePrefix, shared_dict
 from uuid import uuid4
 from glob import glob
