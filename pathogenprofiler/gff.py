@@ -64,11 +64,11 @@ def load_gff(gff) -> List[Gene]:
             
             gene_id = None
             search_strings = [
-                "ID=gene:([a-zA-Z0-9\.\-\_]+)",
-                "ID=gene-([a-zA-Z0-9\.\-\_]+)",
-                "gene_id=([a-zA-Z0-9\.\-\_]+)",
-                "ID=([a-zA-Z0-9\.\-\_]+)",
-                "locus_tag=([a-zA-Z0-9\.\-\_]+)",
+                r"ID=gene:([a-zA-Z0-9\.\-\_]+)",
+                r"ID=gene-([a-zA-Z0-9\.\-\_]+)",
+                r"gene_id=([a-zA-Z0-9\.\-\_]+)",
+                r"ID=([a-zA-Z0-9\.\-\_]+)",
+                r"locus_tag=([a-zA-Z0-9\.\-\_]+)",
 
             ]
             for s in search_strings:
@@ -78,7 +78,7 @@ def load_gff(gff) -> List[Gene]:
                     break
             if not gene_id:
                 continue
-            re_obj = re.search("Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
+            re_obj = re.search(r"Name=([a-zA-Z0-9\.\-\_\(\)]+)",l)
             gene_name = re_obj.group(1) if re_obj else gene_id
             start = p1
             end =  p2

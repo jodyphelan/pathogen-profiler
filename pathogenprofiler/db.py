@@ -273,8 +273,7 @@ def get_genome_position(gene_object,change):
     if "any_missense_codon" in change:
         codon = int(change.replace("any_missense_codon_",""))
         change = f"p.Xyz{codon}Xyz"
-
-    print(change)    
+ 
     if change[0]=="p":
         aa2genome = get_aa2genome_coords(g.transcripts[0].exons)
 
@@ -284,7 +283,8 @@ def get_genome_position(gene_object,change):
         codon = int(r.group(1))
         return aa2genome[codon]
     
-    r = re.search("p.1\?",change)
+    # p.1?
+    r = re.search(r'p.1\?',change)
     if r:
         codon = 1
         return aa2genome[codon]
@@ -304,7 +304,9 @@ def get_genome_position(gene_object,change):
         if g.strand=="+":
             p = g.start + pos -1
             return [p]
-    r = re.search("[nc].([\-\*0-9]+)_([\-\*0-9]+)ins[A-Z]+",change)
+
+    # c.-30_-29insGCG
+    r = re.search(r'[nc].([\-\*0-9]+)_([\-\*0-9]+)ins[A-Z]+',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -320,7 +322,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos 
             return [p, p+1]
 
-    r = re.search("[nc].([\-\*0-9]+)_([\-\*0-9]+)del[A-Z]*",change)
+    # n.211_212delGC
+    r = re.search(r'[nc].([\-\*0-9]+)_([\-\*0-9]+)del[A-Z]*',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -352,7 +355,8 @@ def get_genome_position(gene_object,change):
                 p2-=1
             return list(range(p2,p1+1))
 
-    r = re.search("[nc].([\-\*0-9]+)del[A-Z]+",change)
+    # c.-37delT
+    r = re.search(r'[nc].([\-\*0-9]+)del[A-Z]+',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -368,7 +372,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
 
-    r = re.search("[nc].([\-0-9]+)dup[A-Z]+",change)
+    # n.1089dupC
+    r = re.search(r'[nc].([\-0-9]+)dup[A-Z]+',change)
     if r:
         pos = int(r.group(1))
         if g.strand=="+":
@@ -378,7 +383,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
     
-    r = re.search("[nc].([\-0-9]+)_([\-0-9]+)dup[A-Z]+",change)
+    # c.134_135dupTC
+    r = re.search(r'[nc].([\-0-9]+)_([\-0-9]+)dup[A-Z]+',change)
     if r:
         pos1 = int(r.group(1))
         pos2 = int(r.group(2))
@@ -485,7 +491,6 @@ def create_db(args,extra_files = None):
             hgvs_variants = [r for r in csv.DictReader(open(args.csv))]
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],args.db_dir)
             for row in csv.DictReader(open(args.csv)):
-                print(row)
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
                 # data looks like this: type=drug_resistance;drug=macrolides;literature=10.1038/s41467-021-25484-9

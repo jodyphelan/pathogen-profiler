@@ -135,7 +135,7 @@ class MutationDB:
         """Check if the variant is in the database with a wildcard SO term"""
         for var in self.get_gene_variants(csq.gene_id):
             for t in csq.type.split('&'):
-                r = re.search(f"{t}_([pcn])\.(\d+)_(\d+)",var)
+                r = re.search(f"{t}_([pcn]).(\d+)_(\d+)",var)
                 if r: 
                     context = r.group(1)
                     positions = set(range(int(r.group(2)),int(r.group(3))+1))
