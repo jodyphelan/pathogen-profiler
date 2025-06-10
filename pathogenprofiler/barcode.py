@@ -85,14 +85,10 @@ def barcode(mutations,barcode_bed: str,snps_file=None,iqr_cutoff=15, freq_cutoff
     
     for taxon in df_all.id.unique():
         df = df_all[df_all.id==taxon].copy()
-        pre_filt_num_sites = df.shape[0]
-        
-        fdf = df.copy() # filtered df
 
         num_good_sites = df[
             (df['target_allele_percent'] >= 2)
-            & (df['all_allele_count'] >= 5)
-            
+            & (df['all_allele_count'] >= 5)    
         ].shape[0]
         
         if num_good_sites==0:
