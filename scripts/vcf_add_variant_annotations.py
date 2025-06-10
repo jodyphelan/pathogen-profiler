@@ -1,6 +1,7 @@
 import pysam
 import argparse
 import math
+import logging
 
 parser = argparse.ArgumentParser(description="Add variant annotations to a VCF file.")
 
@@ -54,7 +55,7 @@ def read_pos_rank_sum(bam: str, chrom: str, pos: int, ref: str, alt: str):
     
 
     if len(ref_positions) == 0 or len(alt_positions) == 0:
-        print("Insufficient data: need both ref and alt reads.")
+        logging.info("Insufficient data: need both ref and alt reads.")
         return None
 
     # Perform Wilcoxon rank-sum test
