@@ -455,7 +455,6 @@ def create_db(args,extra_files = None):
     json_file = "%s.dr.json" % args.prefix
 
     if os.path.isfile("snpEffectPredictor.bin"):
-            print("Loading snpEff database from snpEffectPredictor.bin")
             snpeff_db_name = json.load(open("variables.json"))["snpEff_db"]
             load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name,args.db_dir)
             
