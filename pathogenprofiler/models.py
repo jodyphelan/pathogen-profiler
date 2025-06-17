@@ -557,6 +557,7 @@ class BarcodePosition(BaseModel):
     pos: int
     target_allele_count: int
     other_allele_count: int
+    all_allele_count: int
     target_allele_percent: float
 
 
