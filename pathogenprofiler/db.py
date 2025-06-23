@@ -4,8 +4,6 @@ import json
 import re
 from collections import defaultdict
 import sys
-from datetime import datetime
-from .utils import cmd_out
 from .gff import load_gff, Gene
 from .fasta import Fasta
 import os
@@ -118,7 +116,15 @@ def extract_genome_positions(db,gene):
         pos.extend(db[gene][mut]["genome_positions"])
     return list(set(pos))
 
-def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfile:str,padding: int = 200) -> None:
+def write_bed(
+        db: dict,
+        gene_dict: dict,
+        gene_info: List[Gene],
+        ref_file: str,
+        outfile:str,
+        padding: int = 200,
+        gene_coordinates: List[dict] = None
+    ) -> None:
     if os.path.exists(ref_file+".fai"):
         os.remove(ref_file+".fai")
     ref = FastaFile(ref_file)
@@ -127,7 +133,10 @@ def write_bed(db: dict,gene_dict: dict,gene_info: List[Gene],ref_file: str,outfi
         if gene not in gene_info:
             logging.error("%s not found in the 'gene_info' dictionary... Exiting!" % gene)
             quit()
-        if gene_info[gene].gene_id in db:
+        if gene_coordinates and gene in gene_coordinates:
+            genome_start = gene_coordinates[gene]['start']
+            genome_end = gene_coordinates[gene]['end']
+        elif gene_info[gene].gene_id in db:
             genome_positions = extract_genome_positions(db,gene_info[gene].gene_id)
             if gene_info[gene].strand=="+":
                 if len(genome_positions)>0 and (gene_info[gene].feature_start > min(genome_positions)):
@@ -262,7 +271,7 @@ def get_genome_position(gene_object,change):
     if "any_missense_codon" in change:
         codon = int(change.replace("any_missense_codon_",""))
         change = f"p.Xyz{codon}Xyz"
-    
+ 
     if change[0]=="p":
         aa2genome = get_aa2genome_coords(g.transcripts[0].exons)
 
@@ -272,7 +281,8 @@ def get_genome_position(gene_object,change):
         codon = int(r.group(1))
         return aa2genome[codon]
     
-    r = re.search("p.1\?",change)
+    # p.1?
+    r = re.search(r'p.1\?',change)
     if r:
         codon = 1
         return aa2genome[codon]
@@ -292,7 +302,9 @@ def get_genome_position(gene_object,change):
         if g.strand=="+":
             p = g.start + pos -1
             return [p]
-    r = re.search("[nc].([\-\*0-9]+)_([\-\*0-9]+)ins[A-Z]+",change)
+
+    # c.-30_-29insGCG
+    r = re.search(r'[nc].([\-\*0-9]+)_([\-\*0-9]+)ins[A-Z]+',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -308,7 +320,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos 
             return [p, p+1]
 
-    r = re.search("[nc].([\-\*0-9]+)_([\-\*0-9]+)del[A-Z]*",change)
+    # n.211_212delGC
+    r = re.search(r'[nc].([\-\*0-9]+)_([\-\*0-9]+)del[A-Z]*',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -340,7 +353,8 @@ def get_genome_position(gene_object,change):
                 p2-=1
             return list(range(p2,p1+1))
 
-    r = re.search("[nc].([\-\*0-9]+)del[A-Z]+",change)
+    # c.-37delT
+    r = re.search(r'[nc].([\-\*0-9]+)del[A-Z]+',change)
     if r:
         if "*" in r.group(1):
             if g.strand=="+":
@@ -356,7 +370,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
 
-    r = re.search("[nc].([\-0-9]+)dup[A-Z]+",change)
+    # n.1089dupC
+    r = re.search(r'[nc].([\-0-9]+)dup[A-Z]+',change)
     if r:
         pos = int(r.group(1))
         if g.strand=="+":
@@ -366,7 +381,8 @@ def get_genome_position(gene_object,change):
             p = g.start - pos + 1
             return [p]
     
-    r = re.search("[nc].([\-0-9]+)_([\-0-9]+)dup[A-Z]+",change)
+    # c.134_135dupTC
+    r = re.search(r'[nc].([\-0-9]+)_([\-0-9]+)dup[A-Z]+',change)
     if r:
         pos1 = int(r.group(1))
         pos2 = int(r.group(2))
@@ -496,15 +512,23 @@ def create_db(args,extra_files = None):
                 db[locus_tag][mut]["chromosome"] = gene_dict[locus_tag].chrom
         
 
-
+        gene_coordinates = {}
         if args.watchlist:
             for row in csv.DictReader(open(args.watchlist)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
                 locus_tag_to_ann_dict[locus_tag].add("")
                 if row['Info']=="": continue
                 info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
-                if "drug" in info:
+                if 'drug' in info:
                     locus_tag_to_ann_dict[locus_tag].add(info['drug'])
+                if 'start' in info and 'end' in info:
+                    if locus_tag not in gene_coordinates:
+                        gene_coordinates[locus_tag] = {
+                            'chromosome':gene_dict[locus_tag].chrom,
+                            'start':int(info['start']),
+                            'end':int(info['end'])
+                        }
+
 
 
         version = {"name":args.prefix}
@@ -549,7 +573,8 @@ def create_db(args,extra_files = None):
                 gene_dict=locus_tag_to_ann_dict,
                 gene_info=gene_dict,
                 ref_file=genome_file,
-                outfile=bed_file
+                outfile=bed_file,
+                gene_coordinates=gene_coordinates if len(gene_coordinates)>0 else None,
             )
             variables['amplicon'] = False
         
@@ -573,8 +598,6 @@ def create_db(args,extra_files = None):
                     
         json.dump(variables,open(variables_file,"w"))
         
-        
-        
         if args.load:
             load_db(variables_file,args.db_dir)
 
@@ -586,9 +609,13 @@ def index_ref(target):
 
 def load_db(variables_file,db_dir,source_dir="."):
     variables = json.load(open(variables_file))
-
     if not os.path.isdir(db_dir):   
         os.mkdir(db_dir)
+
+    if os.path.isfile("snpEffectPredictor.bin"):
+        snpeff_db_name = json.load(open(variables_file))["snpEff_db"]
+        load_snpEff_db("snpEffectPredictor.bin",snpeff_db_name,db_dir)
+
 
     for key,val in variables['files'].items():
         source = f"{source_dir}/{val}"

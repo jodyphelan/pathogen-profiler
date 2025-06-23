@@ -8,7 +8,6 @@ import os
 from .models import Variant
 from typing import List, Union
 import argparse
-import logging
 
 def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
     conf = args.conf

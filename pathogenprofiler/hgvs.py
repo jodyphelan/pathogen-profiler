@@ -205,8 +205,10 @@ def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     for l in cmd_out(f"snpEff ann -noLog -noStats -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
         if l[0]=="#": continue
         row = l.strip().split()
-        for ann in row[7].split(","):
+        for ann in row[7].split(';')[0].split(","):
             a = ann.split("|")
+            if a[9]=='' and a[10]=='':
+                continue
             if len(a)!=16:continue
             if "target_gene" in vals[i]:
                 condition = vals[i]["target_gene"] in [a[3],a[4]]
@@ -299,7 +301,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
 
         # Protein variants - not validated yet
-        elif r := re.search("p\..+",row["Mutation"]):
+        elif r := re.search(r"p\..+",row["Mutation"]):
             converted_mutations[key] = (row['Gene'],row["Mutation"])
 
         # Coding indels

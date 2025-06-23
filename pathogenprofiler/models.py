@@ -1,4 +1,4 @@
-from typing import Any, List, Union, Optional, Generator
+from typing import List, Union, Optional, Generator
 from pydantic import BaseModel, Field
 from statistics import median
 
@@ -557,6 +557,7 @@ class BarcodePosition(BaseModel):
     pos: int
     target_allele_count: int
     other_allele_count: int
+    all_allele_count: int
     target_allele_percent: float
 
 
