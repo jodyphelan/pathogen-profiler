@@ -739,7 +739,10 @@ def get_default_snpeff_config():
     return f"{default_snpeff_dir}/snpEff.config"
 
 def get_custom_snpeff_dir(db_dir):
-    return f"{db_dir}/snpeff/"
+    dirpath = f"{db_dir}/snpeff/"
+    if not os.path.isdir(dirpath):
+        os.mkdir(dirpath)
+    return dirpath
 
 def get_custom_snpeff_config(db_dir):
     return f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
@@ -767,6 +770,9 @@ def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
     
 
     genome_dir = f"{custom_snpeff_dir}/data/{genome_name}"
+    data_dir = f"{custom_snpeff_dir}/data/"
+    if not os.path.isdir(data_dir):
+        os.mkdir(data_dir)
     if not os.path.isdir(genome_dir):
         os.mkdir(genome_dir)
     shutil.copyfile(bin_file,f"{genome_dir}/{bin_file}")
