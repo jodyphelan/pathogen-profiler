@@ -770,6 +770,9 @@ def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
     
 
     genome_dir = f"{custom_snpeff_dir}/data/{genome_name}"
+    data_dir = f"{custom_snpeff_dir}/data/"
+    if not os.path.isdir(data_dir):
+        os.mkdir(data_dir)
     if not os.path.isdir(genome_dir):
         os.mkdir(genome_dir)
     shutil.copyfile(bin_file,f"{genome_dir}/{bin_file}")
