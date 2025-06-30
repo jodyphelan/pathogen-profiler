@@ -763,7 +763,14 @@ def create_snpeff_directories(db_dir):
 
 def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    logging.debug(f"Custom snpEff directory: {custom_snpeff_dir}")
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    logging.debug(f"Custom snpEff config file: {custom_snpeff_config}")
+    # check if config file exists
+    if not os.path.isfile(custom_snpeff_config):
+        logging.error(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
+        default_snpeff_config = get_default_snpeff_config()
+        shutil.copyfile(default_snpeff_config,custom_snpeff_config)
     with open(custom_snpeff_config,"a") as F:
         F.write(f"{genome_name}.genome : {genome_name}\n")
     
