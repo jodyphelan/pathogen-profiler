@@ -742,7 +742,7 @@ def get_custom_snpeff_dir(db_dir):
     dirpath = f"{db_dir}/snpeff/"
     if not os.path.isdir(dirpath):
         os.mkdir(dirpath)
-    return 
+    return dirpath
 
 def get_custom_snpeff_config(db_dir):
     return f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
