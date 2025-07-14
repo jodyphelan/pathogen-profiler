@@ -672,8 +672,6 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
             logging.info(f"Using {key} file: {db_dir}/{val}")
         if ".json" in val:
             variables[key] = json.load(open(f"{db_dir}/{val}"))
-        elif key=='rules':
-            variables[key] = [l.strip() for l in open(f'{db_dir}/{val}')]
         else:
             variables[key] = f"{db_dir}/{val}"
     
