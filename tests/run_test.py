@@ -153,4 +153,4 @@ def test_version():
     stdout = sp.check_output(['gh', 'release', 'view', '--json', 'tagName'], text=True).splitlines()
     release_version = semver.VersionInfo.parse(json.loads(stdout[0].strip())['tagName'][1:])
     # check the current version is greater than the release version
-    assert current_version > release_version, f"Current version {current_version} is not greater than or equal to the release version {release_version}."
+    assert current_version > release_version, f"Current version {current_version} is not greater than the release version {release_version}."
