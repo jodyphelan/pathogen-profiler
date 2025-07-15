@@ -41,4 +41,6 @@ jobs:
         cd tests
         mamba install pytest pandas importlib_resources -y
         pytest -x .
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
