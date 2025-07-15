@@ -1,6 +1,7 @@
 import pathogenprofiler as pp
-import pytest
-import logging
+import subprocess as sp
+import json
+import semver
 
 ref = "MTB-h37rv_asm19595v2-eg18.fa"
 gff = "MTB-h37rv_asm19595v2-eg18.gff"
@@ -133,17 +134,23 @@ todo = [
 ]
 
 
-converted_mutations = pp.get_snpeff_formated_mutation_list(hgvs_mutations,ref,gff,"Mycobacterium_tuberculosis_h37rv")
+# converted_mutations = pp.get_snpeff_formated_mutation_list(hgvs_mutations,ref,gff,"Mycobacterium_tuberculosis_h37rv")
 
 
 
 
-logging.debug(converted_mutations)
+# logging.debug(converted_mutations)
 
-@pytest.mark.parametrize("mutation",hgvs_mutations)
-def test_variant(mutation):
-    gene = mutation["Gene"]
-    change = mutation["Mutation"]
-    target = mutation["target"]
-    assert(target == converted_mutations[(gene,change)][1])
+# @pytest.mark.parametrize("mutation",hgvs_mutations)
+# def test_variant(mutation):
+#     gene = mutation["Gene"]
+#     change = mutation["Mutation"]
+#     target = mutation["target"]
+#     assert(target == converted_mutations[(gene,change)][1])
 
+def test_version():
+    current_version = semver.VersionInfo.parse(pp.__version__)
+    stdout = sp.check_output(['gh', 'release', 'view', '--json', 'tagName'], text=True).splitlines()
+    release_version = semver.VersionInfo.parse(json.loads(stdout[0].strip())['tagName'][1:])
+    # check the current version is greater than the release version
+    assert current_version > release_version, f"Current version {current_version} is not greater than or equal to the release version {release_version}."

@@ -817,6 +817,7 @@ class Species(BaseModel):
     Species(species='Mycobacterium abscessus', prediction_info=None)
     """
     species: str
+    notes: List[str] = []
     prediction_info: dict = {}
 
 
