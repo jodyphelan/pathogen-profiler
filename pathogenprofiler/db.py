@@ -226,6 +226,7 @@ def so_term_in_mutation(mutation: str) -> bool:
     return False
 
 def get_snpeff_formated_mutation_list(hgvs_variants,ref,gff,snpEffDB,db_dir):
+    initialise_snpeff_dir(db_dir)
     logging.debug("Converting HGVS to snpEff format")
     genes = load_gff(gff)
     refseq = FastaFile(ref)
@@ -746,11 +747,11 @@ def get_custom_snpeff_config(db_dir):
     return f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
 
 def create_snpeff_directories(db_dir):
+    if not os.path.isdir(db_dir):
+        os.mkdir(db_dir)
     default_snpeff_config = get_default_snpeff_config()
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
-    if not os.path.isdir(db_dir):
-        os.mkdir(db_dir)
     if not os.path.isdir(custom_snpeff_dir):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
@@ -758,20 +759,25 @@ def create_snpeff_directories(db_dir):
             for l in INPUT:
                 OUTPUT.write(l)
 
-
-def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
+def initialise_snpeff_dir(db_dir: str) -> None:
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
     logging.debug(f"Custom snpEff directory: {custom_snpeff_dir}")
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
     logging.debug(f"Custom snpEff config file: {custom_snpeff_config}")
-    # check if config file exists
     if not os.path.isfile(custom_snpeff_config):
         logging.debug(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
         default_snpeff_config = get_default_snpeff_config()
         shutil.copyfile(default_snpeff_config,custom_snpeff_config)
+
+def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
+    logging.debug(f"Loading snpEff database {genome_name} from {bin_file} into {db_dir}")
+    initialise_snpeff_dir(db_dir)
+    custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
+    custom_snpeff_config = get_custom_snpeff_config(db_dir)
+
+
     with open(custom_snpeff_config,"a") as F:
         F.write(f"{genome_name}.genome : {genome_name}\n")
-    
     
 
     genome_dir = f"{custom_snpeff_dir}/data/{genome_name}"
