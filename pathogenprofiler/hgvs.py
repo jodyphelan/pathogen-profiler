@@ -291,7 +291,6 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
     converted_mutations = {}
     mutations_genome = {}
     for row in tqdm(hgvs_mutations,desc="Parsing mutations"):
-        logging.debug(row)
         gene = [g for g in genes if g.name==row["Gene"] or g.gene_id==row["Gene"]][0]
         key = (row["Gene"],row["Mutation"])
 
@@ -327,13 +326,13 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
         if "target_gene" in row and key in mutations_genome:
             mutations_genome[key]["target_gene"] = row['target_gene']
 
-    logging.debug(mutations_genome)
+
     if len(mutations_genome)>0:
         mutation_conversion = get_ann(mutations_genome,snpEffDB,db_dir)
         for key in mutation_conversion:
             converted_mutations[key] = mutation_conversion[key]
     
-    logging.debug(converted_mutations)
+
     return converted_mutations
 
 
