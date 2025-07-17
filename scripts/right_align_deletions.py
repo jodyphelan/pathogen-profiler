@@ -23,17 +23,29 @@ def right_align_deletion(var: pysam.VariantRecord, refseq: pysam.FastaFile) -> t
     """
     Right-align a deletion variant in a VCF record.
     """
+    
+    
+    stop_pos = var.stop
+    original_alt = var.alts[0]
     deleted_seq = refseq.fetch(var.chrom, var.start, var.stop-1)
+    logging.debug('Found deleted seq')
     next_base = refseq.fetch(var.chrom,var.stop, var.stop+1)  # Fetch the base at the stop position
+    logging.debug(f"Variant before right alignment: {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
     i=0
     while next_base==deleted_seq[1]:
+        logging.debug(f"Next base {next_base} is equal to deleted seq {deleted_seq[1]}")
         deleted_seq = deleted_seq[1:] + next_base
-        var.alts = (next_base,)
         var.start += 1
-        next_base = refseq.fetch(var.chrom,var.stop, var.stop+1)  # Fetch the base at the stop position
+        stop_pos += 1 
+        next_base = refseq.fetch(var.chrom,stop_pos, stop_pos+1)  # Fetch the base at the stop position
+        logging.debug(f"Updated variant start: {var.start}, stop: {var.stop}, ref: {var.ref}, alts: {var.alts}, next_base: {next_base}")
         i += 1
-    if var.ref!='<DEL>':
-        var.ref = deleted_seq
+
+    if original_alt=='<DEL>':
+        var.ref = refseq.fetch(var.chrom, var.start, var.start+1)
+    else:
+        var.ref = refseq.fetch(var.chrom, var.start, var.stop)
+        var.alts = (next_base,)
     logging.debug(f"Right-aligned deletion: {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
     logging.debug(f"Number of bases shifted: {i}")
 
@@ -52,14 +64,22 @@ for chrom in refseq.references:
 
 vcf_out = pysam.VariantFile(args.output, "w", header=header)
 for var in vcf_in:
-    logging.debug(f"Processing variant {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
-    # find if the variant overlaps with a gene end using the bisect module
-    gene_ends_list = gene_ends[var.chrom]
-    gene_end_index = bisect.bisect_left(gene_ends_list, var.start) 
-    if gene_end_index<len(gene_ends_list) and gene_ends_list[gene_end_index] > var.start and gene_ends_list[gene_end_index] < var.stop:
-        logging.debug(f"Variant overlaps with gene end {genes[gene_end_index].name}")
-        direction = "right" if genes[gene_end_index].strand == "+" else "left"
-        if direction=="right":
-            right_align_deletion(var, refseq)
+    needs_processing = False
+    if var.alts[0]=='<DEL>' or len(var.ref)>len(var.alts[0]):
+        needs_processing = True
+        if var.stop - var.start >= 50000:
+            logging.debug(f"Skipping large variant {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
+            needs_processing = False
+    if needs_processing:
+        logging.debug(f"Processing variant {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
+        
+        # find if the variant overlaps with a gene end using the bisect module
+        gene_ends_list = gene_ends[var.chrom]
+        gene_end_index = bisect.bisect_left(gene_ends_list, var.start) 
+        if gene_end_index<len(gene_ends_list) and gene_ends_list[gene_end_index] > var.start and gene_ends_list[gene_end_index] < var.stop:
+            logging.debug(f"Variant overlaps with gene end {genes[gene_end_index].name}")
+            direction = "right" if genes[gene_end_index].strand == "+" else "left"
+            if direction=="right":
+                right_align_deletion(var, refseq)
 
     vcf_out.write(var)
