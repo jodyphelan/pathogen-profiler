@@ -23,15 +23,19 @@ def right_align_deletion(var: pysam.VariantRecord, refseq: pysam.FastaFile) -> t
     """
     Right-align a deletion variant in a VCF record.
     """
-    logging.debug(f"Right-aligned deletion: {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
-
+    deleted_seq = refseq.fetch(var.chrom, var.start, var.stop-1)
     next_base = refseq.fetch(var.chrom,var.stop, var.stop+1)  # Fetch the base at the stop position
-    while next_base==var.ref[1]:
-        var.ref = var.ref[1:] + next_base
+    i=0
+    while next_base==deleted_seq[1]:
+        deleted_seq = deleted_seq[1:] + next_base
         var.alts = (next_base,)
         var.start += 1
         next_base = refseq.fetch(var.chrom,var.stop, var.stop+1)  # Fetch the base at the stop position
+        i += 1
+    if var.ref!='<DEL>':
+        var.ref = deleted_seq
     logging.debug(f"Right-aligned deletion: {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
+    logging.debug(f"Number of bases shifted: {i}")
 
 vcf_in = pysam.VariantFile(args.input)
 header = vcf_in.header
@@ -48,7 +52,7 @@ for chrom in refseq.references:
 
 vcf_out = pysam.VariantFile(args.output, "w", header=header)
 for var in vcf_in:
-    logging.debug(f"Processing variant {var.chrom}:{var.start}-{var.stop}")
+    logging.debug(f"Processing variant {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
     # find if the variant overlaps with a gene end using the bisect module
     gene_ends_list = gene_ends[var.chrom]
     gene_end_index = bisect.bisect_left(gene_ends_list, var.start) 
