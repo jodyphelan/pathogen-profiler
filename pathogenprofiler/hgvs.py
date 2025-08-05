@@ -204,6 +204,7 @@ def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     i = 0
     for l in cmd_out(f"snpEff ann -noLog -noStats -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
         if l[0]=="#": continue
+        if l.startwith("ann "): continue
         row = l.strip().split()
         for ann in row[7].split(';')[0].split(","):
             a = ann.split("|")
