@@ -8,6 +8,7 @@ import platform
 import logging
 from .sourmash import SourmashSig
 from .models import FastqQC
+import tempfile
 
 
 
@@ -156,7 +157,21 @@ class Fastq:
             run_cmd(f"rm -r {tmp_prefix}*")
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
-    
+        elif counter=="FastK":
+            tmpdir = f"{prefix}_kmers"
+            os.mkdir(tmpdir)
+            # with tempfile.TemporaryDirectory() as tmpdir:
+            run_cmd(f"FastK -k{klen} -t -T{threads} -N{tmpdir}/out -P{tmpdir} {' '.join(self.files)}")
+            run_cmd(f"Tabex -t2 {tmpdir}/out.ktab LIST > {tmpdir}/kmers.txt")
+            with open(f"{prefix}.kmers.txt", "w") as f:
+                infile = open(f"{tmpdir}/kmers.txt")
+                infile.readline()
+                for line in infile:
+                    row = line.strip().split()
+                    f.write(f"{row[1].upper()}\t{row[-1]}\n")
+
+
+            return KmerDump(f"{prefix}.kmers.txt",counter)
     def sourmash_sketch(self,prefix,scaled=1000):
         logging.info("Sketching reads")
         read1 = self.r1

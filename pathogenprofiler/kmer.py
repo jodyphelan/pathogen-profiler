@@ -15,6 +15,8 @@ class KmerDump:
             nuc_order = "ACGT"
         elif counter=="dsk":
             nuc_order = "ACTG"
+        elif counter=="FastK":
+            nuc_order = "ACGT"
         self.nuc_order = {n:i for i,n in enumerate(nuc_order)}
 
     def load_kmer_counts(self,kmer_db_file,remove_after_processing=True,max_mismatch=1):
