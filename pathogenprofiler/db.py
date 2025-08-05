@@ -752,9 +752,14 @@ def create_snpeff_directories(db_dir):
     default_snpeff_config = get_default_snpeff_config()
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
+    logging.debug(f"Default snpEff config file: {default_snpeff_config}")
+    logging.debug(f"Custom snpEff directory: {custom_snpeff_dir}")
+    logging.debug(f"Custom snpEff config file: {custom_snpeff_config}")
     if not os.path.isdir(custom_snpeff_dir):
         os.mkdir(custom_snpeff_dir)
         os.mkdir(f"{custom_snpeff_dir}/data")
+    if not os.path.isfile(custom_snpeff_config):
+        logging.debug(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
         with open(default_snpeff_config,"r") as INPUT, open(custom_snpeff_config,"w") as OUTPUT:
             for l in INPUT:
                 OUTPUT.write(l)
