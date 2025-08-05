@@ -31,6 +31,7 @@ def right_align_deletion(var: pysam.VariantRecord, refseq: pysam.FastaFile) -> t
     logging.debug('Found deleted seq')
     next_base = refseq.fetch(var.chrom,var.stop, var.stop+1)  # Fetch the base at the stop position
     logging.debug(f"Variant before right alignment: {var.chrom}:{var.start}-{var.stop} {var.ref} {var.alts}")
+    logging.debug(f"Deleted sequence: {deleted_seq}, Next base: {next_base}")
     i=0
     while next_base==deleted_seq[1]:
         logging.debug(f"Next base {next_base} is equal to deleted seq {deleted_seq[1]}")
