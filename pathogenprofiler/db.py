@@ -591,7 +591,7 @@ def create_db(args,extra_files = None):
             "variables": variables_file            
         }
         if os.path.isfile("snpEffectPredictor.bin"):
-            variables["snpEff_db"] = json.load(open("variables.json"))["snpEff_db"]
+            variables["files"]["snpEff_db"] = f"{args.prefix}.snpEffectPredictor.bin"
         if extra_files:
             for key,val in extra_files.items():
                 if isinstance(val,str):
@@ -599,7 +599,7 @@ def create_db(args,extra_files = None):
                 else:
                     variables["files"][key] = f"{args.prefix}.{val['name']}"
                     
-        json.dump(variables,open(variables_file,"w"))
+        json.dump(variables,open(variables_file,"w"), indent=4)
         
         if args.load:
             load_db(variables_file,args.db_dir)
@@ -616,6 +616,7 @@ def init_db_dir(db_dir):
     return db_dir
 
 def load_db(variables_file,db_dir,source_dir="."):
+
     variables = json.load(open(variables_file))
     init_db_dir(db_dir)
 
@@ -623,10 +624,9 @@ def load_db(variables_file,db_dir,source_dir="."):
     for key,val in variables['files'].items():
         source = f"{source_dir}/{val}"
         target = f"{db_dir}/{val}"
-        # logging.info(f"Copying file: {source} ---> {target}")
         if key=='snpEff_db':
-            raise NotImplementedError("Loading snpEff databases is not implemented in this version.")
-            load_snpEff_db(source,target,db_dir)
+
+            load_snpEff_db(val,variables['snpEff_db'],db_dir)
         else:
             shutil.copyfile(source,target)
             if key=="ref":
@@ -665,17 +665,17 @@ def initialise_snpeff_genome(db_dir: str, db_name: str, genome_name: str) -> Non
     initialise_snpeff_dir(db_dir)
     genome_dir = get_snpeff_genome_dir(db_dir, genome_name)
     if not os.path.isfile(f"{genome_dir}/snpEffectPredictor.bin"):
-        logging.info(f"The snpEffPredictor.bin file for {genome_name} does not exist. Creating it.")
+        logging.debug(f"The snpEffPredictor.bin file for {genome_name} does not exist. Creating it.")
         custom_bin_file = f"{db_dir}/{db_name}.snpEffectPredictor.bin"
-        logging.info(f"Custom snpEffPredictor.bin file: {custom_bin_file}")
+        logging.debug(f"Custom snpEffPredictor.bin file: {custom_bin_file}")
         print(os.path.isfile(f"{genome_dir}/snpEffectPredictor.bin"))
         if not os.path.isfile(f"{genome_dir}/snpEffectPredictor.bin") and os.path.isfile(custom_bin_file):
-            logging.info(f"Copying custom snpEffectPredictor.bin file from {custom_bin_file} to {genome_dir}/snpEffectPredictor.bin")
+            logging.debug(f"Copying custom snpEffectPredictor.bin file from {custom_bin_file} to {genome_dir}/snpEffectPredictor.bin")
             # shutil.copyfile(custom_bin_file, f"{genome_dir}/snpEffectPredictor.bin")
             load_snpEff_db(custom_bin_file, genome_name, db_dir)
 
 def get_db(db_dir:str,db_name:str,verbose:bool=True):
-    logging.info(f"Loading database {db_name} from {db_dir}")
+    logging.debug(f"Loading database {db_name} from {db_dir}")
     if is_db_path(db_name):
         if "/" in db_name:
             db_dir = "/".join(db_name.split("/")[:-1])
@@ -766,18 +766,20 @@ def get_default_snpeff_config_filename():
 def get_custom_snpeff_dir(db_dir):
     dirpath = f"{db_dir}/snpeff/"
     if not os.path.isdir(dirpath):
+        print(f"Creating snpEff directory: {dirpath}")
         os.mkdir(dirpath)
     if not os.path.isdir(f"{dirpath}/data"):
+        print(f"Creating snpEff data directory: {dirpath}/data")
         os.mkdir(f"{dirpath}/data")
     return dirpath
 
 
 def get_custom_snpeff_config(db_dir):
     default_snpeff_config = get_default_snpeff_config_filename()
-    logging.info(f"Default snpEff config file: {default_snpeff_config}")
+    logging.debug(f"Default snpEff config file: {default_snpeff_config}")
     custom_snpeff_config = f"{get_custom_snpeff_dir(db_dir)}/snpEff.config"
     if not os.path.isfile(custom_snpeff_config):
-        logging.info(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
+        logging.debug(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
         shutil.copyfile(default_snpeff_config,custom_snpeff_config)
 
     return custom_snpeff_config
@@ -785,11 +787,11 @@ def get_custom_snpeff_config(db_dir):
 
 def initialise_snpeff_dir(db_dir: str) -> None:
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
-    logging.info(f"Custom snpEff directory: {custom_snpeff_dir}")
+    logging.debug(f"Custom snpEff directory: {custom_snpeff_dir}")
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
-    logging.info(f"Custom snpEff config file: {custom_snpeff_config}")
+    logging.debug(f"Custom snpEff config file: {custom_snpeff_config}")
     if not os.path.isfile(custom_snpeff_config):
-        logging.info(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
+        logging.debug(f"Custom snpEff config file {custom_snpeff_config} does not exist. Copying from default snpEff config.")
         default_snpeff_config = get_default_snpeff_config_filename()
         shutil.copyfile(default_snpeff_config,custom_snpeff_config)
 
@@ -797,12 +799,12 @@ def get_snpeff_genome_dir(db_dir: str, genome_name: str) -> str:
     custom_snpeff_dir = get_custom_snpeff_dir(db_dir)
     genome_dir = f"{custom_snpeff_dir}/data/{genome_name}"
     if not os.path.isdir(genome_dir):
-        logging.info(f"Creating snpEff genome directory: {genome_dir}")
+        logging.debug(f"Creating snpEff genome directory: {genome_dir}")
         os.mkdir(genome_dir)
     return genome_dir
 
 def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
-    logging.info(f"Loading snpEff database {genome_name} from {bin_file} into {db_dir}")
+    logging.debug(f"Loading snpEff database {genome_name} from {bin_file} into {db_dir}")
     initialise_snpeff_dir(db_dir)
     custom_snpeff_config = get_custom_snpeff_config(db_dir)
 
@@ -811,5 +813,5 @@ def load_snpEff_db(bin_file: str,genome_name: str,db_dir:str):
         F.write(f"{genome_name}.codonTable : Bacterial_and_Plant_Plastid\n")
 
     genome_dir = get_snpeff_genome_dir(db_dir,genome_name)
-    logging.info(f"Copying {bin_file} to {genome_dir}/snpEffectPredictor.bin")
+    logging.debug(f"Copying {bin_file} to {genome_dir}/snpEffectPredictor.bin")
     shutil.copyfile(bin_file,f"{genome_dir}/snpEffectPredictor.bin")
