@@ -59,7 +59,7 @@ def get_version(tool):
         'paftools.js': r'([\w.-]+)',
     }
     x = sp.run([cmds[tool]], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    text = x.stdout.decode('utf-8') + x.stderr.decode('utf-8')
+    text = x.stdout.decode('utf-8', errors='ignore') + x.stderr.decode('utf-8', errors='ignore')
     version = re.search(regex[tool], text).group(1)
     return version
 
