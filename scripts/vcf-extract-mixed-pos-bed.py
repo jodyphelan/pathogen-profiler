@@ -11,7 +11,6 @@ args = parser.parse_args()
 
 def extract_mixed_calls(vcf_file):
     afs = []
-    afs = []
     vcf = pysam.VariantFile(vcf_file)
     sample = list(vcf.header.samples)[0]  # Assuming we are interested in the first sample
     for var in vcf.fetch():
@@ -25,7 +24,8 @@ def extract_mixed_calls(vcf_file):
             'alt': var.alts[0] if var.alts else None,
             'alt_af': alt_af,
             'alt_ad': alt_ad,
-            'total_ad': sum(AD)
+            'total_ad': sum(AD),
+            'GT': var.samples[sample]["GT"]
         })
     return afs
 
@@ -33,6 +33,8 @@ def write_bed_file(afs, output_bed, lb_cut, ub_cut):
     with open(output_bed, "w") as bed_file:
         for r in afs:
             if lb_cut <= r['alt_af'] <= ub_cut:
+                bed_file.write(f"{r['chrom']}\t{r['pos']-1}\t{r['pos']}\n")
+            if r['GT'] == (None, None):
                 bed_file.write(f"{r['chrom']}\t{r['pos']-1}\t{r['pos']}\n")
 
 if not args.vcf:
