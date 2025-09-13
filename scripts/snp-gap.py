@@ -25,10 +25,19 @@ def load_vcf_lines(vcf_file):
         lines.append(rec)
     return lines
 
+def extract_af(var: pysam.VariantRecord):
+    sample = list(var.header.samples)[0]  # Assuming we are interested in the first sample
+    AD = var.samples[sample]["AD"]
+    alt_ad = sum(AD[1:]) if len(AD) > 1 else 0
+    alt_af = alt_ad / sum(AD) if sum(AD) > 0 else 0
+    return alt_af
+
 def extract_indel_area(vcf_lines, padding):
     indel_area = set()
     for rec in vcf_lines:
         if is_indel(rec):
+            alt_af = extract_af(rec)
+            if alt_af < 0.20: continue
             for pos in range(rec.start - padding, rec.stop + padding):
                 indel_area.add((rec.chrom, pos))
     return indel_area
