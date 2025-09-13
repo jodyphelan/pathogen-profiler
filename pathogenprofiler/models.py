@@ -817,8 +817,14 @@ class Species(BaseModel):
     Species(species='Mycobacterium abscessus', prediction_info=None)
     """
     species: str
-    notes: List[str] = []
-    prediction_info: dict = {}
+    ani: Optional[float] = None
+    abundance: Optional[float] = None
+    relative_abundance: Optional[float] = None
+    coverage: Optional[float] = None
+    accession: Optional[str] = None
+    ncbi_organism_name: Optional[str] = None
+    prediction_method: Optional[str] = None
+    notes: Optional[List[str]] = []
 
 
 
@@ -838,8 +844,8 @@ class SpeciesPrediction(BaseModel):
         The species database
 
     """
-    prediction_method: str
-    species: List[Species] = []
+    taxa: List[Species] = []
+    qc_fail_taxa: List[Species] = []
     species_db: dict = {}
 
     def get_species_str(self):

@@ -75,6 +75,7 @@ class SourmashSig:
                 "accession": row["name"],
                 "ani":round(float(row["match_containment_ani"])*100,2),
                 "abundance":float(row["average_abund"]),
+                "intersect_bp": int(row["intersect_bp"]),
             }
             d.update(accession_data[row["name"]])
             results.append(d)

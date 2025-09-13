@@ -70,9 +70,9 @@ def run_vcf_qc(args: argparse.Namespace):
 
 def get_resistance_db_from_species_prediction(args: argparse.Namespace,species_prediction:SpeciesPrediction):
     logging.debug("Attempting to load db with species prediction")
-    number_of_species = len(set([s.species for s in species_prediction.species]))
+    number_of_species = len(set([t.species for t in species_prediction.taxa]))
     if number_of_species==1:
-        return get_db(args.db_dir,species_prediction.species[0].species.replace(" ","_")) 
+        return get_db(args.db_dir,species_prediction.taxa[0].species.replace(" ","_")) 
     else:
         return None
     
@@ -381,19 +381,27 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
     conf = get_db(args.db_dir,args.species_db)
     sourmash_species_prediction = get_sourmash_hit(args)
     species = []
+    qc_failed_species = []
     for obj in sourmash_species_prediction:
-        species.append(
-            Species(
-                species=obj['species'],
-                prediction_method='sourmash',
-                prediction_info=obj,
+        if obj['abundance']<args.min_species_abundance:
+            qc_failed_species.append(obj)
+        else:
+            species.append(
+                Species(
+                    species=obj['species'],
+                    ani=obj['ani'],
+                    intersect_bp=obj['intersect_bp'],
+                    abundance=obj['abundance'],
+                    relative_abundance=obj['relative_abundance'],
+                    accession=  obj['accession'],
+                    ncbi_organism_name=obj['ncbi_organism_name'],
+                    prediction_method='sourmash',
+                )
             )
-        )
     return SpeciesPrediction(
-        species=species,
-        prediction_method='sourmash',
+        taxa=species,
+        qc_fail_taxa=qc_failed_species,
         species_db = conf['version']
     )
-
 
 
