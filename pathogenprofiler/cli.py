@@ -361,7 +361,22 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     return SpeciesPrediction(**data)
         
         
+def combine_species_abundance(matches:List[dict]) -> List[dict]:
+    species_detected = set(t['species'] for t in matches)
+    species_objects = []
+    if len(matches) == 0:
+        return
 
+    for species in species_detected:
+        hits = [t for t in matches if t['species'] == species]
+        hits = sorted(hits,key=lambda x: x['abundance'],reverse=True)
+        species_objects.append(hits[0])
+
+    total_abundance = sum([s['abundance'] for s in species_objects])
+    for s in species_objects:
+        s['relative_abundance'] = s['abundance']/total_abundance*100
+
+    return species_objects
 
 def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     """
@@ -380,9 +395,10 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
     """
     conf = get_db(args.db_dir,args.species_db)
     sourmash_species_prediction = get_sourmash_hit(args)
+    sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
     species = []
     qc_failed_species = []
-    for obj in sourmash_species_prediction:
+    for obj in sourmash_species_prediction_combined:
         if obj['abundance']<args.min_species_abundance:
             qc_failed_species.append(obj)
         else:
