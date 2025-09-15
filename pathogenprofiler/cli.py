@@ -365,7 +365,7 @@ def combine_species_abundance(matches:List[dict]) -> List[dict]:
     species_detected = set(t['species'] for t in matches)
     species_objects = []
     if len(matches) == 0:
-        return
+        return []
 
     for species in species_detected:
         hits = [t for t in matches if t['species'] == species]
@@ -375,7 +375,6 @@ def combine_species_abundance(matches:List[dict]) -> List[dict]:
     total_abundance = sum([s['abundance'] for s in species_objects])
     for s in species_objects:
         s['relative_abundance'] = s['abundance']/total_abundance*100
-    print(species_objects)
     return species_objects
 
 def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
