@@ -322,7 +322,32 @@ def get_sourmash_hit(args):
     
     return result
 
+def get_taxonomic_hits(args):
+    args.species_conf = get_db(args.db_dir,args.species_db)
+    if args.read1:
+        if args.read2:
+            fastq = Fastq(args.read1,args.read2)
+        else:
+            fastq = Fastq(args.read1)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
+    elif args.fasta:
+        fasta = Fasta(args.fasta)
+        sketch = fasta.sketch(args.files_prefix, software=args.taxonomic_software)
+    elif args.bam:
+        run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
+        fq_file = f"{args.files_prefix}.tmp.fastq"
+        args.temp_fastq_file = fq_file
+        fastq = Fastq(fq_file)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
+    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["sequence_info"])
+    print(hits)
+    result =  []
+
+    if len(hits)>0:
+        result = hits
+    
+    return result
 
 def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     """
@@ -361,23 +386,7 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     return SpeciesPrediction(**data)
         
         
-def combine_species_abundance(matches:List[dict]) -> List[dict]:
-    species_detected = set(t['species'] for t in matches)
-    species_objects = []
-    if len(matches) == 0:
-        return []
 
-    for species in species_detected:
-        hits = [t for t in matches if t['species'] == species]
-        hits = sorted(hits,key=lambda x: x['abundance'],reverse=True)
-        species_objects.append(hits[0])
-
-    total_abundance = sum([s['abundance'] for s in species_objects])
-    for s in species_objects:
-        s['relative_abundance'] = s['abundance']/total_abundance*100
-
-    species_objects = sorted(species_objects,key=lambda x: x['relative_abundance'],reverse=True)
-    return species_objects
 
 def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     """
@@ -421,4 +430,47 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
         species_db = conf['version']
     )
 
+
+def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
+    """
+    Get a SpeciesPrediction object based on prediction using sourmash
+
+    Arguments
+    ---------
+    args : argparse.Namespace
+        The input arguments
+
+    Returns
+    -------
+    SpeciesPrediction
+        A SpeciesPrediction object
+
+    """
+    conf = get_db(args.db_dir,args.species_db)
+    species_hits = get_taxonomic_hits(args)
+    # sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
+    species = []
+    qc_failed_species = []
+    for obj in species_hits:
+        if obj['relative_abundance']<args.min_species_relative_abundance:
+            qc_failed_species.append(obj)
+        else:
+            species.append(
+                Species(
+                    species=obj['species'],
+                    ani=obj['ani'],
+                    intersect_bp=obj['intersect_bp'],
+                    abundance=obj['abundance'],
+                    relative_abundance=obj['relative_abundance'],
+                    accession=  obj['accession'],
+                    ncbi_organism_name=obj['ncbi_organism_name'],
+                    prediction_method='sourmash',
+                )
+            )
+    
+    return SpeciesPrediction(
+        taxa=species,
+        qc_fail_taxa=qc_failed_species,
+        species_db = conf['version']
+    )
 

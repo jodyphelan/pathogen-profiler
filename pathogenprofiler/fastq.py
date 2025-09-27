@@ -179,6 +179,21 @@ class Fastq:
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {read1} {read2}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
     
+    def sylph_sketch(self,prefix):
+        logging.info("Sketching reads with sylph")
+        read1 = self.r1
+        read2 = self.r2 if self.r2 else ""
+        run_cmd(f"sylph sketch -o {prefix} {read1} {read2}")
+        return SourmashSig(f"{prefix}.sylsp",tmp_prefix=prefix)
+    
+    def sketch(self,prefix,software):
+        if software=="sourmash":
+            return self.sourmash_sketch(prefix)
+        elif software=="sylph":
+            return self.sylph_sketch(prefix)
+        else:
+            quit(f"ERROR: {software} not in accepted sketching methods\n")
+
     def get_qc(self):
         """Get quality control metrics"""
         header = None
