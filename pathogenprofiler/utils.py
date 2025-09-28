@@ -40,6 +40,7 @@ def get_version(tool):
         'kmc': 'kmc',
         'sourmash': 'sourmash --version',
         'paftools.js': 'paftools.js version',
+        'sylph': 'sylph --version',
     }
     regex = {
         'bcftools': r'bcftools (\d+\.\d+\.?\d?)',
@@ -57,6 +58,7 @@ def get_version(tool):
         'kmc': r'K-Mer Counter \(KMC\) ver. (\d+\.\d+\.\d+)',
         'sourmash': r'sourmash (\d+\.\d+\.\d?)',
         'paftools.js': r'([\w.-]+)',
+        'sylph': r'sylph (\d+\.\d+\.\d?)',
     }
     x = sp.run([cmds[tool]], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     text = x.stdout.decode('utf-8', errors='ignore') + x.stderr.decode('utf-8', errors='ignore')
