@@ -341,7 +341,7 @@ def get_taxonomic_hits(args):
         sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
     hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["sequence_info"])
-    print(hits)
+
     result =  []
 
     if len(hits)>0:
@@ -451,22 +451,11 @@ def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     # sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
     species = []
     qc_failed_species = []
-    for obj in species_hits:
-        if obj['relative_abundance']<args.min_species_relative_abundance:
-            qc_failed_species.append(obj)
+    for species_hit in species_hits:
+        if species_hit.relative_abundance<args.min_species_relative_abundance:
+            qc_failed_species.append(species_hit)
         else:
-            species.append(
-                Species(
-                    species=obj['species'],
-                    ani=obj['ani'],
-                    intersect_bp=obj['intersect_bp'],
-                    abundance=obj['abundance'],
-                    relative_abundance=obj['relative_abundance'],
-                    accession=  obj['accession'],
-                    ncbi_organism_name=obj['ncbi_organism_name'],
-                    prediction_method='sourmash',
-                )
-            )
+            species.append(species_hit)
     
     return SpeciesPrediction(
         taxa=species,
