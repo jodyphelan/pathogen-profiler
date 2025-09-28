@@ -192,7 +192,7 @@ class Fastq:
         outfile = f"{prefix}.sylph"
 
         run_cmd(f"sylph sketch -d {prefix}_sylph {reads_arg} -t {threads}")
-        run_cmd(f"mv {tmp_outfile} {prefix}.sylph")
+        run_cmd(f"mv {tmp_outfile} {prefix}.sylsp")
         run_cmd(f"rm -r {prefix}_sylph")
         return SylphSketch(outfile,tmp_prefix=prefix)
     
