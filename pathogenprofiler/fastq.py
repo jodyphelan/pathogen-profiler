@@ -184,12 +184,16 @@ class Fastq:
 
         if self.r1 and self.r2:
             reads_arg = f"-1 {self.r1} -2 {self.r2}"
-            outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.paired.sylsp"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.paired.sylsp"
         else:
             reads_arg = f"-r {self.r1}"
-            outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.sylsp"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.sylsp"
+
+        outfile = f"{prefix}.sylph"
 
         run_cmd(f"sylph sketch -d {prefix}_sylph {reads_arg} -t {threads}")
+        run_cmd(f"mv {tmp_outfile} {prefix}.sylph")
+        run_cmd(f"rm -r {prefix}_sylph")
         return SylphSketch(outfile,tmp_prefix=prefix)
     
     def sketch(self,prefix,software, threads=1):
