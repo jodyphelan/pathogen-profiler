@@ -189,10 +189,10 @@ class Fastq:
             reads_arg = f"-r {self.r1}"
             tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.sylsp"
 
-        outfile = f"{prefix}.sylph"
+        outfile = f"{prefix}.sylsp"
 
         run_cmd(f"sylph sketch -d {prefix}_sylph {reads_arg} -t {threads}")
-        run_cmd(f"mv {tmp_outfile} {prefix}.sylsp")
+        run_cmd(f"mv {tmp_outfile} {outfile}")
         run_cmd(f"rm -r {prefix}_sylph")
         return SylphSketch(outfile,tmp_prefix=prefix)
     
