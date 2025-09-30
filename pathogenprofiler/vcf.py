@@ -125,7 +125,7 @@ class Vcf:
                     self.phasing_bam = f"--bam {bam_for_phasing}"
                 else:
                     self.phasing_bam = ""
-                run_cmd("bcftools view -a %(filename)s | bcftools view -c 1 | right_align_deletions.py - %(ref_file)s %(gff_file)s - |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                run_cmd("bcftools view -a %(filename)s | bcftools view -c 1 | bcftools norm -f %(ref_file)s -g %(gff_file)s |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
                 
         else :
             run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
