@@ -401,6 +401,7 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
     qc_failed_species = []
     for obj in sourmash_species_prediction_combined:
         if obj['relative_abundance']<args.min_species_relative_abundance:
+            obj.relative_abundance = None
             qc_failed_species.append(obj)
         else:
             species.append(
@@ -415,6 +416,9 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
                     prediction_method='sourmash',
                 )
             )
+    total_abundance = sum([s.abundance for s in species])
+    for s in species:
+        s.relative_abundance = s.abundance/total_abundance*100
     return SpeciesPrediction(
         taxa=species,
         qc_fail_taxa=qc_failed_species,
