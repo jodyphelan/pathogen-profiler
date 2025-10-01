@@ -388,47 +388,47 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
         
 
 
-def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
-    """
-    Get a SpeciesPrediction object based on prediction using sourmash
+# def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
+#     """
+#     Get a SpeciesPrediction object based on prediction using sourmash
 
-    Arguments
-    ---------
-    args : argparse.Namespace
-        The input arguments
+#     Arguments
+#     ---------
+#     args : argparse.Namespace
+#         The input arguments
 
-    Returns
-    -------
-    SpeciesPrediction
-        A SpeciesPrediction object
+#     Returns
+#     -------
+#     SpeciesPrediction
+#         A SpeciesPrediction object
 
-    """
-    conf = get_db(args.db_dir,args.species_db)
-    sourmash_species_prediction = get_sourmash_hit(args)
-    sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
-    species = []
-    qc_failed_species = []
-    for obj in sourmash_species_prediction_combined:
-        if obj['relative_abundance']<args.min_species_relative_abundance:
-            qc_failed_species.append(obj)
-        else:
-            species.append(
-                Species(
-                    species=obj['species'],
-                    ani=obj['ani'],
-                    intersect_bp=obj['intersect_bp'],
-                    abundance=obj['abundance'],
-                    relative_abundance=obj['relative_abundance'],
-                    accession=  obj['accession'],
-                    ncbi_organism_name=obj['ncbi_organism_name'],
-                    prediction_method='sourmash',
-                )
-            )
-    return SpeciesPrediction(
-        taxa=species,
-        qc_fail_taxa=qc_failed_species,
-        species_db = conf['version']
-    )
+#     """
+#     conf = get_db(args.db_dir,args.species_db)
+#     sourmash_species_prediction = get_sourmash_hit(args)
+#     sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
+#     species = []
+#     qc_failed_species = []
+#     for obj in sourmash_species_prediction_combined:
+#         if obj['relative_abundance']<args.min_species_relative_abundance:
+#             qc_failed_species.append(obj)
+#         else:
+#             species.append(
+#                 Species(
+#                     species=obj['species'],
+#                     ani=obj['ani'],
+#                     intersect_bp=obj['intersect_bp'],
+#                     abundance=obj['abundance'],
+#                     relative_abundance=obj['relative_abundance'],
+#                     accession=  obj['accession'],
+#                     ncbi_organism_name=obj['ncbi_organism_name'],
+#                     prediction_method='sourmash',
+#                 )
+#             )
+#     return SpeciesPrediction(
+#         taxa=species,
+#         qc_fail_taxa=qc_failed_species,
+#         species_db = conf['version']
+#     )
 
 
 def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
@@ -453,9 +453,14 @@ def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     qc_failed_species = []
     for species_hit in species_hits:
         if species_hit.relative_abundance<args.min_species_relative_abundance:
+            species_hit.relative_abundance = None
             qc_failed_species.append(species_hit)
         else:
             species.append(species_hit)
+        
+    total_abundance = sum([s.abundance for s in species])
+    for s in species:
+        s.relative_abundance = s.abundance / total_abundance*100
     
     return SpeciesPrediction(
         taxa=species,
