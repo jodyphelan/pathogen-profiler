@@ -340,7 +340,7 @@ def get_taxonomic_hits(args):
         fastq = Fastq(fq_file)
         sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
-    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["sequence_info"])
+    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["accessions"])
 
     result =  []
 
@@ -374,6 +374,7 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     >>> species_prediction.species
     [Species(species='Mycobacterium abscessus', prediction_info=None)]
     """
+    print(args.db_dir,args.resistance_db)
     check_db_exists(args.db_dir,args.resistance_db)
     conf = get_db(args.db_dir,args.resistance_db)
     species = Species(
