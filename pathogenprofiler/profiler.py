@@ -87,7 +87,7 @@ def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str, bam_for_phasing
         run_cmd("bcftools index %s" % vcf_file)
     run_cmd("bcftools view -R %s %s -Oz -o %s" % (conf["bed"],vcf_file,vcf_targets_file))
     vcf_obj = Vcf(vcf_targets_file)
-    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],rename_chroms=conf.get("chromosome_conversion",None),bam_for_phasing=bam_for_phasing, db_dir=db_dir)
+    vcf_obj = vcf_obj.run_snpeff(conf["snpEff_db"],conf["ref"],conf["gff"],conf['snpEff_config'],rename_chroms=conf.get("chromosome_conversion",None),bam_for_phasing=bam_for_phasing, db_dir=db_dir)
     variants = vcf_obj.load_ann(conf['variant_filters'],bed_file=conf["bed"],keep_variant_types = ["ablation","upstream","synonymous","noncoding"])
 
     # compare against database of variants

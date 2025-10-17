@@ -6,7 +6,7 @@ from collections import defaultdict
 from .kmer import KmerDump
 import platform
 import logging
-from .sourmash import SourmashSig
+from .sourmash import SourmashSig, SylphSketch
 from .models import FastqQC
 import tempfile
 
@@ -172,13 +172,40 @@ class Fastq:
 
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
-    def sourmash_sketch(self,prefix,scaled=1000):
+    def sourmash_sketch(self,prefix,scaled=200, *args, **kwargs):
         logging.info("Sketching reads")
         read1 = self.r1
         read2 = self.r2 if self.r2 else ""
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {read1} {read2}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
     
+    def sylph_sketch(self,prefix, threads=1):
+        logging.info("Sketching reads with sylph")
+
+        if self.r1 and self.r2:
+            reads_arg = f"-1 {self.r1} -2 {self.r2}"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.paired.sylsp"
+        else:
+            reads_arg = f"-r {self.r1}"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.sylsp"
+
+        outfile = f"{prefix}.sylsp"
+
+        run_cmd(f"sylph sketch -d {prefix}_sylph {reads_arg} -t {threads}")
+        run_cmd(f"mv {tmp_outfile} {outfile}")
+        run_cmd(f"rm -r {prefix}_sylph")
+        return SylphSketch(outfile,tmp_prefix=prefix)
+    
+    def sketch(self,prefix,software, threads=1):
+        shared_dict['software']['taxonomic_software'] = software
+
+        if software=="sourmash":
+            return self.sourmash_sketch(prefix)
+        elif software=="sylph":
+            return self.sylph_sketch(prefix, threads=threads)
+        else:
+            quit(f"ERROR: {software} not in accepted sketching methods\n")
+
     def get_qc(self):
         """Get quality control metrics"""
         header = None

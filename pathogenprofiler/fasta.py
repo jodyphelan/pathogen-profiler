@@ -4,7 +4,7 @@ from .kmer import KmerDump
 import os
 import platform 
 import logging
-from .sourmash import SourmashSig
+from .sourmash import SourmashSig, SylphSketch
 from .models import TargetQC, FastaQC
 from typing import List
 from .utils import shared_dict
@@ -103,6 +103,25 @@ class Fasta:
             target_qc=[]
         )
     
+    def sylph_sketch(self,prefix, threads=1):
+        logging.info("Sketching reads with sylph")
+
+
+
+        outfile = f"{prefix}.syldb"
+
+        run_cmd(f"sylph sketch -d {prefix}_sylph {self.fa_file} -t {threads}")
+        return SylphSketch(outfile,tmp_prefix=prefix)
+
+    def sketch(self,prefix,software, threads=1):
+        shared_dict['software']['taxonomic_software'] = software
+
+        if software=="sourmash":
+            return self.sourmash_sketch(prefix)
+        elif software=="sylph":
+            return self.sylph_sketch(prefix, threads=threads)
+        else:
+            quit(f"ERROR: {software} not in accepted sketching methods\n")
 
 class Paf:
     def __init__(self,filename: str):

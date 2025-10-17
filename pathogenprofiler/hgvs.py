@@ -190,7 +190,7 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
     return {"chrom":gene.chrom,"pos":vcf_pos, "ref":ref, "alt":alt,"gene":gene.gene_id,"type":"nucleotide"}
 
 
-def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
+def get_ann(variants: List[dict], snpEffDB: str, snpeff_config:str):
     uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
     with open(uuid,"w") as O:
         O.write('##fileformat=VCFv4.2\n')
@@ -202,7 +202,7 @@ def get_ann(variants: List[dict], snpEffDB: str, db_dir:str):
     keys = list(variants.keys())
     vals = list(variants.values())
     i = 0
-    for l in cmd_out(f"snpEff ann -noLog -noStats -c {db_dir}/snpeff/snpEff.config {snpEffDB} {uuid}"):
+    for l in cmd_out(f"snpEff ann -noLog -noStats -c {snpeff_config} {snpEffDB} {uuid}"):
         if l[0]=="#": continue
         if l.startswith("ann "): continue
         row = l.strip().split()
@@ -276,7 +276,7 @@ def get_reference_codon(codon_number: int, gene: Gene, refseq: FastaFile) -> str
 
     logging.debug((genome_start,genome_end))
 
-def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: FastaFile, snpEffDB: str, db_dir:str) -> dict:
+def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: FastaFile, snpEffDB: str, snpeff_config:str) -> dict:
     """
     Break down a list of mutations info a list of VCF components and use SNPeff to reconvert to hgvs.
 
@@ -329,7 +329,7 @@ def verify_mutation_list(hgvs_mutations: List[dict], genes: List[Gene], refseq: 
 
 
     if len(mutations_genome)>0:
-        mutation_conversion = get_ann(mutations_genome,snpEffDB,db_dir)
+        mutation_conversion = get_ann(mutations_genome,snpEffDB,snpeff_config)
         for key in mutation_conversion:
             converted_mutations[key] = mutation_conversion[key]
     

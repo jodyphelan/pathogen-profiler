@@ -827,8 +827,12 @@ class Species(BaseModel):
     notes: Optional[List[str]] = []
 
 
-
-
+class TaxonomicHit(BaseModel):
+    prediction_method: str = None
+    accession: str
+    abundance: Optional[float] = None
+    ani: Optional[float] = None
+    num_reads: Optional[int] = None
 
 class SpeciesPrediction(BaseModel):
     """
