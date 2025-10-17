@@ -564,10 +564,10 @@ def create_db(args,extra_files = None):
         
         for file in extra_files.values():
             if  isinstance(file,str):
-                target = f"{args.prefix}.{file}"
+                target = f"{new_db_dir}/{file}"
                 shutil.copyfile(file,target)
             else:
-                target = f"{args.prefix}.{file['name']}"
+                target = f"{new_db_dir}/{file['name']}"
                 replace_file_column(file['name'],target,column=file['convert'],conversion=chrom_conversion)
 
         
