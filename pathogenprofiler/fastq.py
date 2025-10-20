@@ -184,10 +184,10 @@ class Fastq:
 
         if self.r1 and self.r2:
             reads_arg = f"-1 {self.r1} -2 {self.r2}"
-            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.paired.sylsp"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split('/')[-1]}.paired.sylsp"
         else:
             reads_arg = f"-r {self.r1}"
-            tmp_outfile = f"{prefix}_sylph/{self.r1.split("/")[-1]}.sylsp"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split('/')[-1]}.sylsp"
 
         outfile = f"{prefix}.sylsp"
 

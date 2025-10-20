@@ -726,8 +726,8 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
 
     init_db_dir(db_dir)
 
-    if not ('type' in variables and variables['type'] != 'reference'):
-        initialise_snpeff_genome(db_dir, db_name, variables['snpEff_db'])
+    # if not ('type' in variables and variables['type'] != 'reference'):
+        # initialise_snpeff_genome(db_dir, db_name, variables['snpEff_db'])
 
     for key,val in variables['files'].items():
         if verbose:
