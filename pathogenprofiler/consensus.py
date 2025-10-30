@@ -115,7 +115,6 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
         excluded_regions=args.conf['bedmask'],
         low_dp_regions=mask_bed,
     )
-    print(f"Consensus sequence written to {output_file}")
     return output_file
 
 def cli_get_consensus_vcf(sample: str,input_vcf: str,args: argparse.Namespace) -> str:
