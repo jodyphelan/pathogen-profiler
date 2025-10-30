@@ -10,4 +10,5 @@ from .barcode import *
 from .cli import *
 from .rules import *
 from .models import *
+from .consensus import *
 __version__ = "5.0.4"

@@ -140,6 +140,11 @@ def process_args(args: argparse.Namespace) -> None:
     args.data_source = get_input_data_source(args)
     if 'conf' in vars(args) and args.conf:
         args.conf['variant_filters'] = get_variant_filters(args)
+    if hasattr(args,'snp_dist') and args.snp_dist:
+        args.call_whole_genome = True
+    if hasattr(args,'consensus'):
+        args.call_whole_genome = True
+
 
 def get_vcf_from_bam(args: argparse.Namespace):
     conf = args.conf
