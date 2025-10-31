@@ -142,7 +142,7 @@ def process_args(args: argparse.Namespace) -> None:
         args.conf['variant_filters'] = get_variant_filters(args)
     if hasattr(args,'snp_dist') and args.snp_dist:
         args.call_whole_genome = True
-    if hasattr(args,'consensus'):
+    if hasattr(args,'consensus') and args.consensus==True:
         args.call_whole_genome = True
 
 
@@ -458,6 +458,8 @@ def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     species = []
     qc_failed_species = []
     for species_hit in species_hits:
+        if species_hit.relative_abundance<1:
+            continue
         if species_hit.relative_abundance<args.min_species_relative_abundance:
             species_hit.relative_abundance = None
             qc_failed_species.append(species_hit)
