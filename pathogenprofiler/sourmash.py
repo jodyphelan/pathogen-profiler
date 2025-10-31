@@ -99,7 +99,7 @@ class SylphSketch(Sketch):
 
     def classify(self, ref_db, threads=1, *args, **kwargs):
         outfile = "%s" % self.tmp_prefix+".sylph.tsv"
-        run_cmd(f"sylph profile -t {threads} -m 90 {ref_db}/* {self.filename} > {outfile}")
+        run_cmd(f"sylph profile -t {threads} {ref_db}/* {self.filename} > {outfile}")
 
         hits = []
         for row in csv.DictReader(open(outfile), delimiter="\t"):
