@@ -76,6 +76,7 @@ def prepare_sample_consensus(
                 | bcftools filter -S . -e 'GT="alt" && MAAF<0.7' \
                 | snp-gap.py \
                 | rename_vcf_sample.py --sample-name {sample_name} \
+                | vcf-process-for-consensus.py \
                 | bcftools view -v snps -Oz -o {tmp_vcf}
         """)
         run_cmd(f"bcftools index {tmp_vcf}")
