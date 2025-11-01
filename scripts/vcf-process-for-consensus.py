@@ -27,6 +27,11 @@ for var in vcf:
         var.samples[0]['GT'] = (None, None)
     elif adf[1] > args.af and var.samples[0]['GT'] == (0, 1):
         var.samples[0]['GT'] = (1, 1)  # Modify genotype to homozygous variant
+    major_allele_freq = max(adf)
+    if len(adf)>2:
+        # handle multi-allelic sites
+        var.samples[0]['GT'] = (None, None)
+
     vcf_lines.append(var)  # Print the modified variant
 
 

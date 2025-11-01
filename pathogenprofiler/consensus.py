@@ -70,7 +70,7 @@ def prepare_sample_consensus(
         if low_dp_regions:
             masked_regions_cmd += f" | bcftools view -T ^{low_dp_regions}"
         run_cmd(f"""
-            bcftools norm -m - {input_vcf} \
+            bcftools view {input_vcf} \
                 | {masked_regions_cmd} \
                 | annotate_maaf.py \
                 | bcftools filter -S . -e 'GT="alt" && MAAF<0.7' \
@@ -90,6 +90,7 @@ def prepare_sample_consensus(
 
         
         run_cmd(f"bcftools consensus --sample {sample_name} {mask_cmd} -f {ref} {tmp_vcf} | sed 's/>/>{sample_name} /' > {output_file}")
+        run_cmd(f"cp {tmp_vcf} tmp.vcf.gz")
         return output_file
 
 def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace) -> str:
