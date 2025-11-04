@@ -848,6 +848,7 @@ class SpeciesPrediction(BaseModel):
         The species database
 
     """
+    prediction_method: str
     taxa: List[Species] = []
     qc_fail_taxa: List[Species] = []
     species_db: dict = {}
