@@ -386,7 +386,7 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
         species=conf["species"]
     )
     data = {
-        "species":[species],
+        "taxa":[species],
         "prediction_method":"user_defined",
     }
     return SpeciesPrediction(**data)
