@@ -4,6 +4,7 @@ import pysam
 import argparse
 from uuid import uuid4
 import numpy as np
+import tempfile
 
 def robust_bounds(data, k=5):
     median = np.median(data)
@@ -66,12 +67,8 @@ def prepare_sample_consensus(
     ) -> str:
     with TempFilePrefix() as tmp:
         tmp_vcf = f"{tmp}.{sample_name}.vcf.gz"
-        masked_regions_cmd = f"bcftools view -T ^{excluded_regions}"
-        if low_dp_regions:
-            masked_regions_cmd += f" | bcftools view -T ^{low_dp_regions}"
         run_cmd(f"""
             bcftools view {input_vcf} \
-                | {masked_regions_cmd} \
                 | annotate_maaf.py \
                 | bcftools filter -S . -e 'GT="alt" && MAAF<0.7' \
                 | snp-gap.py \
@@ -119,13 +116,15 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
     )
     return output_file
 
+def consensus_fasta_to_vcf(consensus_fasta: str, ref: str, outfile: str) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_aln = f"{tmpdir}/temp_aln.fa"
+        run_cmd(f"cat {ref} {consensus_fasta}> {tmp_aln}")
+        run_cmd(f"fa2vcf.py {tmp_aln} {outfile}")
+
 def cli_get_consensus_vcf(sample: str,input_vcf: str,args: argparse.Namespace) -> str:
     consensus_file = cli_prepare_sample_consensus(sample,input_vcf,args)
-    tmp_aln = str(uuid4())
-    run_cmd(f"cat {args.conf['ref']} {consensus_file}> {tmp_aln}")
     outfile = f"{args.files_prefix}.masked.vcf"
-    run_cmd(f"fa2vcf.py {tmp_aln} {outfile}")
-    run_cmd(f'rm {tmp_aln} {tmp_aln}.fai')
-    
+    consensus_fasta_to_vcf(consensus_file, args.conf['ref'], outfile)
     return outfile
 

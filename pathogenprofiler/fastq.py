@@ -49,10 +49,12 @@ class Fastq:
             run_cmd("trimmomatic SE -threads %(threads)s -phred33 %(r1)s %(prefix)s_TU LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
             return Fastq("%(prefix)s_TU" % vars(self))
 
-    def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True, max_mem="768M"):
+    def map_to_ref(self, ref_file: str, prefix: str, sample_name: str, aligner: str, platform: str, threads: int = 1, markdup: bool = True, max_mem: str = "768M") -> Bam:
         """Mapping to a reference genome"""
         logging.info("Mapping to reference genome")
         add_arguments_to_self(self, locals())
+        self.prefix = prefix
+        self.sample_name = sample_name
         self.aligner = aligner.lower()
         accepted_aligners = ["bwa","bwa-meme","bwa-mem2","bowtie2","minimap2"]
         if self.aligner not in accepted_aligners:
