@@ -379,7 +379,6 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     >>> species_prediction.species
     [Species(species='Mycobacterium abscessus', prediction_info=None)]
     """
-    print(args.db_dir,args.resistance_db)
     check_db_exists(args.db_dir,args.resistance_db)
     conf = get_db(args.db_dir,args.resistance_db)
     species = Species(

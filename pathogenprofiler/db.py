@@ -778,13 +778,11 @@ def create_species_db(args: argparse.Namespace ,extra_files:dict = None, db_dir:
     os.mkdir(new_db_dir)
 
     version.update(get_git_repo_info())
-    print(extra_files)
+
     for key, filename in extra_files.items():
         if filename is None:
             continue
         if key=='sylph_db':
-            print("admpoasjdoa")
-            # copy whole directory
             shutil.copytree(filename,f"{new_db_dir}/sylph_db")
         else:
             target = f"{new_db_dir}/{filename}"

@@ -25,7 +25,6 @@ def extract_variant_set(vcf_file: str) -> Tuple[set,set]:
         pos = int(row[0])
         gt = row[1]
         if gt==".": 
-            print(pos)
             missing.add(pos)
             continue
         elif gt=="1":
