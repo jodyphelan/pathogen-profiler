@@ -469,7 +469,7 @@ def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     for s in species:
         s.relative_abundance = s.abundance / total_abundance*100
     
-    print(shared_dict)
+
     return SpeciesPrediction(
         prediction_method=shared_dict['software']['taxonomic_software'],
         taxa=species,
