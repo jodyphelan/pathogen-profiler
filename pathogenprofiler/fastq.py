@@ -6,7 +6,7 @@ from collections import defaultdict
 from .kmer import KmerDump
 import platform
 import logging
-from .sourmash import SourmashSig, SylphSketch
+from .taxonomy import SourmashSig, SylphSketch
 from .models import FastqQC
 import tempfile
 

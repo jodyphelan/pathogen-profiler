@@ -4,7 +4,7 @@ from .kmer import KmerDump
 import os
 import platform 
 import logging
-from .sourmash import SourmashSig, SylphSketch
+from .taxonomy import SourmashSig, SylphSketch
 from .models import TargetQC, FastaQC
 from typing import List
 from .utils import shared_dict

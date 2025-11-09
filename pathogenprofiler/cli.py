@@ -1,5 +1,5 @@
 from .fastq import Fastq
-from .utils import run_cmd, cmd_out
+from .utils import run_cmd, cmd_out, shared_dict
 from .bam import Bam
 from .db import get_db, check_db_exists
 from .fasta import Fasta, Paf
@@ -469,7 +469,9 @@ def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     for s in species:
         s.relative_abundance = s.abundance / total_abundance*100
     
+    print(shared_dict)
     return SpeciesPrediction(
+        prediction_method=shared_dict['software']['taxonomic_software'],
         taxa=species,
         qc_fail_taxa=qc_failed_species,
         species_db = conf['version']

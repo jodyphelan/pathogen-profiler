@@ -44,9 +44,6 @@ class Sketch:
             data = hit.model_dump()
             data.update(accession_data.get(hit.accession,{}))
             species_hits.append(Species(**data))
-            # if hit.accession in accession_data:
-            #     hit.species = accession_data[hit.accession]["species"]
-            #     hit.ncbi_organism_name = accession_data[hit.accession]["ncbi_organism_name"]
 
         combined_species_hits = combine_species_abundance(species_hits)
         return combined_species_hits
