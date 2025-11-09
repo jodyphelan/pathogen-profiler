@@ -144,6 +144,8 @@ def process_args(args: argparse.Namespace) -> None:
         args.call_whole_genome = True
     if hasattr(args,'consensus') and args.consensus==True:
         args.call_whole_genome = True
+    if args.fasta:
+        args.taxonomic_software = "sourmash"
 
 
 def get_vcf_from_bam(args: argparse.Namespace):
