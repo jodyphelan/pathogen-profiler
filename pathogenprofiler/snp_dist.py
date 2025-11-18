@@ -68,6 +68,7 @@ class SnpDistDB:
             self.c = self.conn.cursor()
             self.c.execute('''CREATE TABLE IF NOT EXISTS samples (sample text, taxa text, diffs binary, missing binary)''')
             self.c.execute('''CREATE TABLE IF NOT EXISTS links (source text, target text, snps binary, dist integer, missing integer)''')
+    
     def store(self, sample_name:str, vcf_file: str, taxa: str, cutoff: int = 10) -> List[Link]:
         """
         Store the SNP differences from a sample in the database.
@@ -103,6 +104,7 @@ class SnpDistDB:
             dist = new_diffs.symmetric_difference(pickle.loads(d))
             dist -= new_missing
             dist -= pickle.loads(m) 
+            logging.debug(f"Sample {sample_name} vs {s}: {len(dist)} SNPs different")
             if (ld:=len(dist))<cutoff:
                 sample_dists.append(
                     Link(
