@@ -181,6 +181,6 @@ class SnpDistDB:
             source=source,
             target=target,
             distance=dist,
-            positions=pickle.loads(snps),
+            positions=sorted(list(pickle.loads(snps))),
             missing=missing
         )
