@@ -500,6 +500,7 @@ class DrGene(Gene):
     DrGene(gene_id='Rv0667', type='functionally_normal', gene_name='rpoB', annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}], drugs=[{'drug': 'rifampicin'}])
     """
     drugs: List[dict] = Field(default_factory=list)
+    coverage: Optional[float]
     
     def get_drugs(self):
         """
