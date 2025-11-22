@@ -621,6 +621,9 @@ def create_db(args,extra_files = None):
                     variables["files"][key] = f"{val['name']}"
                     
         json.dump(variables,open(variables_file,"w"), indent=4)
+
+        if hasattr(args,'create_index') and args.create_index:
+            index_ref(genome_file)
         
         if args.load:
             load_db(new_db_dir,args.db_dir,args.force)
@@ -633,6 +636,7 @@ def index_ref(target):
     pp.run_cmd(f"samtools faidx {target}")
     tmp = target.replace(".fasta","")
     pp.run_cmd(f"samtools dict {target} -o {tmp}.dict")
+    pp.run_cmd(f"bwa index {target}")
 
 def init_db_dir(db_dir):
     if not os.path.isdir(db_dir):
