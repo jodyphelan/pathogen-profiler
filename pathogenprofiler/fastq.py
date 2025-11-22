@@ -6,7 +6,7 @@ from collections import defaultdict
 from .kmer import KmerDump
 import platform
 import logging
-from .taxonomy import SourmashSig, SylphSketch
+from .taxonomy import Sketch, SourmashSig, SylphSketch
 from .models import FastqQC
 import tempfile
 
@@ -14,16 +14,25 @@ import tempfile
 
 class Fastq:
     """
-    Class to hold fastq file and methods.
-    Methods include trimming and mapping to a reference genome
+    Class to represent a fastq file(s).
+    Methods include sketching, trimming and mapping to a reference genome.
     """
-    def __init__(self,r1,r2=None,r3=None):
+    def __init__(self,r1: str,r2: str = None,r3: str = None):
         """
-        r1 = Forward reads
-        r2 = Reverse reads (optional)
-        r3 = Unpaired reads (optional)
+        Initialize Fastq object
+
+        Parameters
+        ----------
+        r1 : str
+            Read 1 fastq file
+        r2 : str
+            Read 2 fastq file (optional)
+        r3 : str
+            Unpaired reads fastq file (optional)
         """
-        add_arguments_to_self(self, locals())
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
         # Work out if it is paired end sequencing
         self.paired = True if (r1 and r2) else False
         filecheck(r1)
@@ -174,7 +183,7 @@ class Fastq:
 
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
-    def sourmash_sketch(self,prefix,scaled=200, *args, **kwargs):
+    def sourmash_sketch(self,prefix,scaled=200):
         logging.info("Sketching reads")
         read1 = self.r1
         read2 = self.r2 if self.r2 else ""
@@ -198,7 +207,24 @@ class Fastq:
         run_cmd(f"rm -r {prefix}_sylph")
         return SylphSketch(outfile,tmp_prefix=prefix)
     
-    def sketch(self,prefix,software, threads=1):
+    def sketch(self,prefix: str, software: str, threads: int = 1) -> Sketch:
+        """
+        Sketch reads using specified software
+        
+        Parameters
+        ----------
+        prefix : str
+            Prefix for output files
+        software : str
+            Sketching software to use ("sourmash" or "sylph")
+        threads : int
+            Number of threads to use
+        
+        Returns
+        -------
+        Sketch
+            Sketch object
+        """
         shared_dict['software']['taxonomic_software'] = software
 
         if software=="sourmash":
@@ -206,7 +232,7 @@ class Fastq:
         elif software=="sylph":
             return self.sylph_sketch(prefix, threads=threads)
         else:
-            quit(f"ERROR: {software} not in accepted sketching methods\n")
+            raise NotImplementedError(f"{software} not implemented as a sketch method")
 
     def get_qc(self):
         """Get quality control metrics"""
@@ -224,3 +250,6 @@ class Fastq:
             num_bases=result['sum_len'],
             num_sequences=result['num_seqs']
         )
+    
+    def __repr__(self):
+        return "Fastq(%s)" % ",".join(self.files)
