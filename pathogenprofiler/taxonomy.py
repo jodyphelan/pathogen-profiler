@@ -8,7 +8,19 @@ import os
 from .models import TaxonomicHit, Species
 
 
-def combine_species_abundance(matches:List[dict]) -> List[dict]:
+def combine_species_abundance(matches: List[dict]) -> List[dict]:
+    """
+    Combine species abundance from multiple hits
+    Parameters
+    ----------
+    matches : List[dict]
+        List of taxonomic hits
+    
+    Returns
+    -------
+    List[dict]
+        List of combined species hits with relative abundance
+    """
     species_detected = set(t.species for t in matches)
     species_objects = []
     if len(matches) == 0:
@@ -27,12 +39,28 @@ def combine_species_abundance(matches:List[dict]) -> List[dict]:
     return species_objects
 
 class Sketch:
-
+    """Base class for sketching and taxonomic classification"""
     def __init__(self,filename, tmp_prefix=None):
         self.filename = filename
         self.tmp_prefix = tmp_prefix if tmp_prefix else str(uuid4())
 
-    def get_species_hits(self, ref_db, db_annotation, *args, **kwargs):
+    def get_species_hits(self, ref_db: str, db_annotation: str, *args, **kwargs) -> List[Species]:
+        """
+        Get species hits with annotations
+        Parameters
+        ----------
+        ref_db : str
+            Path to the reference database
+        db_annotation : str
+            Path to the database annotation CSV file
+        *args, **kwargs
+            Additional arguments for the classify method
+            See subclass implementations for details
+        Returns
+        -------
+        List[Species]
+            List of species hits with annotations
+        """
         sequence_hits = self.classify(ref_db, *args, **kwargs)
 
         accession_data = {}
@@ -48,17 +76,34 @@ class Sketch:
         combined_species_hits = combine_species_abundance(species_hits)
         return combined_species_hits
     
+    def classify(self, ref_db: str, *args, **kwargs) -> List[TaxonomicHit]:
+        raise NotImplementedError("Subclasses must implement classify method")
+    
 
 
 class SourmashSig(Sketch):
 
-    def __init__(self,filename,tmp_prefix=None):
+    def __init__(self,filename: str,tmp_prefix: str = None):
         super().__init__(filename, tmp_prefix=tmp_prefix)
 
-    def classify(self, ref_db, intersect_bp=500000,f_match_threshold=0.1):
+    def classify(self, ref_db: str, intersect_bp: int=500000,f_match_threshold: float=0.1) -> List[TaxonomicHit]:
+        """
+        Classify using sourmash
+        
+        Parameters
+        ----------
+        ref_db : str
+            Path to the sourmash reference database
+        intersect_bp : int
+            Minimum intersect base pairs to consider a hit
+        f_match_threshold : float
+            Minimum f_match to consider a hit
 
-        logging.info("Classifying sourmash sig")
-
+        Returns
+        -------
+        List[TaxonomicHit]
+            List of taxonomic hits
+        """
         outfile = "%s" % self.tmp_prefix+".sourmash.csv"
         run_cmd(f"sourmash gather {self.filename} {ref_db} -o {outfile}")
 
@@ -87,6 +132,8 @@ class SourmashSig(Sketch):
 
         return taxonomic_hits
     
+    def __repr__(self):
+        return "SourmashSig(%s)" % self.filename
 
 
 class SylphSketch(Sketch):
@@ -94,7 +141,22 @@ class SylphSketch(Sketch):
     def __init__(self,filename,tmp_prefix=None):
         super().__init__(filename, tmp_prefix=tmp_prefix)
 
-    def classify(self, ref_db, threads=1, *args, **kwargs):
+    def classify(self, ref_db: str, threads: int = 1) -> List[TaxonomicHit]:
+        """
+        Classify using sylph
+        
+        Parameters
+        ----------
+        ref_db : str
+            Path to the sylph reference database directory
+        threads : int
+            Number of threads to use
+
+        Returns
+        -------
+        List[TaxonomicHit]
+            List of taxonomic hits
+        """
         outfile = "%s" % self.tmp_prefix+".sylph.tsv"
         run_cmd(f"sylph profile -t {threads} {ref_db}/* {self.filename} > {outfile}")
 
@@ -108,3 +170,6 @@ class SylphSketch(Sketch):
             )
             hits.append(hit)
         return hits
+    
+    def __repr__(self):
+        return "SylphSketch(%s)" % self.filename
