@@ -1,5 +1,5 @@
 from .fastq import Fastq
-from .utils import run_cmd, cmd_out
+from .utils import run_cmd, cmd_out, shared_dict
 from .bam import Bam
 from .db import get_db, check_db_exists
 from .fasta import Fasta, Paf
@@ -140,6 +140,14 @@ def process_args(args: argparse.Namespace) -> None:
     args.data_source = get_input_data_source(args)
     if 'conf' in vars(args) and args.conf:
         args.conf['variant_filters'] = get_variant_filters(args)
+    if hasattr(args,'snp_dist') and args.snp_dist:
+        args.call_whole_genome = True
+        args.consensus = True
+    if hasattr(args,'consensus') and args.consensus==True:
+        args.call_whole_genome = True
+    if args.fasta:
+        args.taxonomic_software = "sourmash"
+
 
 def get_vcf_from_bam(args: argparse.Namespace):
     conf = args.conf
@@ -322,7 +330,32 @@ def get_sourmash_hit(args):
     
     return result
 
+def get_taxonomic_hits(args):
+    args.species_conf = get_db(args.db_dir,args.species_db)
+    if args.read1:
+        if args.read2:
+            fastq = Fastq(args.read1,args.read2)
+        else:
+            fastq = Fastq(args.read1)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
+    elif args.fasta:
+        fasta = Fasta(args.fasta)
+        sketch = fasta.sketch(args.files_prefix, software=args.taxonomic_software)
+    elif args.bam:
+        run_cmd(f"samtools fastq {args.bam} > {args.files_prefix}.tmp.fastq")
+        fq_file = f"{args.files_prefix}.tmp.fastq"
+        args.temp_fastq_file = fq_file
+        fastq = Fastq(fq_file)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
+    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["accessions"])
+
+    result =  []
+
+    if len(hits)>0:
+        result = hits
+    
+    return result
 
 def set_species(args: argparse.Namespace) -> SpeciesPrediction:
     """
@@ -355,31 +388,58 @@ def set_species(args: argparse.Namespace) -> SpeciesPrediction:
         species=conf["species"]
     )
     data = {
-        "species":[species],
+        "taxa":[species],
         "prediction_method":"user_defined",
     }
     return SpeciesPrediction(**data)
         
         
-def combine_species_abundance(matches:List[dict]) -> List[dict]:
-    species_detected = set(t['species'] for t in matches)
-    species_objects = []
-    if len(matches) == 0:
-        return []
 
-    for species in species_detected:
-        hits = [t for t in matches if t['species'] == species]
-        hits = sorted(hits,key=lambda x: x['abundance'],reverse=True)
-        species_objects.append(hits[0])
 
-    total_abundance = sum([s['abundance'] for s in species_objects])
-    for s in species_objects:
-        s['relative_abundance'] = s['abundance']/total_abundance*100
+# def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
+#     """
+#     Get a SpeciesPrediction object based on prediction using sourmash
 
-    species_objects = sorted(species_objects,key=lambda x: x['relative_abundance'],reverse=True)
-    return species_objects
+#     Arguments
+#     ---------
+#     args : argparse.Namespace
+#         The input arguments
 
-def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
+#     Returns
+#     -------
+#     SpeciesPrediction
+#         A SpeciesPrediction object
+
+#     """
+#     conf = get_db(args.db_dir,args.species_db)
+#     sourmash_species_prediction = get_sourmash_hit(args)
+#     sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
+#     species = []
+#     qc_failed_species = []
+#     for obj in sourmash_species_prediction_combined:
+#         if obj['relative_abundance']<args.min_species_relative_abundance:
+#             qc_failed_species.append(obj)
+#         else:
+#             species.append(
+#                 Species(
+#                     species=obj['species'],
+#                     ani=obj['ani'],
+#                     intersect_bp=obj['intersect_bp'],
+#                     abundance=obj['abundance'],
+#                     relative_abundance=obj['relative_abundance'],
+#                     accession=  obj['accession'],
+#                     ncbi_organism_name=obj['ncbi_organism_name'],
+#                     prediction_method='sourmash',
+#                 )
+#             )
+#     return SpeciesPrediction(
+#         taxa=species,
+#         qc_fail_taxa=qc_failed_species,
+#         species_db = conf['version']
+#     )
+
+
+def get_species_prediction(args: argparse.Namespace) -> SpeciesPrediction:
     """
     Get a SpeciesPrediction object based on prediction using sourmash
 
@@ -395,30 +455,28 @@ def get_sourmash_species_prediction(args: argparse.Namespace) -> SpeciesPredicti
 
     """
     conf = get_db(args.db_dir,args.species_db)
-    sourmash_species_prediction = get_sourmash_hit(args)
-    sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
+    species_hits = get_taxonomic_hits(args)
+    # sourmash_species_prediction_combined = combine_species_abundance(sourmash_species_prediction)
     species = []
     qc_failed_species = []
-    for obj in sourmash_species_prediction_combined:
-        if obj['relative_abundance']<args.min_species_relative_abundance:
-            qc_failed_species.append(obj)
+    for species_hit in species_hits:
+        if species_hit.relative_abundance<1:
+            continue
+        if species_hit.relative_abundance<args.min_species_relative_abundance:
+            species_hit.relative_abundance = None
+            qc_failed_species.append(species_hit)
         else:
-            species.append(
-                Species(
-                    species=obj['species'],
-                    ani=obj['ani'],
-                    intersect_bp=obj['intersect_bp'],
-                    abundance=obj['abundance'],
-                    relative_abundance=obj['relative_abundance'],
-                    accession=  obj['accession'],
-                    ncbi_organism_name=obj['ncbi_organism_name'],
-                    prediction_method='sourmash',
-                )
-            )
+            species.append(species_hit)
+        
+    total_abundance = sum([s.abundance for s in species])
+    for s in species:
+        s.relative_abundance = s.abundance / total_abundance*100
+    
+
     return SpeciesPrediction(
+        prediction_method=shared_dict['software']['taxonomic_software'],
         taxa=species,
         qc_fail_taxa=qc_failed_species,
         species_db = conf['version']
     )
-
 

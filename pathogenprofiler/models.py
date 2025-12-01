@@ -500,6 +500,7 @@ class DrGene(Gene):
     DrGene(gene_id='Rv0667', type='functionally_normal', gene_name='rpoB', annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}], drugs=[{'drug': 'rifampicin'}])
     """
     drugs: List[dict] = Field(default_factory=list)
+    coverage: Optional[float]
     
     def get_drugs(self):
         """
@@ -827,8 +828,12 @@ class Species(BaseModel):
     notes: Optional[List[str]] = []
 
 
-
-
+class TaxonomicHit(BaseModel):
+    prediction_method: str = None
+    accession: str
+    abundance: Optional[float] = None
+    ani: Optional[float] = None
+    num_reads: Optional[int] = None
 
 class SpeciesPrediction(BaseModel):
     """
@@ -844,6 +849,7 @@ class SpeciesPrediction(BaseModel):
         The species database
 
     """
+    prediction_method: str
     taxa: List[Species] = []
     qc_fail_taxa: List[Species] = []
     species_db: dict = {}

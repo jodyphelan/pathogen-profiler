@@ -104,17 +104,12 @@ class Vcf:
         return Vcf(self.newfile)
 
 
-    def run_snpeff(self, db: str,ref_file: str,gff_file: str,rename_chroms: dict = None, split_indels: bool=True, bam_for_phasing: str=None, db_dir: str=None):
+    def run_snpeff(self, db: str, ref_file: str, gff_file: str, snpeff_config: str, rename_chroms: dict = None, split_indels: bool=True, bam_for_phasing: str=None, db_dir: str=None):
         logging.info("Running snpEff")
-        add_arguments_to_self(self,locals())
+        add_arguments_to_self(self, locals())
         self.vcf_csq_file = self.prefix+".csq.vcf.gz"
         self.rename_cmd = f"rename_vcf_chrom.py --source {' '.join(rename_chroms['source'])} --target {' '.join(rename_chroms['target'])} |" if rename_chroms else ""
         self.re_rename_cmd = f"| rename_vcf_chrom.py --source {' '.join(rename_chroms['target'])} --target {' '.join(rename_chroms['source'])}" if rename_chroms else ""
-        
-        if db_dir:
-            self.snpeff_config_opt = f'-config {db_dir}/snpeff/snpEff.config'
-        else:
-            self.snpeff_config_opt = f'-config {get_default_snpeff_config()}'
 
         if split_indels:
             with TempFilePrefix() as tmp:
@@ -125,10 +120,10 @@ class Vcf:
                     self.phasing_bam = f"--bam {bam_for_phasing}"
                 else:
                     self.phasing_bam = ""
-                run_cmd("bcftools view -a %(filename)s | bcftools view -c 1 | right_align_deletions.py - %(ref_file)s %(gff_file)s - |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
+                run_cmd("bcftools view -a %(filename)s | bcftools view -c 1 | bcftools norm -f %(ref_file)s -g %(gff_file)s |  combine_vcf_variants.py --ref %(ref_file)s --gff %(gff_file)s %(phasing_bam)s | %(rename_cmd)s snpEff ann -c %(snpeff_config)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools sort -Oz -o %(vcf_csq_file)s" % vars(self))
                 
         else :
-            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann %(snpeff_config_opt)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
+            run_cmd("bcftools view %(filename)s | %(rename_cmd)s snpEff ann -c %(snpeff_config)s -noLog -noStats %(db)s - %(re_rename_cmd)s | bcftools view -Oz -o %(vcf_csq_file)s" % vars(self))
         return Vcf(self.vcf_csq_file,self.prefix)
 
 
@@ -227,8 +222,8 @@ class Vcf:
                 
 
                 for ann in ann_list:
-                    ann[3] = ann[3].replace("gene:","")
-                    ann[4] = ann[4].replace("gene:","")
+                    ann[3] = ann[3].replace("gene:","").replace("gene-","")
+                    ann[4] = ann[4].replace("gene:","").replace("gene-","")
                     if ann[0]!=alt:
                         continue
                     if ann[1] in filter_out:

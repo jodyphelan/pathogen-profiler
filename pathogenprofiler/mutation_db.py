@@ -5,6 +5,7 @@ from copy import deepcopy
 from collections import defaultdict
 import re
 from .hgvs import extract_numbers
+import logging
 
 class DictSet:
     """
@@ -105,6 +106,7 @@ class MutationDB:
     def get_functionally_normal_genes(self, variants: List[dict]) -> List[str]:
         """Get all variants for a gene that are functionally normal"""
         genes_to_check =  [gene for gene,variant in self.db.keys() if variant=='functionally_normal']
+        logging.debug(f"Checking for functionally normal genes among: {genes_to_check}")
         genes_to_return = []
         for gene in genes_to_check:
             intact = True

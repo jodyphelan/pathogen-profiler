@@ -6,7 +6,7 @@ from collections import defaultdict
 from .kmer import KmerDump
 import platform
 import logging
-from .sourmash import SourmashSig
+from .taxonomy import Sketch, SourmashSig, SylphSketch
 from .models import FastqQC
 import tempfile
 
@@ -14,16 +14,25 @@ import tempfile
 
 class Fastq:
     """
-    Class to hold fastq file and methods.
-    Methods include trimming and mapping to a reference genome
+    Class to represent a fastq file(s).
+    Methods include sketching, trimming and mapping to a reference genome.
     """
-    def __init__(self,r1,r2=None,r3=None):
+    def __init__(self,r1: str,r2: str = None,r3: str = None):
         """
-        r1 = Forward reads
-        r2 = Reverse reads (optional)
-        r3 = Unpaired reads (optional)
+        Initialize Fastq object
+
+        Parameters
+        ----------
+        r1 : str
+            Read 1 fastq file
+        r2 : str
+            Read 2 fastq file (optional)
+        r3 : str
+            Unpaired reads fastq file (optional)
         """
-        add_arguments_to_self(self, locals())
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
         # Work out if it is paired end sequencing
         self.paired = True if (r1 and r2) else False
         filecheck(r1)
@@ -49,10 +58,12 @@ class Fastq:
             run_cmd("trimmomatic SE -threads %(threads)s -phred33 %(r1)s %(prefix)s_TU LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36" % vars(self))
             return Fastq("%(prefix)s_TU" % vars(self))
 
-    def map_to_ref(self, ref_file, prefix, sample_name, aligner, platform, threads=1,markdup=True, max_mem="768M"):
+    def map_to_ref(self, ref_file: str, prefix: str, sample_name: str, aligner: str, platform: str, threads: int = 1, markdup: bool = True, max_mem: str = "768M") -> Bam:
         """Mapping to a reference genome"""
         logging.info("Mapping to reference genome")
         add_arguments_to_self(self, locals())
+        self.prefix = prefix
+        self.sample_name = sample_name
         self.aligner = aligner.lower()
         accepted_aligners = ["bwa","bwa-meme","bwa-mem2","bowtie2","minimap2"]
         if self.aligner not in accepted_aligners:
@@ -172,13 +183,57 @@ class Fastq:
 
 
             return KmerDump(f"{prefix}.kmers.txt",counter)
-    def sourmash_sketch(self,prefix,scaled=1000):
+    def sourmash_sketch(self,prefix,scaled=200):
         logging.info("Sketching reads")
         read1 = self.r1
         read2 = self.r2 if self.r2 else ""
         run_cmd(f"sourmash sketch dna -p abund,scaled={scaled} --merge {prefix} -o {prefix}.sig {read1} {read2}")
         return SourmashSig(f"{prefix}.sig",tmp_prefix=prefix)
     
+    def sylph_sketch(self,prefix, threads=1):
+        logging.info("Sketching reads with sylph")
+
+        if self.r1 and self.r2:
+            reads_arg = f"-1 {self.r1} -2 {self.r2}"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split('/')[-1]}.paired.sylsp"
+        else:
+            reads_arg = f"-r {self.r1}"
+            tmp_outfile = f"{prefix}_sylph/{self.r1.split('/')[-1]}.sylsp"
+
+        outfile = f"{prefix}.sylsp"
+
+        run_cmd(f"sylph sketch -d {prefix}_sylph {reads_arg} -t {threads}")
+        run_cmd(f"mv {tmp_outfile} {outfile}")
+        run_cmd(f"rm -r {prefix}_sylph")
+        return SylphSketch(outfile,tmp_prefix=prefix)
+    
+    def sketch(self,prefix: str, software: str, threads: int = 1) -> Sketch:
+        """
+        Sketch reads using specified software
+        
+        Parameters
+        ----------
+        prefix : str
+            Prefix for output files
+        software : str
+            Sketching software to use ("sourmash" or "sylph")
+        threads : int
+            Number of threads to use
+        
+        Returns
+        -------
+        Sketch
+            Sketch object
+        """
+        shared_dict['software']['taxonomic_software'] = software
+
+        if software=="sourmash":
+            return self.sourmash_sketch(prefix)
+        elif software=="sylph":
+            return self.sylph_sketch(prefix, threads=threads)
+        else:
+            raise NotImplementedError(f"{software} not implemented as a sketch method")
+
     def get_qc(self):
         """Get quality control metrics"""
         header = None
@@ -195,3 +250,6 @@ class Fastq:
             num_bases=result['sum_len'],
             num_sequences=result['num_seqs']
         )
+    
+    def __repr__(self):
+        return "Fastq(%s)" % ",".join(self.files)

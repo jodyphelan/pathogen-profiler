@@ -9,6 +9,10 @@ from typing import Optional
 
 
 class VariantCaller:
+    """
+    A class to define a variant caller.
+    Methods are used to call variant from a bam.
+    """
     def __init__(
         self, 
         ref_file: str, 
