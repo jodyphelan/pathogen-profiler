@@ -142,6 +142,7 @@ def process_args(args: argparse.Namespace) -> None:
         args.conf['variant_filters'] = get_variant_filters(args)
     if hasattr(args,'snp_dist') and args.snp_dist:
         args.call_whole_genome = True
+        args.consensus = True
     if hasattr(args,'consensus') and args.consensus==True:
         args.call_whole_genome = True
     if args.fasta:

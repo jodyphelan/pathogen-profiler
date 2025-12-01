@@ -8,6 +8,7 @@ from .utils import cmd_out
 from tqdm import tqdm
 import filelock
 import numpy as np
+import json
 
 class Link(BaseModel):
     source: str
@@ -149,9 +150,31 @@ class SnpDistDB:
         for i in range(n):
             matrix[i][i] = 0
         return samples, matrix
+    def write_graph(self,outfile:str, distance_cutoff: int, sample_data: dict) -> None:
+        samples, matrix = self.extract_matrix()
+        num_samples = len(samples)
+        edges = []
+        for i in range(num_samples):
+            for j in range(num_samples):
+                if i >= j:
+                    continue
+                if matrix[i][j] <= distance_cutoff:
+                    edges.append({'source':samples[i], 'target': samples[j], 'properties': {'distance': matrix[i][j]} })
+        tmpnodes = set()
+        for e in edges:
+            tmpnodes.add(e['source'])
+            tmpnodes.add(e['target'])
+        nodes = []
+        for n in tmpnodes:
+            nodes.append({'id':n,'properties':sample_data.get(n, {})})
+        
+        graph = {'nodes':nodes,'edges':edges}
+        json.dump(graph,open(outfile,'w'))
+
     def _sample_present(self, sample_name: str) -> bool:
         res = self.c.execute("SELECT sample FROM samples WHERE sample=?",(sample_name,)).fetchone()
         return res is not None
+    
     def inspect_link(self, source: str, target: str) -> Link:
         """
         Inspect a specific link between two samples.
