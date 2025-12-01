@@ -222,8 +222,8 @@ class Vcf:
                 
 
                 for ann in ann_list:
-                    ann[3] = ann[3].replace("gene:","")
-                    ann[4] = ann[4].replace("gene:","")
+                    ann[3] = ann[3].replace("gene:","").replace("gene-","")
+                    ann[4] = ann[4].replace("gene:","").replace("gene-","")
                     if ann[0]!=alt:
                         continue
                     if ann[1] in filter_out:
