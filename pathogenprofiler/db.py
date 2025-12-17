@@ -507,7 +507,6 @@ def create_db(args,extra_files = None):
             mutation_lookup = get_snpeff_formated_mutation_list(hgvs_variants,"genome.fasta","genome.gff",json.load(open("variables.json"))["snpEff_db"],snpeff_config_file)
             for row in csv.DictReader(open(args.csv)):
                 locus_tag = gene_name2gene_id[row["Gene"]]
-                # annotation_info = {key:val for key,val in row.items() if key not in ["Gene","Mutation"]}
                 # data looks like this: type=drug_resistance;drug=macrolides;literature=10.1038/s41467-021-25484-9
                 annotation_info = {k:v for k,v in [x.split("=") for x in row["Info"].split(";")]}
                 mut = mutation_lookup[(row["Gene"],row["Mutation"])][1]
@@ -556,8 +555,6 @@ def create_db(args,extra_files = None):
             if 'version' in k:
                 version_obj[k] = v
         variables['version'] = version_obj
-        # if 'db-schema-version' in variables:
-        #     variables['version']['db-schema-version'] = variables['db-schema-version']
 
         json.dump(db,open(json_file,"w"),indent=4)
         
