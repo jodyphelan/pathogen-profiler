@@ -43,6 +43,7 @@ class Fastq:
         if r3:
             filecheck(r3)
             self.files.append(r3)
+        self.file_str = " ".join(self.files)
 
     def trim(self, prefix, threads=1):
         """Perform trimming"""
@@ -234,11 +235,11 @@ class Fastq:
         else:
             raise NotImplementedError(f"{software} not implemented as a sketch method")
 
-    def get_qc(self):
+    def get_qc(self,threads: int = 1):
         """Get quality control metrics"""
         header = None
         result = defaultdict(int)
-        for l in cmd_out('seqkit stats -T %s' % "\t".join(self.files)):
+        for l in cmd_out(f'seqkit stats -j {threads} -T {self.file_str}'):
             row = l.strip().split()
             if row[0]=='file': 
                 header = row

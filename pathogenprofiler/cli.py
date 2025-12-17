@@ -38,7 +38,7 @@ def get_variant_filters(args):
 
 def get_fastq_qc(args: argparse.Namespace):
     fastq = Fastq(args.read1,args.read2)
-    return fastq.get_qc()
+    return fastq.get_qc(threads = args.threads)
 
 def run_bam_qc(args: argparse.Namespace, only_targets = False):
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
@@ -337,7 +337,7 @@ def get_taxonomic_hits(args):
             fastq = Fastq(args.read1,args.read2)
         else:
             fastq = Fastq(args.read1)
-        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software, threads=args.threads)
     elif args.fasta:
         fasta = Fasta(args.fasta)
         sketch = fasta.sketch(args.files_prefix, software=args.taxonomic_software)
@@ -348,7 +348,11 @@ def get_taxonomic_hits(args):
         fastq = Fastq(fq_file)
         sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
-    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["accessions"])
+    hits = sketch.get_species_hits(
+        ref_db = args.species_conf[f"{args.taxonomic_software}_db"],
+        db_annotation = args.species_conf["accessions"],
+        threads = args.threads
+    )
 
     result =  []
 
