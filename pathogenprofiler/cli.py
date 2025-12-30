@@ -85,7 +85,7 @@ def test_vcf_for_lofreq(vcf_file):
             lofreq = True
     return lofreq
 
-def get_input_data_source(args):
+def get_input_data_source(args: argparse.Namespace) -> str:
     if args.read1:
         return "fastq"
     elif args.bam:
@@ -96,13 +96,6 @@ def get_input_data_source(args):
         return "vcf"
     else:
         return None
-    
-# def get_qc(args: argparse.Namespace):
-#     if args.qc:
-#         return True
-#     else:
-#         return False
-    
 
 
 def process_args(args: argparse.Namespace) -> None:
