@@ -169,7 +169,7 @@ class Vcf:
         variants = []
         vcf = pysam.VariantFile(self.filename)
         for var in vcf:
-            logging.debug(str(var)[:5000])
+            # logging.debug(str(var)[:5000])
             chrom = var.chrom
             pos = var.pos
             ref = var.ref

@@ -318,45 +318,45 @@ def get_lt2drugs(bed_file):
 
 
 
-def reformat_annotations(results,conf):
-    #Chromosome      4998    Rv0005  -242
-    lt2drugs = get_lt2drugs(conf["bed"])
-    results["dr_variants"] = []
-    results["other_variants"] = []
-    results["qc_fail_variants"] = []
-    for var in results["variants"]:
-        drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug_resistance"])
-        if len(drugs)>0:
-            tmp = var.copy()
-            dr_ann = []
-            other_ann = []
-            while len(tmp["annotation"])>0:
-                x = tmp["annotation"].pop()
-                if x["type"]=="drug_resistance":
-                    dr_ann.append(x)
-                else:
-                    other_ann.append(x)
-            tmp["drugs"] = dr_ann
-            tmp["annotation"] = other_ann
-            tmp["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
-            qc  = filter_variant(var,conf["variant_filters"])
-            if qc=="hard_fail":
-                continue
-            elif qc=="soft_fail":
-                results["qc_fail_variants"].append(tmp)
-            else:
-                results["dr_variants"].append(tmp)
-        else:
-            var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
-            qc  = filter_variant(var,conf["variant_filters"])
-            if qc=="hard_fail":
-                continue
-            elif qc=="soft_fail":
-                results["qc_fail_variants"].append(var)
-            else:
-                results["other_variants"].append(var)
-    del results["variants"]
-    return results
+# def reformat_annotations(results,conf):
+#     #Chromosome      4998    Rv0005  -242
+#     lt2drugs = get_lt2drugs(conf["bed"])
+#     results["dr_variants"] = []
+#     results["other_variants"] = []
+#     results["qc_fail_variants"] = []
+#     for var in results["variants"]:
+#         drugs = tuple([x["drug"] for x in var.get("annotation",[]) if x["type"]=="drug_resistance"])
+#         if len(drugs)>0:
+#             tmp = var.copy()
+#             dr_ann = []
+#             other_ann = []
+#             while len(tmp["annotation"])>0:
+#                 x = tmp["annotation"].pop()
+#                 if x["type"]=="drug_resistance":
+#                     dr_ann.append(x)
+#                 else:
+#                     other_ann.append(x)
+#             tmp["drugs"] = dr_ann
+#             tmp["annotation"] = other_ann
+#             tmp["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
+#             qc  = filter_variant(var,conf["variant_filters"])
+#             if qc=="hard_fail":
+#                 continue
+#             elif qc=="soft_fail":
+#                 results["qc_fail_variants"].append(tmp)
+#             else:
+#                 results["dr_variants"].append(tmp)
+#         else:
+#             var["gene_associated_drugs"] = lt2drugs[var["locus_tag"]]
+#             qc  = filter_variant(var,conf["variant_filters"])
+#             if qc=="hard_fail":
+#                 continue
+#             elif qc=="soft_fail":
+#                 results["qc_fail_variants"].append(var)
+#             else:
+#                 results["other_variants"].append(var)
+#     del results["variants"]
+#     return results
 
 def get_genome_positions_from_db(db):
     genome_positions = defaultdict(set)

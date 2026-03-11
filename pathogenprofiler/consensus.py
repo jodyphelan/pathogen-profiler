@@ -5,6 +5,10 @@ import argparse
 from uuid import uuid4
 import numpy as np
 import tempfile
+from .globals import g
+from .fastq import Fastq
+from .cli import get_bam_file
+from .bam import Bam
 
 def robust_bounds(data, k=5):
     median = np.median(data)
@@ -89,13 +93,43 @@ def prepare_sample_consensus(
         run_cmd(f"bcftools consensus --sample {sample_name} {mask_cmd} -f {ref} {tmp_vcf} | sed 's/>/>{sample_name} /' > {output_file}")
         return output_file
 
-def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace) -> str:
-    
+def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace, strain: str = None) -> str:
+    if (
+        strain 
+        and ("strain-specific-references" in args.conf) 
+        and (strain in g.strain_specific_references)
+    ):
+        logging.debug(f"Strain specific reference exists for {strain}")
+        strain_specific_ref = g.strain_specific_references[strain]
+        ref_file = strain_specific_ref.fasta
+        excluded_regions = strain_specific_ref.mask
+        args.bam = None
+        bam_for_consensus = Bam(
+            bam_file=get_bam_file(args,strain_specific_ref),
+            prefix=args.prefix,
+            platform="illumina",
+            threads=args.threads
+        )
+        # bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
+        input_vcf = bam_for_consensus.call_variants(
+            ref_file=ref_file,
+            caller=args.caller,
+            filters=args.conf['variant_filters'],
+            threads=args.threads
+        ).filename
+    else:
+        ref_file = args.conf['ref']
+        excluded_regions = args.conf['bedmask']
+        bam_for_consensus = args.bam
+        
+
+
     mask_bed = f"{args.files_prefix}.{sample}.mask.bed"
+    
     if hasattr(args,'supplementary_bam') and args.supplementary_bam:
-        args.bam = args.supplementary_bam
-    if args.bam:
-        generate_low_dp_mask(f"{args.bam}",args.conf['ref'],mask_bed)
+        bam_for_consensus = args.supplementary_bam
+    if bam_for_consensus:
+        generate_low_dp_mask(f"{bam_for_consensus}",ref_file,mask_bed)
     elif args.low_dp_mask:
         mask_bed = args.low_dp_mask
     elif args.vcf:
@@ -104,13 +138,13 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
         mask_bed = None
 
     output_file = f'{args.files_prefix}.consensus.fa'
-
+    print(input_vcf)
     prepare_sample_consensus(
         sample_name=sample,
-        ref=args.conf['ref'],
+        ref=ref_file,
         input_vcf=input_vcf,
         output_file=output_file,
-        excluded_regions=args.conf['bedmask'],
+        excluded_regions=excluded_regions,
         low_dp_regions=mask_bed,
     )
     return output_file

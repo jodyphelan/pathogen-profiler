@@ -891,3 +891,13 @@ class BamProfileResult(ProfileResult):
 
 class VcfProfileResult(ProfileResult):
     input_data_source: str = 'vcf'
+
+class Reference(BaseModel):
+    fasta: str
+    gff: Optional[str] = None
+    snpeff_config: Optional[str] = None
+    bed: Optional[str] = None
+    mutations: Optional[str] = None
+    barcode: Optional[str] = None
+    mask: Optional[str] = None
+    variables: Optional[dict] = None

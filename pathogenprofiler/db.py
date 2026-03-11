@@ -16,7 +16,8 @@ from pysam import FastaFile
 from typing import List
 import argparse
 import subprocess as sp
-
+from .globals import g
+from .models import Reference
 
 def get_git_repo_info():
     git_info = {
@@ -706,8 +707,7 @@ def initialise_snpeff_genome(db_dir: str, db_name: str, genome_name: str) -> Non
             codon_table = variables.get('codon_table','Bacterial_and_Plant_Plastid')
             load_snpEff_db(custom_bin_file, genome_name, db_dir, codon_table)
 
-def get_db(db_dir:str,db_name:str,verbose:bool=True):
-    logging.debug(f"Loading database {db_name} from {db_dir}")
+def get_variable_file_full_path(db_dir: str, db_name: str) -> str:
     if is_db_path(db_name):
         if "/" in db_name:
             db_dir = "/".join(db_name.split("/")[:-1])
@@ -718,7 +718,25 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
             variable_file_name = f"{db_dir}/{db_name}/variables.json"
     else:
         variable_file_name = os.path.join(db_dir,f"{db_name}/variables.json")
+    return variable_file_name
+
+def add_db_to_globals(db_dir:str,db_name:str):
+    variable_file_name = get_variable_file_full_path(db_dir,db_name)
     
+    if not os.path.isfile(variable_file_name):
+        raise FileExistsError
+    
+    # variables
+
+def db_exists(db_dir:str,db_name:str) -> bool:
+    variable_file_name = get_variable_file_full_path(db_dir,db_name)
+    return os.path.isfile(variable_file_name)
+
+
+def get_db(db_dir:str,db_name:str,verbose:bool=True):
+    logging.debug(f"Loading database {db_name} from {db_dir}")
+    variable_file_name = get_variable_file_full_path(db_dir,db_name)
+
     if not os.path.isfile(variable_file_name):
         return None
     
@@ -730,18 +748,43 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
     # if not ('type' in variables and variables['type'] != 'reference'):
         # initialise_snpeff_genome(db_dir, db_name, variables['snpEff_db'])
 
+    
+    db_files_dir = os.path.dirname(variable_file_name)
+    print(db_files_dir)
+    
     for key,val in variables['files'].items():
         if verbose:
-            logging.info(f"Using {key} file: {db_dir}/{db_name}/{val}")
+            logging.info(f"Using {key} file: {db_files_dir}/{val}")
 
         if ".json" in val:
-            variables[key] = json.load(open(f"{db_dir}/{db_name}/{val}"))
+            variables[key] = json.load(open(f"{db_files_dir}/{val}"))
         elif key=="snpEff_db":
             continue  # snpEff_db is handled separately
         else:
-            variables[key] = f"{db_dir}/{db_name}/{val}"
-    
+            variables[key] = f"{db_files_dir}/{val}"
+
+    def full_path(x):
+        if x is None:
+            return None
+        else:
+            return f"{db_files_dir}/{x}"
+        
     check_db_files(variables)
+    g.strain_specific_references = {}
+
+    for obj in variables.get("strain-specific-references",[]):
+        print(obj)
+        g.strain_specific_references[obj['strain']] = Reference(
+            fasta=full_path(obj['ref']),
+            gff=full_path(obj.get('gff',None)),
+            snpeff_db=full_path(obj.get('snpeff_db',None)),
+            bed=full_path(obj.get('bed',None)),
+            mutations=full_path(obj.get('mutations',None)),
+            barcode=full_path(obj.get('barcode',None)),
+            mask=full_path(obj.get('mask',None)),
+            variables=full_path(obj.get('variables',None))
+        )
+
     return variables    
 
 def list_db(db_dir):
