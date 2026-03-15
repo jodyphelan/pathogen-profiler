@@ -57,7 +57,7 @@ def run_fasta_qc(args: argparse.Namespace):
     fasta = Fasta(args.fasta)
     qc = fasta.get_fasta_qc()
     if hasattr(args,'paf') and args.paf:
-        paf = Paf(args.paf)
+        paf = Paf(args.paf.filename)
         qc.target_qc = paf.get_target_qc(
             bed_file=args.conf["bed"]
         )
@@ -180,7 +180,7 @@ def get_vcf_file(args: argparse.Namespace):
         args.vcf = args.vcf
     elif args.fasta:
         args.paf = Fasta(args.fasta).align_to_ref(args.conf["ref"],args.files_prefix)
-        args.vcf = Paf(args.paf).get_ref_variants(args.conf["ref"], args.prefix, args.files_prefix)
+        args.vcf = Paf(args.paf.filename).get_ref_variants(args.conf["ref"], args.prefix, args.files_prefix)
     elif args.bam:
         args.vcf = get_vcf_from_bam(args)
 
