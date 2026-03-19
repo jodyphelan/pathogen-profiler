@@ -9,14 +9,14 @@ from .models import Variant
 from typing import List, Union
 import argparse
 
-def bam_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
+def bam_barcoder(args: argparse.Namespace, caller: str = None) -> List[BarcodeResult]:
     conf = args.conf
     if 'barcode' not in conf:
         return []
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if not hasattr(args,'barcode_snps'):
         args.barcode_snps = None
-    barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=args.caller,platform=args.platform)  
+    barcode_mutations = bam.get_bed_gt(conf["barcode"],conf["ref"], caller=caller,platform=args.platform)  
     opts = {
         'mutations': barcode_mutations,
         'barcode_bed': conf["barcode"],

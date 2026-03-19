@@ -7,11 +7,12 @@ from .profiler import vcf_profiler, bam_barcoder, vcf_barcoder
 import logging
 from typing import List, Union
 import argparse
-from .models import Variant, DrVariant, Gene, DrGene, SpeciesPrediction, Species, BarcodeResult
+from .models import Variant, DrVariant, Gene, DrGene, SpeciesPrediction, Species, BarcodeResult, Reference
 from .mutation_db import MutationDB
 from .vcf import Vcf
 from .variant_calling import VariantCaller 
 from .sanity import check_bam_for_rg, check_vcf_chrom_match, check_bam_chrom_match
+from .globals import g
 
 def get_variant_filters(args):
     filters = {}
@@ -38,7 +39,7 @@ def get_variant_filters(args):
 
 def get_fastq_qc(args: argparse.Namespace):
     fastq = Fastq(args.read1,args.read2)
-    return fastq.get_qc()
+    return fastq.get_qc(threads = args.threads)
 
 def run_bam_qc(args: argparse.Namespace, only_targets = False):
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
@@ -56,7 +57,7 @@ def run_fasta_qc(args: argparse.Namespace):
     fasta = Fasta(args.fasta)
     qc = fasta.get_fasta_qc()
     if hasattr(args,'paf') and args.paf:
-        paf = Paf(args.paf)
+        paf = Paf(args.paf.filename)
         qc.target_qc = paf.get_target_qc(
             bed_file=args.conf["bed"]
         )
@@ -85,7 +86,7 @@ def test_vcf_for_lofreq(vcf_file):
             lofreq = True
     return lofreq
 
-def get_input_data_source(args):
+def get_input_data_source(args: argparse.Namespace) -> str:
     if args.read1:
         return "fastq"
     elif args.bam:
@@ -96,13 +97,6 @@ def get_input_data_source(args):
         return "vcf"
     else:
         return None
-    
-# def get_qc(args: argparse.Namespace):
-#     if args.qc:
-#         return True
-#     else:
-#         return False
-    
 
 
 def process_args(args: argparse.Namespace) -> None:
@@ -185,16 +179,31 @@ def get_vcf_file(args: argparse.Namespace):
         args.vcf = args.vcf
     elif args.fasta:
         args.paf = Fasta(args.fasta).align_to_ref(args.conf["ref"],args.files_prefix)
-        args.vcf = Paf(args.paf).get_ref_variants(args.conf["ref"], args.prefix, args.files_prefix)
+        args.vcf = Paf(args.paf.filename).get_ref_variants(args.conf["ref"], args.prefix, args.files_prefix)
     elif args.bam:
         args.vcf = get_vcf_from_bam(args)
 
-def run_barcoder(args: argparse.Namespace) -> List[BarcodeResult]:
+# def get_vcf_file() -> str:
+#     if g.inputs['vcf']:
+#         return g.input_vcf
+#     elif g.inputs['fasta']:
+#         fasta = Fasta(g.inputs['fasta'].fasta)
+#         paf = fasta.align_to_ref(g.reference.fasta,g.files_prefix)
+#         vcf_file = paf.get_ref_variants(g.reference.fasta, g.prefix, g.files_prefix)
+#         return vcf_file
+#     elif g.input.bam:
+#         vcf_file = 
+
+
+
+def run_barcoder(args: argparse.Namespace, caller: str = None) -> List[BarcodeResult]:
+    if caller is None:
+        caller = args.caller 
     if args.data_source in ('fastq', 'bam'):
         if not args.bam:
             quit()
         else:
-            barcode_result = bam_barcoder(args)
+            barcode_result = bam_barcoder(args, caller=caller)
     elif args.data_source == 'fasta':
         barcode_result = vcf_barcoder(args)
     elif args.data_source == 'vcf':
@@ -249,7 +258,11 @@ def kmer_speciate(args,bam_region=None):
     species = kmer_dump.get_taxonomic_support(conf['kmers'],args.output_kmer_counts)
     return species
 
-def get_bam_file(args):
+def get_bam_file(args, ref:  Reference = None):
+
+
+    ref_fasta = ref.fasta if ref else args.conf["ref"]
+
     ### Create bam file if fastq has been supplied ###
     if args.bam is None:
         if args.read1 and args.read2 and args.no_trim:
@@ -269,13 +282,13 @@ def get_bam_file(args):
         else:
             exit("\nPlease provide a bam file or a fastq file(s)...Exiting!\n")
         bam_obj = fastq_obj.map_to_ref(
-            ref_file=args.conf["ref"], prefix=args.files_prefix,sample_name=args.prefix,
+            ref_file=ref_fasta, prefix=args.files_prefix,sample_name=args.prefix,
             aligner=args.mapper, platform=args.platform, threads=args.threads
         )
         bam_file = bam_obj.bam_file
     else:
         check_bam_for_rg(args.bam)
-        check_bam_chrom_match(args.bam,args.conf["ref"])
+        check_bam_chrom_match(args.bam,ref_fasta)
         bam_file = args.bam
 
     return bam_file
@@ -337,7 +350,7 @@ def get_taxonomic_hits(args):
             fastq = Fastq(args.read1,args.read2)
         else:
             fastq = Fastq(args.read1)
-        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
+        sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software, threads=args.threads)
     elif args.fasta:
         fasta = Fasta(args.fasta)
         sketch = fasta.sketch(args.files_prefix, software=args.taxonomic_software)
@@ -348,7 +361,11 @@ def get_taxonomic_hits(args):
         fastq = Fastq(fq_file)
         sketch = fastq.sketch(args.files_prefix, software=args.taxonomic_software)
 
-    hits = sketch.get_species_hits(args.species_conf[f"{args.taxonomic_software}_db"],args.species_conf["accessions"])
+    hits = sketch.get_species_hits(
+        ref_db = args.species_conf[f"{args.taxonomic_software}_db"],
+        db_annotation = args.species_conf["accessions"],
+        threads = args.threads
+    )
 
     result =  []
 

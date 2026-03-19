@@ -10,6 +10,48 @@ from typing import List
 from .utils import shared_dict
 
 
+class Paf:
+    def __init__(self,filename: str):
+        self.filename = filename
+
+    def get_target_qc(self,bed_file: str) -> List[TargetQC]:
+        results = []
+        for l in cmd_out(f"cut -f6,8,9 {self.filename} | bedtools coverage -a {bed_file} -b -"):
+            row = l.strip().split()
+            results.append(
+                TargetQC(
+                    target = row[4],
+                    percent_depth_pass=float(row[9])*100,
+                    median_depth=int(float(row[9])),
+                )
+            )
+        return results
+
+    def get_ref_variants(self,refseq: str,sample_name: str,file_prefix: str) -> str:
+        """
+        Generate a vcf file of variants against a reference sequence from a paf file
+        
+        Arguments
+        ---------
+        refseq : str
+            Reference sequence
+        sample_name : str
+            Sample name
+        file_prefix : str
+            Prefix for output file
+        
+        Returns
+        -------
+        str
+            Filename of vcf file
+        """
+        self.refseq = refseq
+        self.sample_name = sample_name
+        self.file_prefix = file_prefix
+        shared_dict['software']['variant_calling'] = 'paftools.js'
+        run_cmd("cat %(filename)s | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(sample_name)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
+        return "%s.vcf.gz" % self.file_prefix
+
 class Fasta:
     """
     Class to represent fasta seuqnces in a python dict.
@@ -43,11 +85,11 @@ class Fasta:
         self.sum_length = sum_length
         self.fa_dict = result
     
-    def align_to_ref(self,refseq,file_prefix):
+    def align_to_ref(self,refseq,file_prefix) -> Paf:
         shared_dict['software']['alignment'] = 'minimap2'
         self.ref_aln = f"{file_prefix}.paf"
         run_cmd(f"minimap2 {refseq} {self.fa_file} --cs | sort -k6,6 -k8,8n > {self.ref_aln}")
-        return self.ref_aln
+        return Paf(self.ref_aln)
 
     def get_amplicons(self,primer_file):
         bed = []
@@ -122,45 +164,3 @@ class Fasta:
             return self.sylph_sketch(prefix, threads=threads)
         else:
             quit(f"ERROR: {software} not in accepted sketching methods\n")
-
-class Paf:
-    def __init__(self,filename: str):
-        self.filename = filename
-
-    def get_target_qc(self,bed_file: str) -> List[TargetQC]:
-        results = []
-        for l in cmd_out(f"cut -f6,8,9 {self.filename} | bedtools coverage -a {bed_file} -b -"):
-            row = l.strip().split()
-            results.append(
-                TargetQC(
-                    target = row[4],
-                    percent_depth_pass=float(row[9])*100,
-                    median_depth=int(float(row[9])),
-                )
-            )
-        return results
-
-    def get_ref_variants(self,refseq: str,sample_name: str,file_prefix: str) -> str:
-        """
-        Generate a vcf file of variants against a reference sequence from a paf file
-        
-        Arguments
-        ---------
-        refseq : str
-            Reference sequence
-        sample_name : str
-            Sample name
-        file_prefix : str
-            Prefix for output file
-        
-        Returns
-        -------
-        str
-            Filename of vcf file
-        """
-        self.refseq = refseq
-        self.sample_name = sample_name
-        self.file_prefix = file_prefix
-        shared_dict['software']['variant_calling'] = 'paftools.js'
-        run_cmd("cat %(filename)s | paftools.js call -l 100 -L 100 -f %(refseq)s -s %(sample_name)s - | add_dummy_AD.py | bcftools view -Oz -o %(file_prefix)s.vcf.gz" % vars(self))
-        return "%s.vcf.gz" % self.file_prefix
