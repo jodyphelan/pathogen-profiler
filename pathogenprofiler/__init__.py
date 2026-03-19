@@ -12,4 +12,4 @@ from .rules import *
 from .models import *
 from .consensus import *
 from .snp_dist import *
-__version__ = "5.2.0"
+__version__ = "5.2.1"
