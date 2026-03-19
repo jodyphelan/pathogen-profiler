@@ -24,6 +24,8 @@ shared_dict = {
 }
 
 def get_version(tool):
+    if tool in 'dsk':
+        return "Unknown"
     cmds = {
         'bcftools': 'bcftools --version',
         'samtools': 'samtools --version',
