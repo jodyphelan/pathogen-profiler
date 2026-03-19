@@ -148,7 +148,6 @@ def get_vcf_from_bam(args: argparse.Namespace):
     ### Create bam object and call variants ###
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if args.call_whole_genome:
-        print(args.caller)
         wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
         vcf_obj = wg_vcf_obj
         # TODO optional?
@@ -260,10 +259,10 @@ def kmer_speciate(args,bam_region=None):
     return species
 
 def get_bam_file(args, ref:  Reference = None):
-    print(f"BAM FILE: {args.bam}")
+
 
     ref_fasta = ref.fasta if ref else args.conf["ref"]
-    print(f"Reference fasta: {ref_fasta}")
+
     ### Create bam file if fastq has been supplied ###
     if args.bam is None:
         if args.read1 and args.read2 and args.no_trim:

@@ -138,7 +138,6 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
         mask_bed = None
 
     output_file = f'{args.files_prefix}.consensus.fa'
-    print(input_vcf)
     prepare_sample_consensus(
         sample_name=sample,
         ref=ref_file,

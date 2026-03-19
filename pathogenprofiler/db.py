@@ -750,7 +750,6 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
 
     
     db_files_dir = os.path.dirname(variable_file_name)
-    print(db_files_dir)
     
     for key,val in variables['files'].items():
         if verbose:
@@ -773,7 +772,6 @@ def get_db(db_dir:str,db_name:str,verbose:bool=True):
     g.strain_specific_references = {}
 
     for obj in variables.get("strain-specific-references",[]):
-        print(obj)
         g.strain_specific_references[obj['strain']] = Reference(
             fasta=full_path(obj['ref']),
             gff=full_path(obj.get('gff',None)),
