@@ -42,9 +42,9 @@ def extract_indel_area(vcf_lines, padding):
                 indel_area.add((rec.chrom, pos))
     return indel_area
 
-def set_gt_to_missing(vcf_lines, indel_area, output_file):
-    with pysam.VariantFile(output_file, 'w', header=vcf_lines[0].header) as out_vcf:
-        sample = vcf_lines[0].header.samples[0]  # Assuming single sample VCF
+def set_gt_to_missing(vcf_lines, indel_area, output_file, vcf_header):
+    with pysam.VariantFile(output_file, 'w', header=vcf_header) as out_vcf:
+        sample = vcf_header.samples[0]  # Assuming single sample VCF
         for rec in vcf_lines:
             if not is_indel(rec):
                 if (rec.chrom, rec.start) in indel_area:
@@ -59,6 +59,13 @@ if not args.vcf:
 if not args.output:
     args.output = '/dev/stdout'
 
-vcf_lines = load_vcf_lines(args.vcf)
-indel_area = extract_indel_area(vcf_lines, args.padding)
-set_gt_to_missing(vcf_lines, indel_area, args.output)
+vcf_obj = pysam.VariantFile(args.vcf)
+vcf_header = vcf_obj.header
+num_variants = sum(1 for _ in vcf_obj.fetch())
+if num_variants == 0:
+    with pysam.VariantFile(args.output, 'w', header=vcf_header) as out_vcf:
+        pass
+else:
+    vcf_lines = load_vcf_lines(args.vcf)
+    indel_area = extract_indel_area(vcf_lines, args.padding)
+    set_gt_to_missing(vcf_lines, indel_area, args.output,vcf_header)

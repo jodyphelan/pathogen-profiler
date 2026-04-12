@@ -4,7 +4,7 @@ from .utils import cmd_out, run_cmd, run_cmd_parallel_on_genome, load_bed_region
 from uuid import uuid4
 from glob import glob
 import os
-from .vcf import Vcf
+from .vcf import Vcf, vcfs_number_of_variants
 from typing import Optional
 
 
@@ -75,8 +75,15 @@ class VariantCaller:
         run_cmd_parallel_on_genome(self.calling_cmd,self.ref_file,bed_file = self.bed_file,threads=self.threads,desc="Calling variants")
         cmd = "bcftools index  %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self) 
         run_cmd_parallel_on_genome(cmd,self.ref_file,bed_file = self.bed_file,threads=self.threads,desc="Indexing variants")
-        temp_vcf_files = ' '.join([f"{self.temp_file_prefix}.{r}.vcf.gz" for r in genome_chunks])
-        run_cmd(f"bcftools concat -aD {temp_vcf_files} | bcftools view -Oz -o {self.vcf_file}")
+        temp_vcf_files = [f"{self.temp_file_prefix}.{r}.vcf.gz" for r in genome_chunks]
+        print(temp_vcf_files)
+        temp_vcf_files_str = ' '.join(temp_vcf_files)
+        num_variants = vcfs_number_of_variants(temp_vcf_files)
+        print(f"Number of variants called: {num_variants}")
+        if num_variants==0:
+            run_cmd(f"bcftools view -h {temp_vcf_files[0]} | bcftools view -Oz -o {self.vcf_file}")
+        else:
+            run_cmd(f"bcftools concat -aD {temp_vcf_files_str} | bcftools view -Oz -o {self.vcf_file}")
         for f in glob(self.temp_file_prefix+"*"):
             os.remove(f)
 

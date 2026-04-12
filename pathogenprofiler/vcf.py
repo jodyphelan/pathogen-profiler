@@ -429,3 +429,15 @@ def filter_variant(var,filter_params):
             qc = "soft_fail"
     logging.debug(qc)
     return qc
+
+
+def vcfs_number_of_variants(vcf_files: List[str]) -> int:
+    num_variants = 0
+    for vcf_file in vcf_files:
+        for l in cmd_out(f'bcftools stats {vcf_file}'):
+            row = l.strip().split("\t")
+            if row[0]=='SN' and 'number of records' in l:
+                num_variants += int(l.split("\t")[3].strip())
+
+    return num_variants
+                

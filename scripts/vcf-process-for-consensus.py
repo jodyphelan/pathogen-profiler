@@ -35,7 +35,11 @@ for var in vcf:
     vcf_lines.append(var)  # Print the modified variant
 
 
-with pysam.VariantFile(args.output, 'w', header=vcf_lines[0].header) as out_vcf:
-    sample = vcf_lines[0].header.samples[0]  # Assuming single sample VCF
-    for rec in vcf_lines:
-        out_vcf.write(rec)
+if len(vcf_lines)==0:
+    with pysam.VariantFile(args.output, 'w', header=vcf.header) as out_vcf:
+        pass
+else:
+    with pysam.VariantFile(args.output, 'w', header=vcf_lines[0].header) as out_vcf:
+        sample = vcf_lines[0].header.samples[0]  # Assuming single sample VCF
+        for rec in vcf_lines:
+            out_vcf.write(rec)
