@@ -61,11 +61,14 @@ if not args.output:
 
 vcf_obj = pysam.VariantFile(args.vcf)
 vcf_header = vcf_obj.header
-num_variants = sum(1 for _ in vcf_obj.fetch())
+vcf_lines = []
+for rec in vcf_obj.fetch():
+    vcf_lines.append(rec)
+num_variants = len(vcf_lines)
 if num_variants == 0:
     with pysam.VariantFile(args.output, 'w', header=vcf_header) as out_vcf:
         pass
 else:
-    vcf_lines = load_vcf_lines(args.vcf)
+    
     indel_area = extract_indel_area(vcf_lines, args.padding)
     set_gt_to_missing(vcf_lines, indel_area, args.output,vcf_header)
