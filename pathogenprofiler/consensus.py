@@ -67,6 +67,7 @@ def prepare_sample_consensus(
         output_file: str,
         excluded_regions: str,
         low_dp_regions: str = None,
+        excluded_as_N = True
 
     ) -> str:
     with TempFilePrefix() as tmp:
@@ -83,11 +84,18 @@ def prepare_sample_consensus(
         run_cmd(f"bcftools index {tmp_vcf}")
         
         run_cmd(f"vcf-extract-mixed-pos-bed.py --vcf {tmp_vcf} --lb 0.2 --ub 0.8 > {tmp_vcf}.mixed_positions.bed ")
+    
+        mask_cmd = f" -m {tmp_vcf}.mixed_positions.bed  "
         if low_dp_regions:
-            mask_cmd = f"-m {low_dp_regions} -m {tmp_vcf}.mixed_positions.bed -m {excluded_regions}"
-        else:
-            mask_cmd = f"-m {excluded_regions}"
+            mask_cmd += f" -m {low_dp_regions} "
 
+        if excluded_as_N:
+            mask_cmd += f" -m {excluded_regions} "
+        else:
+            new_tmp_vcf = tmp_vcf+".excluded_removed.vcf.gz"
+            run_cmd(f"bcftools view -R {excluded_regions} {tmp_vcf} -Oz -o {new_tmp_vcf}")
+            tmp_vcf = new_tmp_vcf
+            run_cmd(f"bcftools index {tmp_vcf}")
 
         
         run_cmd(f"bcftools consensus --sample {sample_name} {mask_cmd} -f {ref} {tmp_vcf} | sed 's/>/>{sample_name} /' > {output_file}")
