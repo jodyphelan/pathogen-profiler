@@ -76,6 +76,7 @@ def prepare_sample_consensus(
             bcftools view {input_vcf} \
                 | annotate_maaf.py \
                 | bcftools filter -S . -e 'GT="alt" && MAAF<0.7' \
+                | grep -v DELLY \
                 | snp-gap.py \
                 | rename_vcf_sample.py --sample-name {sample_name} \
                 | vcf-process-for-consensus.py \
@@ -93,7 +94,7 @@ def prepare_sample_consensus(
             mask_cmd += f" -m {excluded_regions} "
         else:
             new_tmp_vcf = tmp_vcf+".excluded_removed.vcf.gz"
-            run_cmd(f"bcftools view -R {excluded_regions} {tmp_vcf} -Oz -o {new_tmp_vcf}")
+            run_cmd(f"bcftools view -R ^{excluded_regions} {tmp_vcf} -Oz -o {new_tmp_vcf}")
             tmp_vcf = new_tmp_vcf
             run_cmd(f"bcftools index {tmp_vcf}")
 
