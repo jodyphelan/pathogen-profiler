@@ -102,7 +102,7 @@ def prepare_sample_consensus(
         run_cmd(f"bcftools consensus --sample {sample_name} {mask_cmd} -f {ref} {tmp_vcf} | sed 's/>/>{sample_name} /' > {output_file}")
         return output_file
 
-def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace, strain: str = None) -> str:
+def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace, strain: str = None, reference: str = None) -> str:
     if (
         strain 
         and ("strain-specific-references" in args.conf) 
@@ -127,7 +127,7 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
             threads=args.threads
         ).filename
     else:
-        ref_file = args.conf['ref']
+        ref_file = reference if reference else args.conf['ref']
         excluded_regions = args.conf['bedmask']
         bam_for_consensus = args.bam
         

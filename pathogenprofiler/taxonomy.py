@@ -86,7 +86,7 @@ class SourmashSig(Sketch):
     def __init__(self,filename: str,tmp_prefix: str = None):
         super().__init__(filename, tmp_prefix=tmp_prefix)
 
-    def classify(self, ref_db: str, intersect_bp: int=500000,f_match_threshold: float=0.1) -> List[TaxonomicHit]:
+    def classify(self, ref_db: str, intersect_bp: int=500000,f_match_threshold: float=0.1, threads: int = 1) -> List[TaxonomicHit]:
         """
         Classify using sourmash
         
