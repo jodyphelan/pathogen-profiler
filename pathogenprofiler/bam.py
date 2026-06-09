@@ -1,7 +1,7 @@
 from glob import glob
 from .kmer import KmerDump
 from .utils import TempFilePrefix, load_bed_regions, get_genome_chunks, add_arguments_to_self, run_cmd, cmd_out, filecheck, index_bam, run_cmd_parallel_on_genome, load_bed
-from .vcf import Vcf
+from .vcf import Vcf, vcfs_number_of_variants
 from collections import defaultdict
 from uuid import uuid4
 import os
@@ -210,7 +210,11 @@ class Bam:
             cmd = "bcftools index  %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self) 
             run_cmd_parallel_on_genome(cmd,ref_file,bed_file = bed_file,threads=threads,desc="Indexing variants")
             temp_vcf_files = ' '.join([f"{tmp}.{r}.vcf.gz" for r in genome_chunks])
-            run_cmd(f"bcftools concat -aD {temp_vcf_files} | bcftools view -Oz -o {self.vcf_file}")
+            num_variants = vcfs_number_of_variants(temp_vcf_files)
+            if num_variants==0:
+                run_cmd(f"bcftools view -h {temp_vcf_files.split()[0]} | bcftools view -Oz -o {self.vcf_file}")
+            else:
+                run_cmd(f"bcftools concat -aD {temp_vcf_files} | bcftools view -Oz -o {self.vcf_file}")
 
 
         return Vcf(self.vcf_file)

@@ -1,4 +1,6 @@
 import logging
+
+from pathogenprofiler.models import Reference
 from .utils import run_cmd, cmd_out, TempFilePrefix
 import pysam
 import argparse
@@ -67,6 +69,7 @@ def prepare_sample_consensus(
         output_file: str,
         excluded_regions: str,
         low_dp_regions: str = None,
+        excluded_as_N = True
 
     ) -> str:
     with TempFilePrefix() as tmp:
@@ -75,6 +78,7 @@ def prepare_sample_consensus(
             bcftools view {input_vcf} \
                 | annotate_maaf.py \
                 | bcftools filter -S . -e 'GT="alt" && MAAF<0.7' \
+                | grep -v DELLY \
                 | snp-gap.py \
                 | rename_vcf_sample.py --sample-name {sample_name} \
                 | vcf-process-for-consensus.py \
@@ -83,18 +87,33 @@ def prepare_sample_consensus(
         run_cmd(f"bcftools index {tmp_vcf}")
         
         run_cmd(f"vcf-extract-mixed-pos-bed.py --vcf {tmp_vcf} --lb 0.2 --ub 0.8 > {tmp_vcf}.mixed_positions.bed ")
+    
+        mask_cmd = f" -m {tmp_vcf}.mixed_positions.bed  "
         if low_dp_regions:
-            mask_cmd = f"-m {low_dp_regions} -m {tmp_vcf}.mixed_positions.bed -m {excluded_regions}"
-        else:
-            mask_cmd = f"-m {excluded_regions}"
+            mask_cmd += f" -m {low_dp_regions} "
 
+        if excluded_regions:
+            if excluded_as_N:
+                mask_cmd += f" -m {excluded_regions} "
+            else:
+                new_tmp_vcf = tmp_vcf+".excluded_removed.vcf.gz"
+                run_cmd(f"bcftools view -R ^{excluded_regions} {tmp_vcf} -Oz -o {new_tmp_vcf}")
+                tmp_vcf = new_tmp_vcf
+                run_cmd(f"bcftools index {tmp_vcf}")
 
         
         run_cmd(f"bcftools consensus --sample {sample_name} {mask_cmd} -f {ref} {tmp_vcf} | sed 's/>/>{sample_name} /' > {output_file}")
         return output_file
 
-def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace, strain: str = None) -> str:
-    if (
+def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Namespace, strain: str = None, reference: str = None) -> str:
+    new_bam = False
+    if reference:
+        logging.debug(f"Using provided reference {reference} for consensus generation")
+        strain_specific_ref = Reference(fasta=reference,mask=None)
+        ref_file = reference
+        excluded_regions = None
+        new_bam = True
+    elif (
         strain 
         and ("strain-specific-references" in args.conf) 
         and (strain in g.strain_specific_references)
@@ -103,6 +122,13 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
         strain_specific_ref = g.strain_specific_references[strain]
         ref_file = strain_specific_ref.fasta
         excluded_regions = strain_specific_ref.mask
+        new_bam = True
+    else:
+        ref_file = args.conf['ref']
+        excluded_regions = args.conf['bedmask']
+        bam_for_consensus = args.bam
+        
+    if new_bam:
         args.bam = None
         bam_for_consensus = Bam(
             bam_file=get_bam_file(args,strain_specific_ref),
@@ -117,12 +143,6 @@ def cli_prepare_sample_consensus(sample: str,input_vcf: str,args: argparse.Names
             filters=args.conf['variant_filters'],
             threads=args.threads
         ).filename
-    else:
-        ref_file = args.conf['ref']
-        excluded_regions = args.conf['bedmask']
-        bam_for_consensus = args.bam
-        
-
 
     mask_bed = f"{args.files_prefix}.{sample}.mask.bed"
     
