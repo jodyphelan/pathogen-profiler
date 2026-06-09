@@ -211,7 +211,6 @@ class Bam:
             run_cmd_parallel_on_genome(cmd,ref_file,bed_file = bed_file,threads=threads,desc="Indexing variants")
             temp_vcf_files = ' '.join([f"{tmp}.{r}.vcf.gz" for r in genome_chunks])
             num_variants = vcfs_number_of_variants(temp_vcf_files)
-            print(f"Number of variants called: {num_variants}")
             if num_variants==0:
                 run_cmd(f"bcftools view -h {temp_vcf_files.split()[0]} | bcftools view -Oz -o {self.vcf_file}")
             else:

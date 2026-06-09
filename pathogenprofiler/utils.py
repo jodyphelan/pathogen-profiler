@@ -231,16 +231,19 @@ def return_fields(obj,args,i=0):
         
 def variable2string(var,quote=False):
     q = '"' if quote else ""
+    if var is None:
+        return ""
     if isinstance(var,float):
         return "%.3f" % var
     elif isinstance(var,dict):
         return "%s%s%s" % (q,",".join(list(var)),q)
     elif isinstance(var,list):
-        if set(var)=={''}:
+        newlist = [str(x) for x in var if x is not None]
+        if set(newlist)=={''}:
             return ""
-        elif len(set(var))==1:
-            return "%s%s%s" % (q,str(var[0]),q)
-        return "%s%s%s" % (q,",".join(var),q)
+        elif len(set(newlist))==1:
+            return "%s%s%s" % (q,str(newlist[0]),q)
+        return "%s%s%s" % (q,",".join(newlist),q)
     else:
         return "%s%s%s" % (q,str(var),q)
 

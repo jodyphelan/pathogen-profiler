@@ -76,10 +76,8 @@ class VariantCaller:
         cmd = "bcftools index  %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self) 
         run_cmd_parallel_on_genome(cmd,self.ref_file,bed_file = self.bed_file,threads=self.threads,desc="Indexing variants")
         temp_vcf_files = [f"{self.temp_file_prefix}.{r}.vcf.gz" for r in genome_chunks]
-        print(temp_vcf_files)
         temp_vcf_files_str = ' '.join(temp_vcf_files)
         num_variants = vcfs_number_of_variants(temp_vcf_files)
-        print(f"Number of variants called: {num_variants}")
         if num_variants==0:
             run_cmd(f"bcftools view -h {temp_vcf_files[0]} | bcftools view -Oz -o {self.vcf_file}")
         else:
