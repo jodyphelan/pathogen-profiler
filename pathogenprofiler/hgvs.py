@@ -1,6 +1,6 @@
 import re
 import logging
-from .utils import cmd_out, revcom
+from .utils import cmd_out, revcom, run_cmd
 from .gff import Gene
 from typing import List
 from pysam import FastaFile
@@ -191,7 +191,8 @@ def parse_duplication(mutation: str, gene: Gene, ref_object: FastaFile) -> dict:
 
 
 def get_ann(variants: List[dict], snpEffDB: str, snpeff_config:str):
-    uuid = str(uuid4()) #"463545ef-71fc-449b-8f4e-9c907ee6fbf5"
+    uuid = str(uuid4()) 
+    # uuid = "463545ef-71fc-449b-8f4e-9c907ee6fbf5"
     with open(uuid,"w") as O:
         O.write('##fileformat=VCFv4.2\n')
         O.write('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
@@ -202,7 +203,8 @@ def get_ann(variants: List[dict], snpEffDB: str, snpeff_config:str):
     keys = list(variants.keys())
     vals = list(variants.values())
     i = 0
-    for l in cmd_out(f"snpEff ann -noLog -noStats -c {snpeff_config} {snpEffDB} {uuid}"):
+    run_cmd(f"snpEff ann -noLog -noStats -c {snpeff_config} {snpEffDB} {uuid} > {uuid}.ann.vcf")
+    for l in open(f"{uuid}.ann.vcf"):
         if l[0]=="#": continue
         if l.startswith("ann "): continue
         row = l.strip().split()
@@ -219,6 +221,7 @@ def get_ann(variants: List[dict], snpEffDB: str, snpeff_config:str):
                 results[keys[i]] = (a[4],a[9]) if vals[i]["type"]=="nucleotide" else (a[4],a[10])
         i+=1
     os.remove(uuid)
+    os.remove(f"{uuid}.ann.vcf")
     return results
 
 codon2amino_acid = {
