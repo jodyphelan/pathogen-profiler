@@ -243,7 +243,7 @@ class Variant(BaseModel):
         Consequence(gene_id='Rv0667', gene_name='rpoB', feature_id='CCP43410', type='missense_variant', nucleotide_change='c.1349C>T', protein_change='p.Ser450Leu', annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}])
         """
 
-        rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
+        rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","initiator_codon_variant","synonymous_variant"]
 
         ranked_csq = sorted(self.consequences,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x.type.split("&")]))
         return ranked_csq[0]
@@ -265,7 +265,7 @@ class Variant(BaseModel):
             if len(csq.annotation)>0:
                 annotated_csq.append(csq)
         if len(annotated_csq)==0:
-            rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
+            rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","initiator_codon_variant","synonymous_variant"]
             ranked_csq = sorted(self.consequences,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x.type.split("&")]))
             csq = ranked_csq[0]
         elif len(annotated_csq)==1:
