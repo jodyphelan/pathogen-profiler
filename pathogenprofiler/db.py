@@ -309,6 +309,9 @@ def get_genome_position(gene_object,change):
         if g.strand=="+":
             p = g.start + pos -1
             return [p]
+        else:
+            p = g.start - pos + 1
+            return [p]
 
     # c.-30_-29insGCG
     r = re.search(r'[nc].([\-\*0-9]+)_([\-\*0-9]+)ins[A-Z]+',change)
