@@ -38,6 +38,8 @@ class Transcript:
     def __init__(self,name):
         self.name = name
         self.exons = []
+    def __repr__(self):
+        return f"Transcript: {vars(self)}"
 
 def load_gff(gff) -> List[Gene]:
     GFF = open(gff)
