@@ -119,7 +119,7 @@ class Bam:
         subclasses = {cls.__software__:cls for cls in VariantCaller.__subclasses__()}
         vcf_files = []
         for i in range(len(callers)):
-            print(f"Running variant caller {i}: {callers[i]}")
+            logging.info("Running variant calling with %s" % callers[i])
             caller = callers[i]
             calling_param = calling_params[i] if calling_params else None
             chosen_class = subclasses[caller]

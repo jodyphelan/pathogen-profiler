@@ -111,7 +111,6 @@ class FreebayesCaller(VariantCaller):
             self.calling_cmd = "freebayes -f %(ref_file)s -F %(af_hard)s -r {region} --haplotype-length -1 %(calling_params)s %(bam_file)s | annotate_maaf.py  | bcftools norm -f %(ref_file)s -Oz -o %(temp_file_prefix)s.{region_safe}.vcf.gz" % vars(self)
         else:
             raise NotImplementedError("%s not implemented for %s platform" % (self.__software__,self.platform))
-        print(self.calling_cmd)
         return self.run_calling(self.calling_cmd)
 
 class GatkCaller(VariantCaller):
