@@ -179,5 +179,10 @@ class DellyCaller(VariantCaller):
             shared_dict['software']['long_variant_calling'] = 'delly'
         run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
         run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))
-        run_cmd("bcftools view -R %(bed_file)s %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
-        return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+        if self.bed_file:
+            run_cmd("bcftools view -R %(bed_file)s %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
+            return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+        else:
+            run_cmd("bcftools view %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
+            return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+        
