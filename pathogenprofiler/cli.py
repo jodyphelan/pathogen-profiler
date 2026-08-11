@@ -148,31 +148,31 @@ def get_vcf_from_bam(args: argparse.Namespace):
     ### Create bam object and call variants ###
     bam = Bam(args.bam, args.files_prefix, platform=args.platform, threads=args.threads)
     if args.call_whole_genome:
-        wg_vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
+        wg_vcf_obj = bam.call_variants(conf["ref"], gff_file=conf['gff'],callers=args.callers, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
         vcf_obj = wg_vcf_obj
         # TODO optional?
         # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
-        vcf_obj = bam.call_variants(conf["ref"], caller=args.caller, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
+        vcf_obj = bam.call_variants(conf["ref"], gff_file=conf['gff'],callers=args.callers, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
 
-    ### Run delly if specified ###
-    final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
-    if 'amplicon' in args.conf and args.conf['amplicon']==True:
-        args.no_delly = True
-    if not args.no_delly:
-        delly_vcf_obj = bam.run_delly(conf['ref'],conf['bed'])
-        if delly_vcf_obj is not None:
-            run_cmd("bcftools index %s" % delly_vcf_obj.filename)
-            run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
-            run_cmd("bcftools index %s" % (final_target_vcf_file))
-        else:
-            return vcf_obj.filename
-            #run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
-    else:
+        # ### Run delly if specified ###
+        # final_target_vcf_file = args.files_prefix+".targets.vcf.gz"
+        # if 'amplicon' in args.conf and args.conf['amplicon']==True:
+        #     args.no_delly = True
+        # if not args.no_delly:
+        #     delly_vcf_obj = bam.run_delly(conf['ref'],conf['bed'])
+        #     if delly_vcf_obj is not None:
+        #         run_cmd("bcftools index %s" % delly_vcf_obj.filename)
+        #         run_cmd("bcftools concat %s %s | bcftools sort -Oz -o %s" % (vcf_obj.filename,delly_vcf_obj.filename,final_target_vcf_file))
+        #         run_cmd("bcftools index %s" % (final_target_vcf_file))
+        #     else:
+        #         return vcf_obj.filename
+        #         #run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
+        # else:
         return vcf_obj.filename
         #run_cmd("mv %s %s" % (vcf_obj.filename, final_target_vcf_file))
     
-    return final_target_vcf_file
+    # return final_target_vcf_file
 
 def get_vcf_file(args: argparse.Namespace):
     if args.vcf:

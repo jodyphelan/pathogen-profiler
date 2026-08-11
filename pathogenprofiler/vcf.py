@@ -95,7 +95,7 @@ class Vcf:
             self.caller = 'freebayes'
         else:
             self.caller = 'Unknown'
-        
+        self.filename = filename
 
     def view_regions(self,bed_file):
         self.bed_file = bed_file
