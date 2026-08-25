@@ -1,3 +1,5 @@
+import shutil
+
 from .fastq import Fastq
 from .utils import run_cmd, cmd_out, shared_dict
 from .bam import Bam
@@ -154,8 +156,9 @@ def get_vcf_from_bam(args: argparse.Namespace):
         # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
         vcf_obj = bam.call_variants(conf["ref"], gff_file=conf['gff'],callers=args.callers, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
-
-    return vcf_obj.filename
+    final_vcf_file = f"{args.files_prefix}.vcf.gz"
+    shutil.move(vcf_obj.filename, final_vcf_file)
+    return final_vcf_file
 
     
     # return final_target_vcf_file
