@@ -49,7 +49,7 @@ def get_stand_support(var: pysam.VariantRecord,alt: str) -> Tuple[int,int]:
         forward_support = None
         reverse_support = None
     
-    logging.debug(f"Forward support: {forward_support}, Reverse support: {reverse_support}")
+
     return forward_support, reverse_support
 
 def get_sv_ad(var):
@@ -427,7 +427,7 @@ def filter_variant(var,filter_params):
             qc = "hard_fail"
         elif var_qc_test(var,filter_params["depth_soft"],filter_params["af_soft"],filter_params["strand_soft"]):
             qc = "soft_fail"
-    logging.debug(qc)
+
     return qc
 
 

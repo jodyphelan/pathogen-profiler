@@ -5,17 +5,52 @@ import os
 import platform 
 import logging
 from .taxonomy import SourmashSig, SylphSketch
-from .models import TargetQC, FastaQC
+from .models import TargetQC, FastaQC, GenomePositionDepth, GenomePosition
 from typing import List
-from .utils import shared_dict
+from .utils import shared_dict, load_bed
+from collections import defaultdict
 
 
 class Paf:
     def __init__(self,filename: str):
         self.filename = filename
 
+    def calculate_bed_depth(self,bed_file: str) -> List[GenomePositionDepth]:
+            """
+            Calculate depth of BAM file in regions specified by a BED file
+            
+            Arguments
+            ---------
+            bed_file : str
+                BED file containing regions to calculate depth for
+            
+            Returns
+            -------
+            List of GenomePositionDepth objects
+            """
+            logging.info("Calculating depth in regions")
+            self.bed_file = bed_file
+            position_depth = defaultdict(list)
+            for r, _ in load_bed(self.bed_file).items():
+                    for p in r.iter_positions():
+                        position_depth[p] = 0
+    
+    
+            for l in cmd_out(f"cut -f6,8,9 {self.filename}"):
+                row = l.strip().split()
+                for i in range(int(row[1]),int(row[2])):
+                    p = GenomePosition(chrom=row[0],pos=i)
+                    if p in position_depth:
+                        position_depth[p] = 1
+    
+            self.position_depth = [GenomePositionDepth(chrom=p.chrom,pos=p.pos,depth=v) for p,v in position_depth.items()]
+            return self.position_depth
+
     def get_target_qc(self,bed_file: str) -> List[TargetQC]:
         results = []
+        position_depth = self.calculate_bed_depth(bed_file)
+
+        print(position_depth)
         for l in cmd_out(f"cut -f6,8,9 {self.filename} | bedtools coverage -a {bed_file} -b -"):
             row = l.strip().split()
             results.append(
