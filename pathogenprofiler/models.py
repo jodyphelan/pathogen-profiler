@@ -1,3 +1,5 @@
+from collections import defaultdict
+import json
 from typing import List, Union, Optional, Generator
 from pydantic import BaseModel, Field
 from statistics import median
@@ -284,7 +286,30 @@ class Variant(BaseModel):
         vars(self).update(vars(csq))
         protein_csqs = ["loss_of_function_variant","missense_variant","stop_gained","start_lost"]
         self.change = self.protein_change if self.type in protein_csqs else self.nucleotide_change    
+
+    def combine_duplicate_annotations(self) -> None:
+
+        for csq in self.consequences:
+            jsonified_annotations = defaultdict(set)
+
+            for a in csq.annotation:
+                j = json.dumps({k: v for k, v in a.items() if k!="comment"})
+
+                jsonified_annotations[j].add(a["comment"])
+
+            new_annotations = []
+            for j, comments in jsonified_annotations.items():
+                a = json.loads(j)
+                if "" in comments:
+                    comments.remove("")
+                a["comment"] = " | ".join(comments)
+                new_annotations.append(a)
+
+            csq.annotation = new_annotations
+
+        
     
+
     def set_gene_name(self, gene_names: dict) -> None:
         """
         Reset gene names for a variant

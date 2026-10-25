@@ -1,3 +1,5 @@
+import json
+
 from .utils import run_cmd, bed2gene_lookup
 from .bam import Bam
 from .barcode import barcode
@@ -99,6 +101,7 @@ def vcf_variant_profiler(conf: dict, prefix: str, vcf_file: str, bam_for_phasing
     for obj in annotated_variants:
         # check if it is a variant or a gene class
         if isinstance(obj, Variant):
+            obj.combine_duplicate_annotations()
             obj.set_default_csq()
 
     # Add gene names based on the bed file
