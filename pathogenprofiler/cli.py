@@ -152,12 +152,14 @@ def get_vcf_from_bam(args: argparse.Namespace):
     if args.call_whole_genome:
         wg_vcf_obj = bam.call_variants(conf["ref"], gff_file=conf['gff'],callers=args.callers, filters = conf['variant_filters'], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
         vcf_obj = wg_vcf_obj
+
         # TODO optional?
         # vcf_obj = wg_vcf_obj.view_regions(conf["bed"])
     else:
         vcf_obj = bam.call_variants(conf["ref"], gff_file=conf['gff'],callers=args.callers, filters = conf['variant_filters'], bed_file=conf["bed"], threads=args.threads, calling_params=args.calling_params, samclip = args.samclip, cli_args=vars(args))
     final_vcf_file = f"{args.files_prefix}.vcf.gz"
     shutil.move(vcf_obj.filename, final_vcf_file)
+    run_cmd(f"tabix -p vcf {final_vcf_file}")
     return final_vcf_file
 
     
