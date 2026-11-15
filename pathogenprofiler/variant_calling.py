@@ -19,6 +19,7 @@ class VariantCaller:
         bam_file: str, 
         prefix: str, 
         bed_file: str = None, 
+        gff_file: str = None,
         threads: int = 1, 
         samclip: bool = False, 
         platform: str = "illumina", 
@@ -31,6 +32,7 @@ class VariantCaller:
         self.bam_file = bam_file
         self.prefix = prefix
         self.bed_file = bed_file
+        self.gff_file = gff_file
         self.threads = threads
         self.samclip = samclip
         self.platform = platform
@@ -159,3 +161,27 @@ class FreebayesHaplotypeCaller(VariantCaller):
             """ % vars(self)
         
         return self.run_calling(self.calling_cmd)
+
+class DellyCaller(VariantCaller):
+    __software__ = "delly"
+    def call_variants(self) -> Vcf:
+        # Call variants using Delly
+        if self.platform=="illumina":
+            cmd = "delly call -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
+        else:
+            cmd = "delly lr -t DEL -g %(ref_file)s %(bam_file)s -o %(prefix)s.delly.bcf" % vars(self)
+        result = run_cmd(cmd, exit_on_error=False)
+        if result.returncode!=0:
+            logging.error("Delly failed, skipping")
+            return None
+        else:
+            shared_dict['software']['long_variant_calling'] = 'delly'
+        run_cmd("bcftools view -c 2 %(prefix)s.delly.bcf | bcftools view -e '(INFO/END-POS)>=100000' -Oz -o %(prefix)s.delly.vcf.gz" % vars(self))
+        run_cmd("bcftools index %(prefix)s.delly.vcf.gz" % vars(self))
+        if self.bed_file:
+            run_cmd("bcftools view -R %(bed_file)s %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
+            return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+        else:
+            run_cmd("bcftools view %(prefix)s.delly.vcf.gz -Oz -o %(prefix)s.delly.targets.vcf.gz" % vars(self))
+            return Vcf("%(prefix)s.delly.targets.vcf.gz" % vars(self))
+        

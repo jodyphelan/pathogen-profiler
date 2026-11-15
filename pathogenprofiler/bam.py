@@ -106,30 +106,47 @@ class Bam:
     def call_variants(
         self,
         ref_file: str,
-        caller: str,
+        callers: List[str],
         filters: dict,
         bed_file: Optional[str] = None,
+        gff_file: Optional[str] = None,
         threads: int = 1,
-        calling_params: Optional[str] = None, 
+        calling_params: Optional[List[str]] = None, 
         samclip: bool = False,
         cli_args: dict = {}
     ) -> Vcf:
         from .variant_calling import VariantCaller
         subclasses = {cls.__software__:cls for cls in VariantCaller.__subclasses__()}
-        chosen_class = subclasses[caller]
-        caller = chosen_class(
-            ref_file=ref_file,
-            bam_file=self.bam_file,
-            prefix=self.prefix,
-            bed_file=bed_file,
-            threads=threads,
-            samclip=samclip,
-            platform=self.platform,
-            calling_params=calling_params,
-            filters=filters,
-            cli_args=cli_args
-        )
-        return caller.call_variants()
+        vcf_files = []
+        for i in range(len(callers)):
+            logging.info("Running variant calling with %s" % callers[i])
+            caller = callers[i]
+            calling_param = calling_params[i] if calling_params else None
+            chosen_class = subclasses[caller]
+            caller = chosen_class(
+                ref_file=ref_file,
+                bam_file=self.bam_file,
+                prefix=self.prefix,
+                bed_file=bed_file,
+                gff_file=gff_file,
+                threads=threads,
+                samclip=samclip,
+                platform=self.platform,
+                calling_params=calling_param,
+                filters=filters,
+                cli_args=cli_args
+            )
+            vcf_file = caller.call_variants()
+            vcf_files.append(vcf_file)
+        if len(vcf_files) == 1:
+            return Vcf(vcf_files[0].filename)
+        else:
+            # Merge VCF files if multiple callers were used
+            merged_vcf_file = f"{self.prefix}.merged.vcf.gz"
+            vcf_files_str = ' '.join([vcf.filename for vcf in vcf_files])
+            run_cmd(f"bcftools concat {vcf_files_str} | bcftools sort -Oz -o {merged_vcf_file}")
+            run_cmd(f"bcftools index {merged_vcf_file}")
+            return Vcf(merged_vcf_file)
     
     
     

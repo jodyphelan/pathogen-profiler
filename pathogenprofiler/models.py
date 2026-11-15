@@ -1,3 +1,5 @@
+from collections import defaultdict
+import json
 from typing import List, Union, Optional, Generator
 from pydantic import BaseModel, Field
 from statistics import median
@@ -243,7 +245,7 @@ class Variant(BaseModel):
         Consequence(gene_id='Rv0667', gene_name='rpoB', feature_id='CCP43410', type='missense_variant', nucleotide_change='c.1349C>T', protein_change='p.Ser450Leu', annotation=[{'type': 'drug_resistance', 'drug': 'rifampicin'}])
         """
 
-        rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
+        rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","initiator_codon_variant","synonymous_variant"]
 
         ranked_csq = sorted(self.consequences,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x.type.split("&")]))
         return ranked_csq[0]
@@ -265,7 +267,7 @@ class Variant(BaseModel):
             if len(csq.annotation)>0:
                 annotated_csq.append(csq)
         if len(annotated_csq)==0:
-            rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","initiator_codon_variant","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","synonymous_variant"]
+            rank = ["transcript_ablation","exon_loss_variant","frameshift_variant","large_deletion","start_lost","disruptive_inframe_deletion","disruptive_inframe_insertion","stop_gained","stop_lost","conservative_inframe_deletion","conservative_inframe_insertion","missense_variant","non_coding_transcript_exon_variant","upstream_gene_variant","5_prime_UTR_premature_start_codon_gain_variant","5_prime_UTR_variant","3_prime_UTR_variant","non_coding_transcript_variant","stop_retained_variant","splice_region_variant","initiator_codon_variant","synonymous_variant"]
             ranked_csq = sorted(self.consequences,key=lambda x: min([rank.index(y) if y in rank else 999 for y in x.type.split("&")]))
             csq = ranked_csq[0]
         elif len(annotated_csq)==1:
@@ -284,7 +286,30 @@ class Variant(BaseModel):
         vars(self).update(vars(csq))
         protein_csqs = ["loss_of_function_variant","missense_variant","stop_gained","start_lost"]
         self.change = self.protein_change if self.type in protein_csqs else self.nucleotide_change    
+
+    def combine_duplicate_annotations(self) -> None:
+
+        for csq in self.consequences:
+            jsonified_annotations = defaultdict(set)
+
+            for a in csq.annotation:
+                j = json.dumps({k: v for k, v in a.items() if k!="comment"})
+
+                jsonified_annotations[j].add(a["comment"])
+
+            new_annotations = []
+            for j, comments in jsonified_annotations.items():
+                a = json.loads(j)
+                if "" in comments:
+                    comments.remove("")
+                a["comment"] = " | ".join(comments)
+                new_annotations.append(a)
+
+            csq.annotation = new_annotations
+
+        
     
+
     def set_gene_name(self, gene_names: dict) -> None:
         """
         Reset gene names for a variant
