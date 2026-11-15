@@ -225,7 +225,7 @@ def return_fields(obj,args,i=0):
     if isinstance(sub_obj,dict):
         return return_fields(sub_obj,args,i+1)
     elif isinstance(sub_obj,list):
-        return list(set([return_fields(x,args,i+1) for x in sub_obj]))
+        return list([return_fields(x,args,i+1) for x in sub_obj])
     else:
         return sub_obj
         
@@ -241,8 +241,8 @@ def variable2string(var,quote=False):
         newlist = [str(x) for x in var if x is not None]
         if set(newlist)=={''}:
             return ""
-        elif len(set(newlist))==1:
-            return "%s%s%s" % (q,str(newlist[0]),q)
+        # elif len(set(newlist))==1:
+            # return "%s%s%s" % (q,str(newlist[0]),q)
         return "%s%s%s" % (q,",".join(newlist),q)
     else:
         return "%s%s%s" % (q,str(var),q)
@@ -266,6 +266,10 @@ def dict_list2text(l,columns = None, mappings = None,sep="\t"):
     return out.strip()
 
 def object_list2text(l: list,columns: list = None, mappings: dict = None,sep: str="\t"):
+    if sep==',':
+        quote='"'
+    else:
+        quote=''
     if len(l)==0:
         return ""
     l = [l.dict() for l in l]
@@ -279,7 +283,7 @@ def object_list2text(l: list,columns: list = None, mappings: dict = None,sep: st
     rows = []
     header = sep.join([mappings[x].title() if (mappings!=None and x in mappings) else x.title() for x in headings])
     for row in l:
-        r = sep.join([variable2string(return_fields(row,x)) for x in headings])
+        r = sep.join([variable2string(return_fields(row,x),quote=quote) for x in headings])
         rows.append(r)
     str_rows = "\n".join(rows)
     out ="%s\n%s" % (header,str_rows)
