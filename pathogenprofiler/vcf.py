@@ -260,7 +260,7 @@ class Vcf:
                 #         )
                 #     )
                 
-                
+
                 if len(tmp_var.consequences)==0:
                     continue
                 variants.append(tmp_var)

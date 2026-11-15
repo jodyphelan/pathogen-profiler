@@ -50,7 +50,7 @@ class Paf:
         results = []
         position_depth = self.calculate_bed_depth(bed_file)
 
-        print(position_depth)
+
         for l in cmd_out(f"cut -f6,8,9 {self.filename} | bedtools coverage -a {bed_file} -b -"):
             row = l.strip().split()
             results.append(
